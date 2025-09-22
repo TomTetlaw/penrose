@@ -45,11 +45,12 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId) {
   InstanceData instance = instance_buffer[instance_id];
   float4 colour = input.colour * instance.colour;
   float2 tex_coord = input.tex_coord;
-  float4 world_position = mul(float4(input.position, 1), instance.transform);
-  float4 view_position = mul(world_position, world_to_view);
-  float4 clip_position = mul(view_position, view_to_clip);
-  float3 normal = normalize(mul(adjoint(instance.transform), input.normal));
-  float3 tangent = normalize(mul(adjoint(instance.transform), input.tangent));
+  float4 world_position = mul(instance.transform, float4(input.position, 1));
+  float4 view_position = mul(world_to_view, world_position);
+  float4 clip_position = mul(view_to_clip, view_position);
+  float3x3 adj = adjoint(instance.transform);
+  float3 normal = normalize(mul(adj, input.normal));
+  float3 tangent = normalize(mul(adj, input.tangent));
   float3 bitangent = normalize(cross(normal, tangent));
   FragInput output = (FragInput)0;
   output.clip_position = clip_position;

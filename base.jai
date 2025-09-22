@@ -54,21 +54,12 @@ align_pow2 :: (x: $T, a: T) -> T
 
 copy :: (dest: *void, source: *void, size: u64)
 {
-  s := cast(*u8) source;
-  d := cast(*u8) dest;
-  for 0..size-1
-  {
-    d[it] = s[it];
-  }
+  memcpy(dest, source, xx size);
 }
 
 zero :: (memory: *void, size: u64)
 {
-  base := cast(*u8) memory;
-  for 0..size-1
-  {
-    base[it] = 0;
-  }
+  memset(memory, 0, xx size);
 }
 
 stack_reset :: (first: **$T)

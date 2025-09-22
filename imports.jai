@@ -8,7 +8,10 @@ using,only
 ) Basic :: #import "Basic";
 using,only
 (
-  log
+  log, exp,
+  sin, cos, tan,
+  TAU, PI,
+  sqrt
 ) Math :: #import "Math";
 using,only
 (
