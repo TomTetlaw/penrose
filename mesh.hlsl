@@ -13,6 +13,8 @@ struct FragInput
   float4 clip_position: SV_Position;
   float2 tex_coord: TEXCOORD0;
   float4 colour: TEXCOORD1;
+  float3 normal: TEXCOORD2;
+  float3 tangent: TEXCOORD3;
 };
 
 cbuffer ConstantBuffer : register(b0, space1)
@@ -45,17 +47,18 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId) {
   InstanceData instance = instance_buffer[instance_id];
   float4 colour = input.colour * instance.colour;
   float2 tex_coord = input.tex_coord;
-  float4 world_position = mul(instance.transform, float4(input.position, 1));
-  float4 view_position = mul(world_to_view, world_position);
-  float4 clip_position = mul(view_to_clip, view_position);
+  float4 world_position = mul(float4(input.position, 1), instance.transform);
+  float4 view_position = mul(world_position, world_to_view);
+  float4 clip_position = mul(view_position, view_to_clip);
   float3x3 adj = adjoint(instance.transform);
   float3 normal = normalize(mul(adj, input.normal));
   float3 tangent = normalize(mul(adj, input.tangent));
-  float3 bitangent = normalize(cross(normal, tangent));
-  FragInput output = (FragInput)0;
+  FragInput output;
   output.clip_position = clip_position;
   output.tex_coord = tex_coord;
   output.colour = colour;
+  output.normal = normal;
+  output.tangent = tangent;
   return output;
 }
 

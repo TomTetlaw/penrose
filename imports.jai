@@ -2,6 +2,7 @@ using,only
 (
   min, max,
   print,
+  assert,
   String_Builder,
   print_to_builder,
   builder_to_string

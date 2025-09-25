@@ -80,6 +80,13 @@ arena_push :: (arena: *Arena, size: u64) -> *void
   return memory;
 }
 
+arena_push_copy :: (arena: *Arena, data: *void, size: u64) -> *void
+{
+  result := arena_push(arena, size);
+  copy(result, data, size);
+  return result;
+}
+
 arena_push_struct :: (arena: *Arena, $T: Type, count: u64 = 1) -> *T
 {
   result := arena_push(arena, size_of(T));

@@ -1,5 +1,55 @@
 
 dr_shaders_dir :: "shaders";
+dr_max_mesh_instances :: 1024;
+
+DR_Buffer :: struct
+{
+  next: *DR_Buffer;
+  ref: *SDL_GPUBuffer;
+  capacity: int;
+  used: int;
+}
+
+DR_BufferRef :: struct
+{
+  ref: *SDL_GPUBuffer;
+  offset: int;
+  size: int;
+}
+
+DR_MeshInstance :: struct
+{
+  transform: Mat4x4F32;
+  colour: Vec4F32;
+}
+
+DR_MeshConstants :: struct
+{
+  world_to_view: Mat4x4F32;
+  view_to_clip: Mat4x4F32;
+}
+
+DR_DrawMesh :: struct
+{
+  next: *DR_DrawMesh;
+  instances: DR_BufferRef;
+  vertices: DR_BufferRef;
+  indices: DR_BufferRef;
+  base_instance: int;
+  base_vertex: int;
+  base_index: int;
+  instance_count: int;
+  index_count: int;
+}
+
+DR_Mesh :: struct
+{
+  next: *DR_Mesh;
+  buffer_vertex: *DR_Buffer;
+  buffer_index: *DR_Buffer;
+  vertices: DR_BufferRef;
+  indices: DR_BufferRef;
+}
 
 DR_RendererState :: struct
 {
@@ -7,12 +57,16 @@ DR_RendererState :: struct
   device: *SDL_GPUDevice;
   window: *SDL_Window;
   resolution: Vec2F32;
-
   shaders: *DR_Shader;
   pipelines: *DR_Pipeline;
-
+  buffers: *DR_Buffer;
+  meshes: *DR_Mesh;
+  mesh_instances: *DR_Buffer;
   shader_mesh: *DR_Shader;
   pipeline_mesh: *DR_Pipeline;
+  draw_meshes: *DR_DrawMesh;
+
+  mesh_cube: *DR_Mesh;
 
   upload_size: int;
   upload_queue: *DR_Upload;
@@ -68,6 +122,78 @@ DR_MeshVertex :: struct
 
 dr_renderer: *DR_RendererState;
 
+dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) -> *DR_Mesh
+{
+  capacity_vertices := size_of(DR_MeshVertex) * vertices.count;
+  capacity_indices := size_of(u32) * indices.count;
+  mesh := arena_push_struct(dr_renderer.arena, DR_Mesh);
+  stack_push(*dr_renderer.meshes, mesh);
+  mesh.buffer_vertex = dr_create_vertex_buffer(str_format(arena_temp, "%_vertices", name), capacity_vertices, null, 0, 0);
+  mesh.buffer_index = dr_create_index_buffer(str_format(arena_temp, "%_indices", name), capacity_indices, null, 0, 0);
+  mesh.vertices = dr_write_buffer(mesh.buffer_vertex, vertices.data, capacity_vertices);
+  mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
+  return mesh;
+}
+
+dr_create_storage_buffer :: #bake_arguments dr_create_buffer(usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ);
+dr_create_vertex_buffer :: #bake_arguments dr_create_buffer(usage = SDL_GPU_BUFFERUSAGE_VERTEX);
+dr_create_index_buffer :: #bake_arguments dr_create_buffer(usage = SDL_GPU_BUFFERUSAGE_INDEX);
+dr_create_buffer :: (name: string, capacity: int, data: *void, size: int, offset: int, usage: SDL_GPUBufferUsageFlags) -> *DR_Buffer
+{
+  info: SDL_GPUBufferCreateInfo;
+	info.usage = usage;
+	info.size = xx capacity;
+	ref := SDL_CreateGPUBuffer(dr_renderer.device, *info);
+	if ref
+	{
+	  SDL_SetGPUBufferName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
+	  buffer := arena_push_struct(dr_renderer.arena, DR_Buffer);
+	  stack_push(*dr_renderer.buffers, buffer);
+	  buffer.ref = ref;
+	  buffer.capacity = capacity;
+	  if data
+	  {
+	    dr_queue_buffer_upload(buffer, data, size, offset);
+	    buffer.used = size;
+	  }
+	  return buffer;
+	}
+	return null;
+}
+
+dr_write_buffer :: (buffer: *DR_Buffer, data: *void, size: int) -> DR_BufferRef
+{
+  result: DR_BufferRef;
+  if buffer.used + size <= buffer.capacity
+  {
+    dr_queue_buffer_upload(buffer, data, size, 0);
+    result.ref = buffer.ref;
+    result.offset = buffer.used;
+    result.size = size;
+    buffer.used += size;
+  }
+  return result;
+}
+
+dr_reset_buffer :: (buffer: *DR_Buffer)
+{
+  buffer.used = 0;
+}
+
+dr_draw_mesh :: (arena: *Arena, instances: [] DR_MeshInstance, vertices: DR_BufferRef, indices: DR_BufferRef)
+{
+  draw_mesh := arena_push_struct(arena, DR_DrawMesh);
+  stack_push(*dr_renderer.draw_meshes, draw_mesh);
+  draw_mesh.instances = dr_write_buffer(dr_renderer.mesh_instances, instances.data, size_of(DR_MeshInstance) * instances.count);
+  draw_mesh.vertices = vertices;
+  draw_mesh.indices = indices;
+  draw_mesh.base_instance = draw_mesh.instances.offset / size_of(DR_MeshInstance);
+  draw_mesh.base_vertex = vertices.offset / size_of(DR_MeshVertex);
+  draw_mesh.base_index = indices.offset / size_of(u32);
+  draw_mesh.instance_count = instances.count;
+  draw_mesh.index_count = indices.size / size_of(u32);
+}
+
 dr_create_pipeline :: (shader: *DR_Shader, enable_alpha_blend: bool) -> *DR_Pipeline
 {
   colour_target_desc: SDL_GPUColorTargetDescription;
@@ -84,59 +210,91 @@ dr_create_pipeline :: (shader: *DR_Shader, enable_alpha_blend: bool) -> *DR_Pipe
   }
   VertAttributeDesc :: struct
   {
-    stride: u32;
+    offset: u32;
     format: SDL_GPUVertexElementFormat;
   };
   vert_attribute_desc :: VertAttributeDesc.[
-    .{size_of(Vec3F32), .FLOAT3},
-    .{size_of(Vec2F32), .FLOAT2},
-    .{size_of(Vec4F32), .FLOAT4},
-    .{size_of(Vec3F32), .FLOAT3},
-    .{size_of(Vec3F32), .FLOAT3},
+    .{#run offset_of(DR_MeshVertex, "position"),  .FLOAT3},
+    .{#run offset_of(DR_MeshVertex, "tex_coord"), .FLOAT2},
+    .{#run offset_of(DR_MeshVertex, "colour"),    .FLOAT4},
+    .{#run offset_of(DR_MeshVertex, "normal"),    .FLOAT3},
+    .{#run offset_of(DR_MeshVertex, "tangent"),   .FLOAT3},
   ];
   attributes: [vert_attribute_desc.count] SDL_GPUVertexAttribute;
   for * vert_attribute_desc
   {
     attributes[it_index].location = xx it_index;
-    attributes[it_index].buffer_slot = xx it_index;
-    attributes[it_index].offset = 0;
+    attributes[it_index].buffer_slot = 0;
+    attributes[it_index].offset = it.offset;
     attributes[it_index].format = it.format;
   }
-  buffers: [vert_attribute_desc.count] SDL_GPUVertexBufferDescription;
-  for * vert_attribute_desc
-  {
-    buffers[it_index].slot = xx it_index;
-    buffers[it_index].pitch = it.stride;
-    buffers[it_index].input_rate = .VERTEX;
-  }
+  vertex_buffer_desc: SDL_GPUVertexBufferDescription;
+  vertex_buffer_desc.slot = 0;
+  vertex_buffer_desc.pitch = size_of(DR_MeshVertex);
+  vertex_buffer_desc.input_rate = .VERTEX;
   info_base: SDL_GPUGraphicsPipelineCreateInfo;
-  info_base.vertex_input_state.num_vertex_buffers = vert_attribute_desc.count;
-  info_base.vertex_input_state.vertex_buffer_descriptions = buffers.data;
-  info_base.vertex_input_state.num_vertex_attributes = vert_attribute_desc.count;
+  info_base.vertex_input_state.vertex_buffer_descriptions = *vertex_buffer_desc;
+  info_base.vertex_input_state.num_vertex_buffers = 1;
   info_base.vertex_input_state.vertex_attributes = attributes.data;
+  info_base.vertex_input_state.num_vertex_attributes = vert_attribute_desc.count;
   info_base.target_info.color_target_descriptions = *colour_target_desc;
   info_base.target_info.num_color_targets = 1;
-  info_base.rasterizer_state.cull_mode = .BACK;
-  info_base.primitive_type = .TRIANGLESTRIP;
+  info_base.rasterizer_state.cull_mode = .FRONT;
+  info_base.rasterizer_state.fill_mode = .FILL;
+  info_base.primitive_type = .TRIANGLELIST;
   info_base.vertex_shader = shader.vert;
   info_base.fragment_shader = shader.frag;
   ref_base := SDL_CreateGPUGraphicsPipeline(dr_renderer.device, *info_base);
+  info_wireframe := info_base;
+  info_wireframe.rasterizer_state.fill_mode = .LINE;
+  ref_wireframe := SDL_CreateGPUGraphicsPipeline(dr_renderer.device, *info_wireframe);
   pipeline := arena_push_struct(dr_renderer.arena, DR_Pipeline);
   stack_push(*dr_renderer.pipelines, pipeline);
-  pipeline.ref_base = ref_base;
+  pipeline.ref_base = ref_wireframe;
+  pipeline.ref_wireframe = ref_base;
   return pipeline;
 }
 
-dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
+dr_create_builtin_meshes :: () {
+  cube_vertices := DR_MeshVertex.[
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+  ];
+  cube_indices := u32.[
+    0,1,2, 0,2,3,
+    4,5,6, 4,6,7,
+    8,9,10, 8,10,11,
+    12,13,14, 12,14,15,
+    16,17,18, 16,18,19,
+    20,21,22, 20,22,23,
+  ];
+  dr_renderer.mesh_cube = dr_create_mesh("dr_default_cube", cube_vertices, cube_indices);
+}
+
+dr_create_sampler_set :: ()
 {
-  arena := mem_create_arena();
-  dr_renderer = arena_push_struct(arena, DR_RendererState);
-  dr_renderer.arena = arena;
-  dr_renderer.window = window;
-  dr_renderer.device = device;
-  dr_renderer.resolution = resolution;
-  dr_renderer.shader_mesh = dr_get_shader("mesh");
-  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, true);
   filters := SDL_GPUFilter.[
     .NEAREST,
     .LINEAR
@@ -174,6 +332,21 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   }
 }
 
+dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
+{
+  arena := mem_create_arena();
+  dr_renderer = arena_push_struct(arena, DR_RendererState);
+  dr_renderer.arena = arena;
+  dr_renderer.window = window;
+  dr_renderer.device = device;
+  dr_renderer.resolution = resolution;
+  dr_renderer.shader_mesh = dr_get_shader("mesh");
+  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, true);
+  dr_renderer.mesh_instances = dr_create_storage_buffer("mesh_instances", size_of(DR_MeshInstance) * dr_max_mesh_instances, null, 0, 0);
+  dr_create_builtin_meshes();
+  dr_create_sampler_set();
+}
+
 dr_get_sampler :: (filter: SDL_GPUFilter, mip_filter: SDL_GPUSamplerMipmapMode, address_mode: SDL_GPUSamplerAddressMode) -> *SDL_GPUSampler
 {
   index := cast(int) filter +
@@ -182,14 +355,14 @@ dr_get_sampler :: (filter: SDL_GPUFilter, mip_filter: SDL_GPUSamplerMipmapMode, 
   return dr_renderer.sampler_set[index];
 }
 
-dr_queue_buffer_upload :: (dest: *SDL_GPUBuffer, data: *void, size: int, offset: int)
+dr_queue_buffer_upload :: (dest: *DR_Buffer, data: *void, size: int, offset: int)
 {
   upload := arena_push_struct(arena_temp, DR_Upload);
   queue_push(*dr_renderer.upload_queue, *dr_renderer.last_upload, upload);
   upload.size = size;
-  upload.data = data;
+  upload.data = arena_push_copy(arena_temp, data, xx size);
   upload.offset = offset;
-  upload.buffer = dest;
+  upload.buffer = dest.ref;
   dr_renderer.upload_size += size;
 }
 
@@ -200,7 +373,7 @@ dr_queue_texture_upload :: (dest: *SDL_GPUTexture, data: *void, width: int, heig
   upload.size = width * height * stride;
   upload.width = width;
   upload.height = height;
-  upload.data = data;
+  upload.data = arena_push_copy(arena_temp, data, xx upload.size);
   upload.x = x;
   upload.y = y;
   upload.texture = dest;
@@ -260,6 +433,7 @@ dr_process_upload_queue :: (command_buffer: *SDL_GPUCommandBuffer)
       region.d = 1;
       SDL_UploadToGPUTexture(copy_pass, *location, *region, false);
     }
+    cursor += it.size;
   }
   SDL_EndGPUCopyPass(copy_pass);
   dr_renderer.upload_size = 0;
@@ -273,6 +447,11 @@ dr_draw_frame :: ()
   SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
   if (swap_texture)
   {
+    instances :=  DR_MeshInstance.[.{mat4x4f32_translate(v3f32(25, 0, 0)), v4f32(1, 0, 0, 1)}];
+    vertices := dr_renderer.mesh_cube.vertices;
+    indices := dr_renderer.mesh_cube.indices;
+    dr_draw_mesh(arena_temp, instances, vertices, indices);
+
     dr_process_upload_queue(command_buffer);
     colour_target := SDL_GPUColorTargetInfo.{
       texture = swap_texture,
@@ -280,9 +459,26 @@ dr_draw_frame :: ()
       load_op = .CLEAR,
       store_op = .STORE
     };
+    constants: DR_MeshConstants;
+    constants.world_to_view = mat4x4f32_identity();
+    aspect := dr_renderer.resolution.x / dr_renderer.resolution.y;
+    constants.view_to_clip = mat4x4f32_perspective(0.125, aspect, 0.1, 1000.0);
     main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, null);
+    SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
+    SDL_PushGPUVertexUniformData(command_buffer, 0, *constants, xx size_of(DR_MeshConstants));
+    SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
+    for each_element(dr_renderer.draw_meshes)
+    {
+      binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
+      binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
+      SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
+      SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+      SDL_DrawGPUIndexedPrimitives(main_pass, xx it.index_count, xx it.instance_count, xx it.base_index, xx it.base_vertex, xx it.base_instance);
+    }
     SDL_EndGPURenderPass(main_pass);
     SDL_SubmitGPUCommandBuffer(command_buffer);
+    dr_renderer.draw_meshes = null;
+    dr_reset_buffer(dr_renderer.mesh_instances);
   }
   else
   {
