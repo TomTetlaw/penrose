@@ -1,7 +1,7 @@
 //
 // This file was auto-generated using the following command:
 //
-// jai build.jai
+// jai generate.jai
 //
 
 
@@ -24331,9 +24331,9 @@ SDL_Event :: union {
     architectures) for this union, and GCC will use the alignment of the
     largest datatype within the union, which is 8 bytes on 64-bit
     architectures.
-    
+
     So... we'll add padding to force the size to be the same for both.
-    
+
     On architectures where pointers are 16 bytes, this needs rounding up to
     the next multiple of 16, 64, and on architectures where pointers are
     even larger the size of SDL_UserEvent will dominate as being 3 pointers.
@@ -29892,7 +29892,7 @@ SDL_hid_device_info :: struct {
 
     /** The USB interface which this logical device
     represents.
-    
+
     Valid only if the device is a USB HID device.
     Set to -1 in all other cases.
     */
@@ -34983,6 +34983,7 @@ SDL_GetStorageSpaceRemaining :: (storage: *SDL_Storage) -> Uint64 #foreign sdl3;
 SDL_GlobStorageDirectory :: (storage: *SDL_Storage, path: *u8, pattern: *u8, flags: SDL_GlobFlags, count: *s32) -> **u8 #foreign sdl3;
 
 tagMSG :: struct {}
+MSG :: tagMSG;
 
 /**
 * A callback to be used with SDL_SetWindowsMessageHook.
@@ -36443,6 +36444,8 @@ SDL_ShaderCross_CompileComputePipelineFromHLSL :: (device: *SDL_GPUDevice, info:
 
 #import "Basic"; // For assert, push_context
 
+sdl3 :: #library,no_dll "lib/SDL3";
+sdl3_shadercross :: #library,no_dll "lib/SDL3_shadercross";
 
 #run {
     {
@@ -40097,6 +40100,3 @@ SDL_ShaderCross_CompileComputePipelineFromHLSL :: (device: *SDL_GPUDevice, info:
     }
 }
 
-    MSG :: struct{};
-    sdl3 :: #library "/lib/sdl3";
-    sdl3_shadercross :: #library "/lib/SDL3_shadercross";

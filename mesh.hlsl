@@ -19,13 +19,13 @@ struct FragInput
 
 cbuffer ConstantBuffer : register(b0, space1)
 {
-  float4x4 world_to_view;
-  float4x4 view_to_clip;
+  row_major float4x4 world_to_view;
+  row_major float4x4 view_to_clip;
 }
 
 struct InstanceData
 {
-  float4x4 transform;
+  row_major float4x4 transform;
   float4 colour;
 };
 

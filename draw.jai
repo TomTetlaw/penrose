@@ -447,7 +447,7 @@ dr_draw_frame :: ()
   SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
   if (swap_texture)
   {
-    instances :=  DR_MeshInstance.[.{mat4x4f32_translate(v3f32(25, 0, 0)), v4f32(1, 0, 0, 1)}];
+    instances :=  DR_MeshInstance.[.{mat4x4f32_translate(v3f32(0, 0, 0)), v4f32(1, 0, 0, 1)}];
     vertices := dr_renderer.mesh_cube.vertices;
     indices := dr_renderer.mesh_cube.indices;
     dr_draw_mesh(arena_temp, instances, vertices, indices);
@@ -541,7 +541,7 @@ dr_get_shader :: (name: string) -> *DR_Shader
     {
       if name == it.name
       {
-        path := str_format(arena_temp, "%/%.spirv", dr_shaders_dir, name);
+        path := str_format(arena_temp, "%/%.shader_binary", dr_shaders_dir, name);
         file, ok := file_open(path);
         if ok
         {
@@ -561,7 +561,7 @@ dr_get_shader :: (name: string) -> *DR_Shader
   {
     dr_compile_shader(name);
   }
-  file, ok := file_open(str_format(arena_temp, "%/%.spirv", dr_shaders_dir, name));
+  file, ok := file_open(str_format(arena_temp, "%/%.shader_binary", dr_shaders_dir, name));
   if ok
   {
     header: DR_ShaderHeader;
@@ -649,7 +649,7 @@ dr_compile_shader :: (name: string)
     header.vert_size = infos[0].spirv_size;
     header.frag_meta = infos[1].meta;
     header.frag_size = infos[1].spirv_size;
-    file := file_open(str_format(arena_temp, "%/%.spirv", dr_shaders_dir, name), true);
+    file := file_open(str_format(arena_temp, "%/%.shader_binary", dr_shaders_dir, name), true);
     file_write(*file, *header, size_of(DR_ShaderHeader));
     file_write(*file, infos[0].spirv, infos[0].spirv_size);
     file_write(*file, infos[1].spirv, infos[1].spirv_size);

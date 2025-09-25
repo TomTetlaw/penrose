@@ -169,33 +169,26 @@ normalize_v4 :: (v: V4($T)) -> V4(T) { return v * (1.0 / length_v4(v)); }
 
 Mat4x4F32 :: struct
 {
-  _11, _12, _13, _14: float;
-  _21, _22, _23, _24: float;
-  _31, _32, _33, _34: float;
-  _41, _42, _43, _44: float;
-  #place _11; m: [4][4] float;
+  _00, _01, _02, _03: float;
+  _10, _11, _12, _13: float;
+  _20, _21, _22, _23: float;
+  _30, _31, _32, _33: float;
+  #place _00; m: [4][4] float;
 }
 
 operator * :: (a: Mat4x4F32, b: Mat4x4F32) -> Mat4x4F32 { return mul_mat4x4f32(a, b); }
 mul_mat4x4f32 :: (a: Mat4x4F32, b: Mat4x4F32) -> Mat4x4F32
 {
-  result: Mat4x4F32 = ---;
-  result._11 = a._11*b._11 + a._12*b._21 + a._13*b._31 + a._14*b._41;
-  result._21 = a._21*b._11 + a._22*b._21 + a._23*b._31 + a._24*b._41;
-  result._31 = a._31*b._11 + a._32*b._21 + a._33*b._31 + a._34*b._41;
-  result._41 = a._41*b._11 + a._42*b._21 + a._43*b._31 + a._44*b._41;
-  result._12 = a._11*b._12 + a._12*b._22 + a._13*b._32 + a._14*b._42;
-  result._22 = a._21*b._12 + a._22*b._22 + a._23*b._32 + a._24*b._42;
-  result._32 = a._31*b._12 + a._32*b._22 + a._33*b._32 + a._34*b._42;
-  result._42 = a._41*b._12 + a._42*b._22 + a._43*b._32 + a._44*b._42;
-  result._13 = a._11*b._13 + a._12*b._23 + a._13*b._33 + a._14*b._43;
-  result._23 = a._21*b._13 + a._22*b._23 + a._23*b._33 + a._24*b._43;
-  result._33 = a._31*b._13 + a._32*b._23 + a._33*b._33 + a._34*b._43;
-  result._43 = a._41*b._13 + a._42*b._23 + a._43*b._33 + a._44*b._43;
-  result._14 = a._11*b._14 + a._12*b._24 + a._13*b._34 + a._14*b._44;
-  result._24 = a._21*b._14 + a._22*b._24 + a._23*b._34 + a._24*b._44;
-  result._34 = a._31*b._14 + a._32*b._24 + a._33*b._34 + a._34*b._44;
-  result._44 = a._41*b._14 + a._42*b._24 + a._43*b._34 + a._44*b._44;
+  result: Mat4x4F32;
+  for row: 0..3
+  {
+    row_a := v4f32(a.m[row][0], a.m[row][1], a.m[row][2], a.m[row][3]);
+    for col: 0..3
+    {
+      col_b := v4f32(b.m[0][col], b.m[1][col], b.m[2][col], b.m[3][col]);
+      result.m[row][col] = dot_v4(row_a, col_b);
+    }
+  }
   return result;
 }
 
@@ -203,39 +196,39 @@ operator * :: (m: Mat4x4F32, v: Vec4F32) -> Vec4F32 { return mul_mat4x4f32_vec4f
 mul_mat4x4f32_vec4f32 :: (m: Mat4x4F32, v: Vec4F32) -> Vec4F32
 {
   result: Vec4F32;
-  result.x = v.x*m._11 + v.y*m._12 + v.z*m._13 + v.w*m._14;
-  result.y = v.x*m._21 + v.y*m._22 + v.z*m._23 + v.w*m._24;
-  result.z = v.x*m._31 + v.y*m._32 + v.z*m._33 + v.w*m._34;
-  result.w = v.x*m._41 + v.y*m._42 + v.z*m._43 + v.w*m._44;
+  result.x = v.x*m._00 + v.y*m._01 + v.z*m._02 + v.w*m._03;
+  result.y = v.x*m._10 + v.y*m._11 + v.z*m._12 + v.w*m._13;
+  result.z = v.x*m._20 + v.y*m._21 + v.z*m._22 + v.w*m._23;
+  result.w = v.x*m._30 + v.y*m._31 + v.z*m._32 + v.w*m._33;
   return result;
 }
 
 mat4x4f32_identity :: () -> Mat4x4F32
 {
   result: Mat4x4F32;
-  result.m[0][0] = 1.0;
-  result.m[1][1] = 1.0;
-  result.m[2][2] = 1.0;
-  result.m[3][3] = 1.0;
+  result._00 = 1.0;
+  result._11 = 1.0;
+  result._22 = 1.0;
+  result._33 = 1.0;
   return result;
 }
 
 mat4x4f32_scale :: (scale: Vec3F32) -> Mat4x4F32
 {
   result: Mat4x4F32;
-  result.m[0][0] = scale.x;
-  result.m[1][1] = scale.y;
-  result.m[2][2] = scale.z;
-  result.m[3][3] = 1.0;
+  result._00 = scale.x;
+  result._11 = scale.y;
+  result._22 = scale.z;
+  result._33 = 1.0;
   return result;
 }
 
 mat4x4f32_translate :: (translate: Vec3F32) -> Mat4x4F32
 {
   result := mat4x4f32_identity();
-  result.m[3][0] = translate.x;
-  result.m[3][1] = translate.y;
-  result.m[3][2] = translate.z;
+  result._30 = translate.x;
+  result._31 = translate.y;
+  result._32 = translate.z;
   return result;
 }
 
@@ -246,27 +239,16 @@ mat4x4f32_rotate :: (a: Vec3F32, turns: float) -> Mat4x4F32
   sin_theta := sin_turns(turns);
   cos_theta := cos_turns(turns);
   cos_value := 1.0 - cos_theta;
-  result.m[0][0] = (axis.x * axis.x * cos_value) + cos_theta;
-  result.m[0][1] = (axis.x * axis.y * cos_value) + (axis.z * sin_theta);
-  result.m[0][2] = (axis.x * axis.z * cos_value) - (axis.y * sin_theta);
-  result.m[1][0] = (axis.y * axis.x * cos_value) - (axis.z * sin_theta);
-  result.m[1][1] = (axis.y * axis.y * cos_value) + cos_theta;
-  result.m[1][2] = (axis.y * axis.z * cos_value) + (axis.x * sin_theta);
-  result.m[2][0] = (axis.z * axis.x * cos_value) + (axis.y * sin_theta);
-  result.m[2][1] = (axis.z * axis.y * cos_value) - (axis.x * sin_theta);
-  result.m[2][2] = (axis.z * axis.z * cos_value) + cos_theta;
-  result.m[3][3] = 1.0;
-  return result;
-}
-
-// NOTE(tt): converts from our coordinate system to Vulkan's NDC coordinate system
-mat4x4f32_axis_fixup :: () -> Mat4x4F32
-{
-  result: Mat4x4F32;
-  result._12 = -1.0;
-  result._23 = 1.0;
-  result._31 = -1.0;
-  result._44 = 1.0;
+  result._00 = (axis.x * axis.x * cos_value) + cos_theta;
+  result._01 = (axis.x * axis.y * cos_value) + (axis.z * sin_theta);
+  result._02 = (axis.x * axis.z * cos_value) - (axis.y * sin_theta);
+  result._10 = (axis.y * axis.x * cos_value) - (axis.z * sin_theta);
+  result._11 = (axis.y * axis.y * cos_value) + cos_theta;
+  result._12 = (axis.y * axis.z * cos_value) + (axis.x * sin_theta);
+  result._20 = (axis.z * axis.x * cos_value) + (axis.y * sin_theta);
+  result._21 = (axis.z * axis.y * cos_value) - (axis.x * sin_theta);
+  result._22 = (axis.z * axis.z * cos_value) + cos_theta;
+  result._33 = 1.0;
   return result;
 }
 
@@ -276,23 +258,44 @@ mat4x4f32_perspective :: (fov_turns: float, aspect: float, near: float, far: flo
   cot_theta := 1.0 / tan_theta;
   denom := 1.0 / (far - near);
   result: Mat4x4F32;
-  result._11 = cot_theta / aspect;
-  result._22 = cot_theta;
-  result._33 = far * denom;
-  result._34 = -near * far * denom;
-  result._43 = -1.0;
-  return result * mat4x4f32_axis_fixup();
+  result._01 = -cot_theta / aspect;
+  result._12 = cot_theta;
+  result._20 = far * denom;
+  result._23 = -near * far * denom;
+  result._30 = 1.0;
+  result._33 = 1.0;
+  return result;
+}
+
+#run
+{
+  m := mat4x4f32_perspective(0.125, 16.0 / 9.0, 0.1, 1000.0);
+  print("m[0] = %\n", m.m[0]);
+  print("m[1] = %\n", m.m[1]);
+  print("m[2] = %\n", m.m[2]);
+  print("m[3] = %\n", m.m[3]);
+
+  v := v4f32(25, 1, 2, 1.0);
+  print("v = %\n", v);
+
+  v2 := m * v;
+  print("v.x = %\n", v2.x);
+  print("v.y = %\n", v2.y);
+  print("v.z = %\n", v2.z);
+  print("v.w = %\n", v2.w);
+
+  print("v' = %\n", v2.xyz / v2.w);
 }
 
 mat4x4f32_ortho :: (left: float, right: float, bottom: float, top: float, near: float, far: float) -> Mat4x4F32
 {
   result: Mat4x4F32;
-  result.m[0][0] = 2.0 / (right - left);
-  result.m[1][1] = 2.0 / (top - bottom);
-  result.m[2][2] = 2.0 / (far - near);
-  result.m[3][0] = (left + right) / (left - right);
-  result.m[3][1] = (bottom + top) / (bottom - top);
-  result.m[3][2] = (near + far) / (near - far);
-  result.m[3][3] = 1.0;
-  return mat4x4f32_axis_fixup() * result;
+  result._00 = 2.0 / (right - left);
+  result._11 = 2.0 / (top - bottom);
+  result._22 = 2.0 / (far - near);
+  result._30 = (left + right) / (left - right);
+  result._31 = (bottom + top) / (bottom - top);
+  result._32 = (near + far) / (near - far);
+  result._33 = 1.0;
+  return result;
 }

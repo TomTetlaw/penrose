@@ -1,7 +1,7 @@
 //
 // This file was auto-generated using the following command:
 //
-// jai build.jai
+// jai generate.jai
 //
 
 
@@ -127,7 +127,7 @@ stbi_zlib_decode_noheader_buffer :: (obuffer: *u8, olen: s32, ibuffer: *u8, ilen
 
 #import "Basic"; // For assert
 
-stb_image :: #library "modules/stb_image/lib/stb_image";
+stb_image :: #library "lib/stb_image";
 
 #run {
     {
@@ -149,4 +149,3 @@ stb_image :: #library "modules/stb_image/lib/stb_image";
     }
 }
 
-FILE :: *void;
