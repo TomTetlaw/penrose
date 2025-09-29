@@ -225,9 +225,9 @@ mat4x4f32_scale :: (scale: Vec3F32) -> Mat4x4F32
 mat4x4f32_translate :: (translate: Vec3F32) -> Mat4x4F32
 {
   result := mat4x4f32_identity();
-  result._30 = translate.x;
-  result._31 = translate.y;
-  result._32 = translate.z;
+  result._03 = translate.x;
+  result._13 = translate.y;
+  result._23 = translate.z;
   return result;
 }
 
@@ -267,41 +267,21 @@ mat4x4f32_perspective :: (fov_turns: float, aspect: float, near: float, far: flo
   tan_theta := tan_turns(fov_turns * .5);
   cot_theta := 1.0 / tan_theta;
   denom := 1.0 / (far - near);
+
   result: Mat4x4F32;
-  result._00 = -cot_theta / aspect;
+  result._00 = cot_theta / aspect;
   result._11 = cot_theta;
-  result._22 = far * denom;
-  result._23 = -near * far * denom;
+  result._22 = (near + far) * denom;
+  result._23 = -2.0 * near * far * denom;
   result._32 = 1.0;
 
   fixup: Mat4x4F32;
-  fixup._01 = -1;
-  fixup._12 = 1;
-  fixup._20 = 1;
-  fixup._33 = 1;
+  fixup._01 = -1.0;
+  fixup._12 = 1.0;
+  fixup._20 = 1.0;
+  fixup._33 = 1.0;
 
-  return fixup * result;
-}
-
-#run
-{
-  m := mat4x4f32_perspective(0.125, 4.0 / 3.0, 0.1, 1000.0);
-  print("m[0] = %\n", m.m[0]);
-  print("m[1] = %\n", m.m[1]);
-  print("m[2] = %\n", m.m[2]);
-  print("m[3] = %\n", m.m[3]);
-
-  v := Vec3F32.[
-    v3f32(15.0, -.5, -.5),
-    v3f32(15.0,  .5, -.5),
-    v3f32(15.0, -.5,  .5),
-    v3f32(15.0,  .5,  .5),
-  ];
-
-  for v
-  {
-    print("%\n", m * v4f32(it, 1));
-  }
+  return result * fixup;
 }
 
 mat4x4f32_ortho :: (left: float, right: float, bottom: float, top: float, near: float, far: float) -> Mat4x4F32

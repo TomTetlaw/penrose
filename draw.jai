@@ -447,7 +447,7 @@ dr_draw_frame :: ()
   SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
   if (swap_texture)
   {
-    instances :=  DR_MeshInstance.[.{mat4x4f32_identity(), v4f32(1, 0, 0, 1)}];
+    instances :=  DR_MeshInstance.[.{mat4x4f32_translate(v3f32(10, 0, 0)), v4f32(1, 0, 0, 1)}];
     vertices := dr_renderer.mesh_cube.vertices;
     indices := dr_renderer.mesh_cube.indices;
     dr_draw_mesh(arena_temp, instances, vertices, indices);
@@ -459,9 +459,9 @@ dr_draw_frame :: ()
       store_op = .STORE
     };
     constants: DR_MeshConstants;
-    constants.world_to_view = mat4x4f32_translate(v3f32(0, 0, 0));
+    constants.world_to_view = mat4x4f32_identity();
     aspect := dr_renderer.resolution.x / dr_renderer.resolution.y;
-    constants.view_to_clip = mat4x4f32_perspective(0.125, aspect, 0.1, 5000.0);
+    constants.view_to_clip = mat4x4f32_perspective(0.125, aspect, 0.1, 1000.0);
     main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, null);
     SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
     SDL_PushGPUVertexUniformData(command_buffer, 0, *constants, xx size_of(DR_MeshConstants));
