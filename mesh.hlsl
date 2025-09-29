@@ -19,13 +19,13 @@ struct FragInput
 
 cbuffer ConstantBuffer : register(b0, space1)
 {
-  row_major float4x4 world_to_view;
-  row_major float4x4 view_to_clip;
+  float4x4 world_to_view;
+  float4x4 view_to_clip;
 }
 
 struct InstanceData
 {
-  row_major float4x4 transform;
+  float4x4 transform;
   float4 colour;
 };
 
@@ -47,7 +47,7 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId) {
   InstanceData instance = instance_buffer[instance_id];
   float4 colour = input.colour * instance.colour;
   float2 tex_coord = input.tex_coord;
-  float4 world_position = mul(float4(input.position, 1), instance.transform);
+  float4 world_position = mul(float4(input.position+float3(25,0,0), 1), instance.transform);
   float4 view_position = mul(world_position, world_to_view);
   float4 clip_position = mul(view_position, view_to_clip);
   float3x3 adj = adjoint(instance.transform);

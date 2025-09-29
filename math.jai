@@ -180,14 +180,13 @@ operator * :: (a: Mat4x4F32, b: Mat4x4F32) -> Mat4x4F32 { return mul_mat4x4f32(a
 mul_mat4x4f32 :: (a: Mat4x4F32, b: Mat4x4F32) -> Mat4x4F32
 {
   result: Mat4x4F32;
-  for row: 0..3
+  for 0..3
   {
-    row_a := v4f32(a.m[row][0], a.m[row][1], a.m[row][2], a.m[row][3]);
-    for col: 0..3
-    {
-      col_b := v4f32(b.m[0][col], b.m[1][col], b.m[2][col], b.m[3][col]);
-      result.m[row][col] = dot_v4(row_a, col_b);
-    }
+    row := v4f32(a.m[it][0], a.m[it][1], a.m[it][2], a.m[it][3]);
+    result.m[it][0] = dot_v4(row, v4f32(b._00, b._10, b._20, b._30));
+    result.m[it][1] = dot_v4(row, v4f32(b._01, b._11, b._21, b._31));
+    result.m[it][2] = dot_v4(row, v4f32(b._02, b._12, b._22, b._32));
+    result.m[it][3] = dot_v4(row, v4f32(b._03, b._13, b._23, b._33));
   }
   return result;
 }
@@ -252,39 +251,57 @@ mat4x4f32_rotate :: (a: Vec3F32, turns: float) -> Mat4x4F32
   return result;
 }
 
+mat4x4f32_transpose :: (m: *Mat4x4F32)
+{
+  for row: 0..3
+  {
+    for col: 0..3
+    {
+      m.m[row][col], m.m[col][row] = m.m[col][row], m.m[row][col];
+    }
+  }
+}
+
 mat4x4f32_perspective :: (fov_turns: float, aspect: float, near: float, far: float) -> Mat4x4F32
 {
   tan_theta := tan_turns(fov_turns * .5);
   cot_theta := 1.0 / tan_theta;
   denom := 1.0 / (far - near);
   result: Mat4x4F32;
-  result._01 = -cot_theta / aspect;
-  result._12 = cot_theta;
-  result._20 = far * denom;
+  result._00 = -cot_theta / aspect;
+  result._11 = cot_theta;
+  result._22 = far * denom;
   result._23 = -near * far * denom;
-  result._30 = 1.0;
-  result._33 = 1.0;
-  return result;
+  result._32 = 1.0;
+
+  fixup: Mat4x4F32;
+  fixup._01 = -1;
+  fixup._12 = 1;
+  fixup._20 = 1;
+  fixup._33 = 1;
+
+  return fixup * result;
 }
 
 #run
 {
-  m := mat4x4f32_perspective(0.125, 16.0 / 9.0, 0.1, 1000.0);
+  m := mat4x4f32_perspective(0.125, 4.0 / 3.0, 0.1, 1000.0);
   print("m[0] = %\n", m.m[0]);
   print("m[1] = %\n", m.m[1]);
   print("m[2] = %\n", m.m[2]);
   print("m[3] = %\n", m.m[3]);
 
-  v := v4f32(25, 1, 2, 1.0);
-  print("v = %\n", v);
+  v := Vec3F32.[
+    v3f32(15.0, -.5, -.5),
+    v3f32(15.0,  .5, -.5),
+    v3f32(15.0, -.5,  .5),
+    v3f32(15.0,  .5,  .5),
+  ];
 
-  v2 := m * v;
-  print("v.x = %\n", v2.x);
-  print("v.y = %\n", v2.y);
-  print("v.z = %\n", v2.z);
-  print("v.w = %\n", v2.w);
-
-  print("v' = %\n", v2.xyz / v2.w);
+  for v
+  {
+    print("%\n", m * v4f32(it, 1));
+  }
 }
 
 mat4x4f32_ortho :: (left: float, right: float, bottom: float, top: float, near: float, far: float) -> Mat4x4F32
