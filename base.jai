@@ -2,6 +2,15 @@
 F32 :: float32;
 F64 :: float64;
 B8 :: bool;
+U32 :: u32;
+U64 :: u64;
+S32 :: s32;
+S64 :: s64;
+
+MinF32 :: 0h00800000;
+MaxF32 :: 0h7F7FFFFF;
+MinF64 :: 0h00100000_00000000;
+MaxF64 :: 0h7FEFFFFF_FFFFFFFF;
 
 first_true :: (b: [] B8) -> B8, int
 {
@@ -224,4 +233,20 @@ for_expansion :: (iter: LinkedListIterator($T, $next), body: Code, flags: For_Fl
     value = ll_get_next(iter, value);
     index += 1;
   }
+}
+
+file_write_line :: (file: *File, str: string)
+{
+  file_write(file, str);
+  file_write(file, "\n");
+}
+
+file_print_line :: (file: *File, format: string, args: ..Any)
+{
+  allocator := arena_allocator(arena_temp);
+  builder: String_Builder;
+  print_to_builder(*builder, format, ..args,, allocator);
+  append(*builder, "\n");
+  str := builder_to_string(*builder,, allocator);
+  file_write(file, str);
 }

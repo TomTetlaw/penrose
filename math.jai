@@ -1,9 +1,4 @@
 
-f32_min :: 0h00800000;
-f32_max :: 0h7F7FFFFF;
-f64_min :: 0h00100000_00000000;
-f64_max :: 0h7FEFFFFF_FFFFFFFF;
-
 DegreesFromTurns :: 360.0;
 TurnsFromDegrees :: 1.0 / 360.0;
 RadiansFromTurns :: TAU;
@@ -283,6 +278,15 @@ cross_v3 :: (a: V3($T), b: V3(T)) -> V3(T)
 normalize_v2 :: (v: V2($T)) -> V2(T) { return v * (1.0 / length_v2(v)); }
 normalize_v3 :: (v: V3($T)) -> V3(T) { return v * (1.0 / length_v3(v)); }
 normalize_v4 :: (v: V4($T)) -> V4(T) { return v * (1.0 / length_v4(v)); }
+
+rotate_v3 :: (v: Vec3F32, r: Vec3F32) -> Vec3F32
+{
+  m := mat4x4f32_rotate(v3f32(1, 0, 0), r.x) *
+    mat4x4f32_rotate(v3f32(0, 1, 0), r.y) *
+    mat4x4f32_rotate(v3f32(0, 0, 1), r.z);
+  result := m * v4f32(v, 1.0);
+  return result.xyz;
+}
 
 rotate_v3 :: (m: Mat4x4F32, v: Vec3F32) -> Vec3F32
 {

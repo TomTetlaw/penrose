@@ -110,6 +110,7 @@ DR_DrawQuads :: struct
 DR_Mesh :: struct
 {
   next: *DR_Mesh;
+  path: string;
   buffer_vertex: *DR_Buffer;
   buffer_index: *DR_Buffer;
   vertices: DR_BufferRef;
@@ -123,6 +124,7 @@ DR_Mesh :: struct
 DR_Texture :: struct
 {
   next: *DR_Texture;
+  path: string;
   ref: *SDL_GPUTexture;
 }
 
@@ -236,16 +238,42 @@ DR_MeshVertex :: struct
 
 dr_renderer: *DR_RendererState;
 
+dr_get_mesh :: (path: string) -> *DR_Mesh
+{
+  for each_element(dr_renderer.meshes)
+  {
+    if it.path == path
+    {
+      return it;
+    }
+  }
+  return null;
+}
+
+dr_get_texture :: (path: string) -> *DR_Texture
+{
+  for each_element(dr_renderer.textures)
+  {
+    if it.path == path
+    {
+      return it;
+    }
+  }
+  result := tex_load(path);
+  return result;
+}
+
 dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) -> *DR_Mesh
 {
   capacity_vertices := size_of(DR_MeshVertex) * vertices.count;
   mesh := arena_push_struct(dr_renderer.arena, DR_Mesh);
   stack_push(*dr_renderer.meshes, mesh);
+  mesh.path = name;
   mesh.buffer_vertex = dr_create_vertex_buffer(str_format(arena_temp, "%_vertices", name), capacity_vertices, null, 0, 0);
   mesh.vertices = dr_write_buffer(mesh.buffer_vertex, vertices.data, capacity_vertices);
   mesh.vertex_count = vertices.count;
-  mesh.bounds_min = v3f32(f32_max);
-  mesh.bounds_max = v3f32(-f32_max);
+  mesh.bounds_min = v3f32(MaxF32);
+  mesh.bounds_max = v3f32(-MaxF32);
   for vertices
   {
     mesh.bounds_min = min_v3(mesh.bounds_min, it.position);
@@ -321,6 +349,7 @@ dr_create_target_texture :: (name: string, width: int, height: int, format: SDL_
 	{
 	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
 	  texture := arena_push_struct(dr_renderer.arena, DR_Texture);
+	  texture.path = name;
 	  texture.ref = ref;
 	  stack_push(*dr_renderer.textures, texture);
 	  return texture;
@@ -343,6 +372,7 @@ dr_create_draw_texture :: (name: string, width: int, height: int, data: *void) -
 	{
 	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
 	  texture := arena_push_struct(dr_renderer.arena, DR_Texture);
+	  texture.path = name;
 	  texture.ref = ref;
 	  stack_push(*dr_renderer.textures, texture);
     dr_queue_texture_upload(ref, data, width, height, 4, info.num_levels > 1);

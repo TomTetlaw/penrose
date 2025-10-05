@@ -1,0 +1,40 @@
+entity
+position: [13.5, -4.5, 0]
+rotation: [0, 0, 0]
+scale: [8.5, 9, 0.5]
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube
+material_tex_colour: textures/shipping_crates3.tga
+material_tex_normal: textures/shipping_crates3_local.tga
+material_tex_specular: textures/shipping_crates3_s.tga
+material_specular_shininess: 32
+entity
+position: [12, 0, 3]
+rotation: [0, 0, 0]
+scale: [1, 1, 7]
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube
+material_tex_colour: textures/shipping_crates3.tga
+material_tex_normal: textures/shipping_crates3_local.tga
+material_tex_specular: textures/shipping_crates3_s.tga
+material_specular_shininess: 32
+entity
+position: [10, 6, 0]
+rotation: [0, 0, 0]
+scale: [4, 12, 0.5]
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube
+material_tex_colour: textures/shipping_crates3.tga
+material_tex_normal: textures/shipping_crates3_local.tga
+material_tex_specular: textures/shipping_crates3_s.tga
+material_specular_shininess: 32
+entity
+position: [11, 1, 2.5]
+rotation: [0, 0, 0]
+scale: [1, 1, 1]
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube
+material_tex_colour: textures/shipping_crates3.tga
+material_tex_normal: textures/shipping_crates3_local.tga
+material_tex_specular: textures/shipping_crates3_s.tga
+material_specular_shininess: 32

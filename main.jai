@@ -35,6 +35,7 @@ main :: ()
       dr_init(window, device, resolution);
       in_init();
       ed_init();
+      g_init();
       material: DR_MeshMaterial;
       material.tex_colour = tex_load("textures/shipping_crates3.tga");
       material.tex_normal = tex_load("textures/shipping_crates3_local.tga");
