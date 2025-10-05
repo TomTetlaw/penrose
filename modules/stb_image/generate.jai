@@ -5,6 +5,7 @@ generate :: ()
   build_cpp_static_lib("lib/stb_image", "source/stb_image.cpp");
   build_cpp_dynamic_lib("lib/stb_image", "source/stb_image.cpp");
   options: Generate_Bindings_Options;
+  array_add(*options.system_types_to_include, ...["FILE", "_iobuf"]);
   array_add(*options.include_paths, "include");
   array_add(*options.library_search_paths, "lib");
   array_add(*options.library_search_paths, "bin");

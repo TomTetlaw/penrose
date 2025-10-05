@@ -1,10 +1,34 @@
 
+F32 :: float32;
+F64 :: float64;
+B8 :: bool;
+
+first_true :: (b: [] B8) -> B8, int
+{
+  for b
+  {
+    if it
+    {
+      return true, it_index;
+    }
+  }
+  return false, -1;
+}
+
 arena_temp: *Arena;
 
 base_init :: ()
 {
   arena_temp = mem_create_arena();
 }
+
+enum_cycle :: (e: *$T)
+{
+  value := cast(int) e.*;
+  count := enum_highest_value(T) + 1;
+  e.* = cast(T) ((value + 1) % count);
+}
+
 
 cstr_from_str :: (arena: *Arena, str: string) -> *u8
 {
@@ -140,6 +164,28 @@ queue_pop :: (first: **$T, last: **T, $next := "next") -> *T #expand
     return temp;
     HERE
     return tprint(code, next);
+  }
+}
+
+list_add :: (first: **$T, last: **T, value: *T, $next := "next", $prev := "prev")
+{
+  using,only(tprint) Basic :: #import "Basic";
+  if !first.*
+  {
+    first.* = value;
+    last.* = value;
+  }
+  else
+  {
+    #insert,scope() -> string
+    {
+      code ::#string HERE
+      last.*.%1 = value;
+      value.%2 = last.*;
+      last.* = value;
+      HERE
+      return tprint(code, next, prev);
+    }
   }
 }
 

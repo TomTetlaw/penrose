@@ -1,6 +1,11 @@
 
 dr_shaders_dir :: "shaders";
-dr_max_mesh_instances :: 1024;
+dr_max_mesh_instances :: 10240;
+dr_max_line_instances :: 10240;
+dr_max_quad_instances :: 10240;
+dr_depth_format :: SDL_GPUTextureFormat.D24_UNORM_S8_UINT;
+dr_depth_compare_op :: SDL_GPUCompareOp.GREATER_OR_EQUAL;
+dr_depth_clear_value :: 0.0;
 
 DR_Buffer :: struct
 {
@@ -23,10 +28,53 @@ DR_MeshInstance :: struct
   colour: Vec4F32;
 }
 
-DR_MeshConstants :: struct
+DR_LineInstance :: struct
+{
+  start: Vec3F32;
+  pad0: F32;
+  end: Vec3F32;
+  pad1: F32;
+  colour: Vec4F32;
+  props: Vec4F32;
+}
+
+DR_QuadInstance :: struct
+{
+  position: Vec3F32;
+  pad0: F32;
+  colour: Vec4F32;
+  props: Vec4F32;
+}
+
+line_props :: (thickness: F32) -> Vec4F32
+{
+  result: Vec4F32;
+  result.x = thickness;
+  return result;
+}
+
+DR_MeshVertConstants :: struct
 {
   world_to_view: Mat4x4F32;
   view_to_clip: Mat4x4F32;
+  camera_pos: Vec3F32;
+  pad0: F32;
+  viewport: Vec4F32;
+}
+
+DR_MeshFragConstants :: struct
+{
+  specular_shininess: F32;
+  pad: Vec3F32;
+}
+
+DR_MeshMaterial :: struct
+{
+  next: *DR_MeshMaterial;
+  specular_shininess: F32;
+  tex_colour: *DR_Texture;
+  tex_normal: *DR_Texture;
+  tex_specular: *DR_Texture;
 }
 
 DR_DrawMesh :: struct
@@ -40,6 +88,23 @@ DR_DrawMesh :: struct
   base_index: int;
   instance_count: int;
   index_count: int;
+  material: *DR_MeshMaterial;
+}
+
+DR_DrawLines :: struct
+{
+  next: *DR_DrawLines;
+  instances: DR_BufferRef;
+  base_instance: int;
+  instance_count: int;
+}
+
+DR_DrawQuads :: struct
+{
+  next: *DR_DrawQuads;
+  instances: DR_BufferRef;
+  base_instance: int;
+  instance_count: int;
 }
 
 DR_Mesh :: struct
@@ -49,6 +114,16 @@ DR_Mesh :: struct
   buffer_index: *DR_Buffer;
   vertices: DR_BufferRef;
   indices: DR_BufferRef;
+  vertex_count: int;
+  index_count: int;
+  bounds_min: Vec3F32;
+  bounds_max: Vec3F32;
+}
+
+DR_Texture :: struct
+{
+  next: *DR_Texture;
+  ref: *SDL_GPUTexture;
 }
 
 DR_RendererState :: struct
@@ -61,12 +136,31 @@ DR_RendererState :: struct
   pipelines: *DR_Pipeline;
   buffers: *DR_Buffer;
   meshes: *DR_Mesh;
-  mesh_instances: *DR_Buffer;
-  shader_mesh: *DR_Shader;
-  pipeline_mesh: *DR_Pipeline;
+
+  textures: *DR_Texture;
+  tex_white: *DR_Texture;
+  tex_black: *DR_Texture;
+  depth_target: *DR_Texture;
+
   draw_meshes: *DR_DrawMesh;
+  draw_lines: *DR_DrawLines;
+  draw_quads: *DR_DrawQuads;
 
   mesh_cube: *DR_Mesh;
+  mesh_line: *DR_Mesh;
+  mesh_quad: *DR_Mesh;
+
+  shader_mesh: *DR_Shader;
+  shader_lines: *DR_Shader;
+  shader_quads: *DR_Shader;
+
+  mesh_instances: *DR_Buffer;
+  quad_instances: *DR_Buffer;
+  line_instances: *DR_Buffer;
+
+  pipeline_mesh: *DR_Pipeline;
+  pipeline_lines: *DR_Pipeline;
+  pipeline_quads: *DR_Pipeline;
 
   upload_size: int;
   upload_queue: *DR_Upload;
@@ -78,11 +172,30 @@ DR_RendererState :: struct
   sampler_set: [] *SDL_GPUSampler;
 }
 
+DR_PipelineFlags :: enum_flags
+{
+  None;
+  Blend;
+  DepthTest;
+  DepthWrite;
+  Indexed;
+  HasWireframeVariant;
+}
+
+DR_PipelineTopology :: enum
+{
+  Triangles;
+  Lines;
+}
+
 DR_Pipeline :: struct
 {
   next: *DR_Pipeline;
   ref_base: *SDL_GPUGraphicsPipeline;
   ref_wireframe: *SDL_GPUGraphicsPipeline;
+  instance_buffer: *DR_Buffer;
+  flags: DR_PipelineFlags;
+  topology: DR_PipelineTopology;
 }
 
 DR_Shader :: struct
@@ -106,6 +219,7 @@ DR_Upload :: struct
   height: int;
   x: int;
   y: int;
+  generate_mipmaps: bool;
   // NOTE(tt): for buffers
   buffer: *SDL_GPUBuffer;
   offset: int;
@@ -125,13 +239,25 @@ dr_renderer: *DR_RendererState;
 dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) -> *DR_Mesh
 {
   capacity_vertices := size_of(DR_MeshVertex) * vertices.count;
-  capacity_indices := size_of(u32) * indices.count;
   mesh := arena_push_struct(dr_renderer.arena, DR_Mesh);
   stack_push(*dr_renderer.meshes, mesh);
   mesh.buffer_vertex = dr_create_vertex_buffer(str_format(arena_temp, "%_vertices", name), capacity_vertices, null, 0, 0);
-  mesh.buffer_index = dr_create_index_buffer(str_format(arena_temp, "%_indices", name), capacity_indices, null, 0, 0);
   mesh.vertices = dr_write_buffer(mesh.buffer_vertex, vertices.data, capacity_vertices);
-  mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
+  mesh.vertex_count = vertices.count;
+  mesh.bounds_min = v3f32(f32_max);
+  mesh.bounds_max = v3f32(-f32_max);
+  for vertices
+  {
+    mesh.bounds_min = min_v3(mesh.bounds_min, it.position);
+    mesh.bounds_max = max_v3(mesh.bounds_max, it.position);
+  }
+  if indices.count > 0
+  {
+    capacity_indices := size_of(u32) * indices.count;
+    mesh.buffer_index = dr_create_index_buffer(str_format(arena_temp, "%_indices", name), capacity_indices, null, 0, 0);
+    mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
+    mesh.index_count = indices.count;
+  }
   return mesh;
 }
 
@@ -166,7 +292,7 @@ dr_write_buffer :: (buffer: *DR_Buffer, data: *void, size: int) -> DR_BufferRef
   result: DR_BufferRef;
   if buffer.used + size <= buffer.capacity
   {
-    dr_queue_buffer_upload(buffer, data, size, 0);
+    dr_queue_buffer_upload(buffer, data, size, buffer.used);
     result.ref = buffer.ref;
     result.offset = buffer.used;
     result.size = size;
@@ -180,25 +306,151 @@ dr_reset_buffer :: (buffer: *DR_Buffer)
   buffer.used = 0;
 }
 
-dr_draw_mesh :: (arena: *Arena, instances: [] DR_MeshInstance, vertices: DR_BufferRef, indices: DR_BufferRef)
+dr_create_target_texture :: (name: string, width: int, height: int, format: SDL_GPUTextureFormat, usage: SDL_GPUTextureUsageFlags) -> *DR_Texture
 {
-  draw_mesh := arena_push_struct(arena, DR_DrawMesh);
-  stack_push(*dr_renderer.draw_meshes, draw_mesh);
-  draw_mesh.instances = dr_write_buffer(dr_renderer.mesh_instances, instances.data, size_of(DR_MeshInstance) * instances.count);
-  draw_mesh.vertices = vertices;
-  draw_mesh.indices = indices;
-  draw_mesh.base_instance = draw_mesh.instances.offset / size_of(DR_MeshInstance);
-  draw_mesh.base_vertex = vertices.offset / size_of(DR_MeshVertex);
-  draw_mesh.base_index = indices.offset / size_of(u32);
-  draw_mesh.instance_count = instances.count;
-  draw_mesh.index_count = indices.size / size_of(u32);
+  info: SDL_GPUTextureCreateInfo;
+	info.type = .SDL_GPU_TEXTURETYPE_2D;
+	info.format = format;
+	info.width = xx width;
+	info.height = xx height;
+	info.layer_count_or_depth = 1;
+	info.num_levels = 1;
+	info.usage = usage;
+	ref := SDL_CreateGPUTexture(dr_renderer.device, *info);
+	if ref
+	{
+	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
+	  texture := arena_push_struct(dr_renderer.arena, DR_Texture);
+	  texture.ref = ref;
+	  stack_push(*dr_renderer.textures, texture);
+	  return texture;
+  }
+	return null;
 }
 
-dr_create_pipeline :: (shader: *DR_Shader, enable_alpha_blend: bool) -> *DR_Pipeline
+dr_create_draw_texture :: (name: string, width: int, height: int, data: *void) -> *DR_Texture
+{
+  info: SDL_GPUTextureCreateInfo;
+	info.type = .SDL_GPU_TEXTURETYPE_2D;
+	info.format = .R8G8B8A8_UNORM;
+	info.width = xx width;
+	info.height = xx height;
+	info.layer_count_or_depth = 1;
+	info.num_levels = cast(u32) log(cast(float) max(width, height)) + 1;
+	info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+	ref := SDL_CreateGPUTexture(dr_renderer.device, *info);
+	if ref
+	{
+	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
+	  texture := arena_push_struct(dr_renderer.arena, DR_Texture);
+	  texture.ref = ref;
+	  stack_push(*dr_renderer.textures, texture);
+    dr_queue_texture_upload(ref, data, width, height, 4, info.num_levels > 1);
+	  return texture;
+  }
+	return null;
+}
+
+dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_MeshMaterial)
+{
+  if instances.count > 0
+  {
+    draw_mesh := arena_push_struct(arena_temp, DR_DrawMesh);
+    stack_push(*dr_renderer.draw_meshes, draw_mesh);
+    draw_mesh.instances = dr_write_buffer(dr_renderer.mesh_instances, instances.data, size_of(DR_MeshInstance) * instances.count);
+    draw_mesh.vertices = mesh.vertices;
+    draw_mesh.indices = mesh.indices;
+    draw_mesh.base_instance = draw_mesh.instances.offset / size_of(DR_MeshInstance);
+    draw_mesh.base_vertex = mesh.vertices.offset / size_of(DR_MeshVertex);
+    draw_mesh.base_index = mesh.indices.offset / size_of(u32);
+    draw_mesh.instance_count = instances.count;
+    draw_mesh.index_count = mesh.indices.size / size_of(u32);
+    draw_mesh.material = material;
+  }
+}
+
+dr_draw_lines :: (instances: [] DR_LineInstance)
+{
+  if instances.count > 0
+  {
+    draw_lines := arena_push_struct(arena_temp, DR_DrawLines);
+    stack_push(*dr_renderer.draw_lines, draw_lines);
+    draw_lines.instances = dr_write_buffer(dr_renderer.line_instances, instances.data, size_of(DR_LineInstance) * instances.count);
+    draw_lines.base_instance = draw_lines.instances.offset / size_of(DR_LineInstance);
+    draw_lines.instance_count = instances.count;
+  }
+}
+
+dr_draw_quads :: (instances: [] DR_QuadInstance)
+{
+  if instances.count > 0
+  {
+    draw_quads := arena_push_struct(arena_temp, DR_DrawQuads);
+    stack_push(*dr_renderer.draw_quads, draw_quads);
+    draw_quads.instances = dr_write_buffer(dr_renderer.quad_instances, instances.data, size_of(DR_QuadInstance) * instances.count);
+    draw_quads.base_instance = draw_quads.instances.offset / size_of(DR_QuadInstance);
+    draw_quads.instance_count = instances.count;
+  }
+}
+
+quad_props :: (size: Vec2F32, border: F32) -> Vec4F32
+{
+  result: Vec4F32;
+  result.xy = size;
+  result.z = border;
+  return result;
+}
+
+dr_draw_bounds :: (bounds_min: Vec3F32, bounds_max: Vec3F32, to_world: Mat4x4F32, colour: Vec4F32, thickness: F32, padding: F32)
+{
+  min := (to_world * v4f32(bounds_min, 1.0)).xyz - v3f32(padding);
+  max := (to_world * v4f32(bounds_max, 1.0)).xyz + v3f32(padding);
+  line_instances := DR_LineInstance.[
+    .{start=v3f32(min.x, min.y, min.z), end=v3f32(max.x, min.y, min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(max.x, min.y, min.z), end=v3f32(max.x, min.y, max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(max.x, min.y, max.z), end=v3f32(min.x, min.y, max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(min.x, min.y, max.z), end=v3f32(min.x, min.y, min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(min.x, max.y, min.z), end=v3f32(max.x, max.y, min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(max.x, max.y, min.z), end=v3f32(max.x, max.y, max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(max.x, max.y, max.z), end=v3f32(min.x, max.y, max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(min.x, max.y, max.z), end=v3f32(min.x, max.y, min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(min.x, min.y, min.z), end=v3f32(min.x, max.y, min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(max.x, min.y, min.z), end=v3f32(max.x, max.y, min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(max.x, min.y, max.z), end=v3f32(max.x, max.y, max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(min.x, min.y, max.z), end=v3f32(min.x, max.y, max.z), colour=colour, props=line_props(thickness)},
+  ];
+  dr_draw_lines(line_instances);
+}
+
+dr_draw_circle :: (center: Vec3F32, normal: Vec3F32, radius: F32, segments: int, colour: Vec4F32, thickness: F32)
+{
+  n := normalize_v3(normal);
+  tmp := ifx abs(n.x) < 0.99 then v3f32(1,0,0) else v3f32(0,1,0);
+  tangent := normalize_v3(cross_v3(n, tmp));
+  bitangent := cross_v3(n, tangent);
+  line_instances := arena_push_view(arena_temp, DR_LineInstance, xx segments);
+  step := (2.0 * PI) / cast(F32) segments;
+  prev := center + tangent*radius;
+  for 1..segments
+  {
+    angle := step * cast(F32) it;
+    p := center + (tangent * cos(angle) + bitangent * sin(angle)) * radius;
+    line_instances[it-1] = .{
+      start = prev,
+      end = p,
+      colour = colour,
+      props = line_props(thickness),
+    };
+    prev = p;
+  }
+  dr_draw_lines(line_instances);
+}
+
+dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: DR_PipelineFlags, topology: DR_PipelineTopology) -> *DR_Pipeline
 {
   colour_target_desc: SDL_GPUColorTargetDescription;
   colour_target_desc.format = .B8G8R8A8_UNORM;
-  if enable_alpha_blend
+  if flags & .Blend
   {
     colour_target_desc.blend_state.enable_blend = true;
     colour_target_desc.blend_state.src_color_blendfactor = .ONE;
@@ -239,48 +491,66 @@ dr_create_pipeline :: (shader: *DR_Shader, enable_alpha_blend: bool) -> *DR_Pipe
   info_base.vertex_input_state.num_vertex_attributes = vert_attribute_desc.count;
   info_base.target_info.color_target_descriptions = *colour_target_desc;
   info_base.target_info.num_color_targets = 1;
-  info_base.rasterizer_state.cull_mode = .NONE;//FRONT;
+  info_base.rasterizer_state.cull_mode = .BACK;
   info_base.rasterizer_state.fill_mode = .FILL;
-  info_base.primitive_type = .TRIANGLELIST;
+  if topology ==
+  {
+    case .Triangles;
+      info_base.primitive_type = .TRIANGLELIST;
+  }
   info_base.vertex_shader = shader.vert;
   info_base.fragment_shader = shader.frag;
+  if (flags & .DepthTest) || (flags & .DepthWrite)
+  {
+    info_base.target_info.depth_stencil_format = dr_depth_format;
+    info_base.target_info.has_depth_stencil_target = true;
+  }
+  info_base.depth_stencil_state.compare_op = dr_depth_compare_op;
+  info_base.depth_stencil_state.enable_depth_test = cast(bool) (flags & .DepthTest);
+  info_base.depth_stencil_state.enable_depth_write = cast(bool) (flags & .DepthWrite);
   ref_base := SDL_CreateGPUGraphicsPipeline(dr_renderer.device, *info_base);
-  info_wireframe := info_base;
-  info_wireframe.rasterizer_state.fill_mode = .LINE;
-  ref_wireframe := SDL_CreateGPUGraphicsPipeline(dr_renderer.device, *info_wireframe);
   pipeline := arena_push_struct(dr_renderer.arena, DR_Pipeline);
   stack_push(*dr_renderer.pipelines, pipeline);
-  pipeline.ref_base = ref_wireframe;
-  pipeline.ref_wireframe = ref_base;
+  pipeline.instance_buffer = instance_buffer;
+  pipeline.flags = flags;
+  pipeline.topology = topology;
+  pipeline.ref_base = ref_base;
+  if flags & .HasWireframeVariant
+  {
+    info_wireframe := info_base;
+    info_wireframe.rasterizer_state.fill_mode = .LINE;
+    ref_wireframe := SDL_CreateGPUGraphicsPipeline(dr_renderer.device, *info_wireframe);
+    pipeline.ref_wireframe = ref_wireframe;
+  }
   return pipeline;
 }
 
 dr_create_builtin_meshes :: () {
   cube_vertices := DR_MeshVertex.[
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1,1,1,1), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
   ];
   cube_indices := u32.[
     0,1,2, 0,2,3,
@@ -291,6 +561,38 @@ dr_create_builtin_meshes :: () {
     20,21,22, 20,22,23,
   ];
   dr_renderer.mesh_cube = dr_create_mesh("dr_default_cube", cube_vertices, cube_indices);
+  line_vertices := DR_MeshVertex.[
+    .{position = v3f32(-1,  2, 0), tex_coord=v2f32(-1,  2), colour=v4f32(1.0)},
+    .{position = v3f32( 1,  2, 0), tex_coord=v2f32( 1,  2), colour=v4f32(1.0)},
+    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1), colour=v4f32(1.0)},
+    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1), colour=v4f32(1.0)},
+
+    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1), colour=v4f32(1.0)},
+    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1), colour=v4f32(1.0)},
+    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0), colour=v4f32(1.0)},
+    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0), colour=v4f32(1.0)},
+
+    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0), colour=v4f32(1.0)},
+    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0), colour=v4f32(1.0)},
+    .{position = v3f32(-1, -1, 0), tex_coord=v2f32(-1, -1), colour=v4f32(1.0)},
+    .{position = v3f32( 1, -1, 0), tex_coord=v2f32( 1, -1), colour=v4f32(1.0)},
+  ];
+  line_indices := u32.[
+    0, 2, 1, 2, 3, 1,
+    4, 6, 5, 6, 7, 5,
+    8, 10, 9, 10, 11, 9,
+  ];
+  dr_renderer.mesh_line = dr_create_mesh("dr_line", line_vertices, line_indices);
+  quad_vertices := DR_MeshVertex.[
+    .{position = v3f32(0, 0, 0), tex_coord=v2f32(0,  0), colour=v4f32(1.0)},
+    .{position = v3f32(1, 0, 0), tex_coord=v2f32(1,  0), colour=v4f32(1.0)},
+    .{position = v3f32(1, 1, 0), tex_coord=v2f32(1,  1), colour=v4f32(1.0)},
+    .{position = v3f32(0, 1, 0), tex_coord=v2f32(0,  1), colour=v4f32(1.0)},
+  ];
+  quad_indices := u32.[
+    0, 1, 2, 2, 3, 0
+  ];
+  dr_renderer.mesh_quad = dr_create_mesh("dr_quad", quad_vertices, quad_indices);
 }
 
 dr_create_sampler_set :: ()
@@ -341,8 +643,17 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.device = device;
   dr_renderer.resolution = resolution;
   dr_renderer.shader_mesh = dr_get_shader("mesh");
-  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, true);
+  dr_renderer.shader_lines = dr_get_shader("lines");
+  dr_renderer.shader_quads = dr_get_shader("quads");
   dr_renderer.mesh_instances = dr_create_storage_buffer("mesh_instances", size_of(DR_MeshInstance) * dr_max_mesh_instances, null, 0, 0);
+  dr_renderer.line_instances = dr_create_storage_buffer("line_instances", size_of(DR_LineInstance) * dr_max_line_instances, null, 0, 0);
+  dr_renderer.quad_instances = dr_create_storage_buffer("quad_instances", size_of(DR_QuadInstance) * dr_max_quad_instances, null, 0, 0);
+  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest | .DepthWrite, .Triangles);
+  dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .None, .Triangles);
+  dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .DepthTest, .Triangles);
+  dr_renderer.depth_target = dr_create_target_texture("depth_target", xx resolution.x, xx resolution.y, dr_depth_format, SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+  dr_renderer.tex_white = dr_create_draw_texture("dr_white", 1, 1, u8.[255, 255, 255, 255].data);
+  dr_renderer.tex_black = dr_create_draw_texture("dr_white", 1, 1, u8.[0, 0, 0, 0].data);
   dr_create_builtin_meshes();
   dr_create_sampler_set();
 }
@@ -366,7 +677,7 @@ dr_queue_buffer_upload :: (dest: *DR_Buffer, data: *void, size: int, offset: int
   dr_renderer.upload_size += size;
 }
 
-dr_queue_texture_upload :: (dest: *SDL_GPUTexture, data: *void, width: int, height: int, stride: int, x := 0, y := 0)
+dr_queue_texture_upload :: (dest: *SDL_GPUTexture, data: *void, width: int, height: int, stride: int, generate_mipmaps: bool, x := 0, y := 0)
 {
   upload := arena_push_struct(arena_temp, DR_Upload);
   queue_push(*dr_renderer.upload_queue, *dr_renderer.last_upload, upload);
@@ -436,21 +747,24 @@ dr_process_upload_queue :: (command_buffer: *SDL_GPUCommandBuffer)
     cursor += it.size;
   }
   SDL_EndGPUCopyPass(copy_pass);
+  for each_element(dr_renderer.upload_queue)
+  {
+    if it.texture && it.generate_mipmaps
+    {
+      SDL_GenerateMipmapsForGPUTexture(command_buffer, it.texture);
+    }
+  }
   dr_renderer.upload_size = 0;
   queue_reset(*dr_renderer.upload_queue, *dr_renderer.last_upload);
 }
 
-dr_draw_frame :: ()
+dr_draw_frame :: (camera: *CAM_Base)
 {
   command_buffer := SDL_AcquireGPUCommandBuffer(dr_renderer.device);
   swap_texture: *SDL_GPUTexture;
   SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
   if (swap_texture)
   {
-    instances :=  DR_MeshInstance.[.{mat4x4f32_translate(v3f32(10, 0, 0)), v4f32(1, 0, 0, 1)}];
-    vertices := dr_renderer.mesh_cube.vertices;
-    indices := dr_renderer.mesh_cube.indices;
-    dr_draw_mesh(arena_temp, instances, vertices, indices);
     dr_process_upload_queue(command_buffer);
     colour_target := SDL_GPUColorTargetInfo.{
       texture = swap_texture,
@@ -458,26 +772,94 @@ dr_draw_frame :: ()
       load_op = .CLEAR,
       store_op = .STORE
     };
-    constants: DR_MeshConstants;
-    constants.world_to_view = mat4x4f32_identity();
-    aspect := dr_renderer.resolution.x / dr_renderer.resolution.y;
-    constants.view_to_clip = mat4x4f32_perspective(0.125, aspect, 0.1, 1000.0);
-    main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, null);
+    depth_target := SDL_GPUDepthStencilTargetInfo.{
+      texture = dr_renderer.depth_target.ref,
+      clear_depth = dr_depth_clear_value,
+      load_op = .CLEAR,
+      store_op = .STORE
+    };
+    vert_constants: DR_MeshVertConstants;
+    vert_constants.world_to_view = camera.view;
+    vert_constants.view_to_clip = camera.projection;
+    vert_constants.camera_pos = camera.position;
+    vert_constants.viewport.xy = dr_renderer.resolution;
+    vert_constants.viewport.zw = v2f32(0.1, 1000.0);
+
+    sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
+
+    main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
     SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
-    SDL_PushGPUVertexUniformData(command_buffer, 0, *constants, xx size_of(DR_MeshConstants));
+    SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
     SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
     for each_element(dr_renderer.draw_meshes)
     {
       binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
       binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
+      binding_textures := SDL_GPUTextureSamplerBinding.[
+        .{it.material.tex_colour.ref, sampler},
+        .{it.material.tex_normal.ref, sampler},
+        .{it.material.tex_specular.ref, sampler}
+      ];
+      frag_constants: DR_MeshFragConstants;
+      frag_constants.specular_shininess = it.material.specular_shininess;
+      SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
+      SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
       SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
       SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
       SDL_DrawGPUIndexedPrimitives(main_pass, xx it.index_count, xx it.instance_count, xx it.base_index, xx it.base_vertex, xx it.base_instance);
     }
     SDL_EndGPURenderPass(main_pass);
+
+    colour_target = .{
+      texture = swap_texture,
+      load_op = .LOAD,
+      store_op = .STORE
+    };
+    lines_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, null);
+    SDL_BindGPUGraphicsPipeline(lines_pass, dr_renderer.pipeline_lines.ref_base);
+    SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+    SDL_BindGPUVertexStorageBuffers(lines_pass, 0, *dr_renderer.line_instances.ref, 1);
+    for each_element(dr_renderer.draw_lines)
+    {
+      binding_vertex := SDL_GPUBufferBinding.{dr_renderer.mesh_line.vertices.ref, 0};
+      binding_index := SDL_GPUBufferBinding.{dr_renderer.mesh_line.indices.ref, 0};
+      SDL_BindGPUVertexBuffers(lines_pass, 0, *binding_vertex, 1);
+      SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+      SDL_DrawGPUIndexedPrimitives(lines_pass, xx dr_renderer.mesh_line.index_count, xx it.instance_count, 0, 0, xx it.base_instance);
+    }
+    SDL_EndGPURenderPass(lines_pass);
+
+    colour_target = .{
+      texture = swap_texture,
+      load_op = .LOAD,
+      store_op = .STORE
+    };
+    depth_target = SDL_GPUDepthStencilTargetInfo.{
+      texture = dr_renderer.depth_target.ref,
+      load_op = .LOAD,
+      store_op = .STORE
+    };
+    quads_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
+    SDL_BindGPUGraphicsPipeline(quads_pass, dr_renderer.pipeline_quads.ref_base);
+    SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+    SDL_BindGPUVertexStorageBuffers(quads_pass, 0, *dr_renderer.quad_instances.ref, 1);
+    for each_element(dr_renderer.draw_quads)
+    {
+      binding_vertex := SDL_GPUBufferBinding.{dr_renderer.mesh_quad.vertices.ref, 0};
+      binding_index := SDL_GPUBufferBinding.{dr_renderer.mesh_quad.indices.ref, 0};
+      SDL_BindGPUVertexBuffers(quads_pass, 0, *binding_vertex, 1);
+      SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+      SDL_DrawGPUIndexedPrimitives(quads_pass, xx dr_renderer.mesh_quad.index_count, xx it.instance_count, 0, 0, xx it.base_instance);
+    }
+    SDL_EndGPURenderPass(quads_pass);
+
     SDL_SubmitGPUCommandBuffer(command_buffer);
     dr_renderer.draw_meshes = null;
+    dr_renderer.draw_lines = null;
+    dr_renderer.draw_quads = null;
     dr_reset_buffer(dr_renderer.mesh_instances);
+    dr_reset_buffer(dr_renderer.line_instances);
+    dr_reset_buffer(dr_renderer.quad_instances);
   }
   else
   {
@@ -501,28 +883,6 @@ dr_create_transfer_buffer :: (size: int) -> *SDL_GPUTransferBuffer
 	info.size = xx size;
 	buffer := SDL_CreateGPUTransferBuffer(dr_renderer.device, *info);
 	return buffer;
-}
-
-dr_create_texture_2d :: (name: string, width: int, height: int, format: SDL_GPUTextureFormat, usage: u32, generate_mipmaps: bool) -> *SDL_GPUTexture
-{
-	info: SDL_GPUTextureCreateInfo;
-	info.type = ._2D;
-	info.format = format;
-	info.width = xx width;
-	info.height = xx height;
-	info.layer_count_or_depth = 1;
-	if generate_mipmaps
-	{
-	 info.num_levels = cast(u32) log(cast(float) max(width, height)) + 1;
-  }
-  else
-  {
-    info.num_levels = 1;
-  }
-	info.usage = usage;
-	texture := SDL_CreateGPUTexture(dr_renderer.device, *info);
-	SDL_SetGPUTextureName(dr_renderer.device, texture, cstr_from_str(arena_temp, name));
-	return texture;
 }
 
 #scope_file

@@ -1,4 +1,9 @@
 
+f32_min :: 0h00800000;
+f32_max :: 0h7F7FFFFF;
+f64_min :: 0h00100000_00000000;
+f64_max :: 0h7FEFFFFF_FFFFFFFF;
+
 DegreesFromTurns :: 360.0;
 TurnsFromDegrees :: 1.0 / 360.0;
 RadiansFromTurns :: TAU;
@@ -7,10 +12,91 @@ sin_turns :: (t: float) -> float {return sin(t * RadiansFromTurns);}
 cos_turns :: (t: float) -> float {return cos(t * RadiansFromTurns);}
 tan_turns :: (t: float) -> float {return tan(t * RadiansFromTurns);}
 
+lerp :: (a: F32, b: F32, t: F32) -> F32
+{
+  return a + (b - a) * t;
+}
+
 approach :: (current: float, goal: float, duration: float, delta: float) -> float
 {
   decay :: 4.6;
   return goal + (current - goal) * exp(-decay * delta * (1.0 / duration));
+}
+
+clamp :: (v: $T, min_value: T, max_value: T) -> T
+{
+  if v < min_value
+  {
+    return min_value;
+  }
+  if v > max_value
+  {
+    return max_value;
+  }
+  return v;
+}
+
+PlaneF32 :: struct
+{
+  origin: Vec3F32;
+  normal: Vec3F32;
+}
+
+RayF32 :: struct
+{
+  origin: Vec3F32;
+  dir: Vec3F32;
+}
+
+rayf32_from_mouse :: (mouse_pos: Vec2F32, screen_size: Vec2F32, view: Mat4x4F32, projection: Mat4x4F32) -> RayF32
+{
+  ndc_x := (mouse_pos.x / screen_size.x) * 2.0 - 1.0;
+  ndc_y := 1.0 - (mouse_pos.y / screen_size.y) * 2.0;
+  inv := mat4x4f32_inverse(projection * view);
+  near := inv * v4f32(ndc_x, ndc_y, -1.0, 1.0);
+  far := inv * v4f32(ndc_x, ndc_y, 1.0, 1.0);
+  near_world := near.xyz / near.w;
+  far_world := far.xyz / far.w;
+  result: RayF32;
+  result.origin = near_world;
+  result.dir = normalize_v3(far_world - near_world);
+  return result;
+}
+
+intersect_rayf32_planef32 :: (ray: RayF32, plane: PlaneF32) -> B8, Vec3F32
+{
+  denom := dot_v3(plane.normal, ray.dir);
+  if abs(denom) < .000001
+  {
+    return false, v3f32(0.0);
+  }
+  t := dot_v3(plane.origin - ray.origin, plane.normal) / denom;
+  if t < 0
+  {
+    return false, v3f32(0.0);
+  }
+  hit_point := ray.origin + ray.dir * t;
+  return true, hit_point;
+}
+
+intersection_rayf32_boundsf32 :: (ray: RayF32, bounds_min: Vec3F32, bounds_max: Vec3F32) -> B8, F32
+{
+  inv_dir := v3f32(1.0) / ray.dir;
+  t1 := (bounds_min.x - ray.origin.x) * inv_dir.x;
+  t2 := (bounds_max.x - ray.origin.x) * inv_dir.x;
+  tmin := min(t1, t2);
+  tmax := max(t1, t2);
+  t1 = (bounds_min.y - ray.origin.y) * inv_dir.y;
+  t2 = (bounds_max.y - ray.origin.y) * inv_dir.y;
+  tmin = max(tmin, min(t1, t2));
+  tmax = min(tmax, max(t1, t2));
+  t1 = (bounds_min.z - ray.origin.z) * inv_dir.z;
+  t2 = (bounds_max.z - ray.origin.z) * inv_dir.z;
+  tmin = max(tmin, min(t1, t2));
+  tmax = min(tmax, max(t1, t2));
+  if tmax >= max(tmin, 0.0)
+      return true, max(tmin, 0.0);
+  return false, 0.0;
 }
 
 V2 :: struct($T: Type)
@@ -37,8 +123,13 @@ V4 :: struct($T: Type)
   w: T;
   #place x; f: [4] T;
   #place x; xy: V2(T);
+  #place z; zw: V2(T);
   #place x; xyz: V3(T);
 }
+
+v2 :: (x: $T, y: T) -> V2(T) { return .{x, y}; }
+v3 :: (x: $T, y: T, z: T) -> V3(T) { return .{x, y, z}; }
+v4 :: (x: $T, y: T, z: T, w: T) -> V4(T) { return .{x, y, z, w}; }
 
 Vec2F32 :: V2(float32);
 Vec3F32 :: V3(float32);
@@ -46,17 +137,15 @@ Vec4F32 :: V4(float32);
 Vec2F64 :: V2(float64);
 Vec3F64 :: V3(float64);
 Vec4F64 :: V4(float64);
-
 Vec2S32 :: V2(s32);
 Vec3S32 :: V3(s32);
 Vec4S32 :: V4(s32);
-Vec2S64 :: V2(s64);
-Vec3S64 :: V3(s64);
-Vec4S64 :: V4(s64);
-
 Vec2U32 :: V2(u32);
 Vec3U32 :: V3(u32);
 Vec4U32 :: V4(u32);
+Vec2S64 :: V2(s64);
+Vec3S64 :: V3(s64);
+Vec4S64 :: V4(s64);
 Vec2U64 :: V2(u64);
 Vec3U64 :: V3(u64);
 Vec4U64 :: V4(u64);
@@ -146,6 +235,34 @@ operator -   :: (a:  V4($T), b: T)     ->  V4(T) #symmetric {return V4(T).{a.x -
 operator *   :: (a:  V4($T), b: T)     ->  V4(T) #symmetric {return V4(T).{a.x * b,   a.y * b  , a.z * b  , a.w * b  };}
 operator /   :: (a:  V4($T), b: T)     ->  V4(T)            {return V4(T).{a.x / b,   a.y / b  , a.z / b  , a.w / b  };}
 
+snap_v3 :: (v: V3($T), step: T) -> V3(T)
+{
+  result: V3(T);
+  result.x = floor(v.x / step) * step;
+  result.y = floor(v.y / step) * step;
+  result.z = floor(v.z / step) * step;
+  return result;
+}
+
+snap_v3 :: (v: *V3($T), step: T)
+{
+  v.x = floor(v.x / step) * step;
+  v.y = floor(v.y / step) * step;
+  v.z = floor(v.z / step) * step;
+}
+
+min_v2 :: (a: V2($T), b: V2(T)) -> V2(T) { return v2(min(a.x, b.x), min(a.y, b.y)); }
+min_v3 :: (a: V3($T), b: V3(T)) -> V3(T) { return v3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z)); }
+min_v4 :: (a: V4($T), b: V4(T)) -> V4(T) { return v4(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w)); }
+
+max_v2 :: (a: V2($T), b: V2(T)) -> V2(T) { return v2(max(a.x, b.x), max(a.y, b.y)); }
+max_v3 :: (a: V3($T), b: V3(T)) -> V3(T) { return v3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z)); }
+max_v4 :: (a: V4($T), b: V4(T)) -> V4(T) { return v4(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w)); }
+
+any_v2 :: (v: V2($T)) -> B8 { return v.x > 0.0 || v.y > 0.0; }
+any_v3 :: (v: V3($T)) -> B8 { return v.x > 0.0 || v.y > 0.0 || v.z > 0.0; }
+any_v3 :: (v: V4($T)) -> B8 { return v.x > 0.0 || v.y > 0.0 || v.z > 0.0 || v.w > 0.0; }
+
 length_v2 :: (v: V2($T)) -> T { return sqrt(v.x*v.x + v.y*v.y); }
 length_v3 :: (v: V3($T)) -> T { return sqrt(v.x*v.x + v.y*v.y + v.z*v.z); }
 length_v4 :: (v: V4($T)) -> T { return sqrt(v.x*v.x + v.y*v.y + v.z*v.z + v.w*v.w); }
@@ -166,6 +283,38 @@ cross_v3 :: (a: V3($T), b: V3(T)) -> V3(T)
 normalize_v2 :: (v: V2($T)) -> V2(T) { return v * (1.0 / length_v2(v)); }
 normalize_v3 :: (v: V3($T)) -> V3(T) { return v * (1.0 / length_v3(v)); }
 normalize_v4 :: (v: V4($T)) -> V4(T) { return v * (1.0 / length_v4(v)); }
+
+rotate_v3 :: (m: Mat4x4F32, v: Vec3F32) -> Vec3F32
+{
+  result := m * v4f32(v, 1.0);
+  return result.xyz;
+}
+
+lerp_v2 :: (a: V2($T), b: V2(T), t: T) -> V2(T)
+{
+  return v2f32(lerp(a.x, b.x, t), lerp(a.y, b.y, t));
+}
+
+lerp_v3 :: (a: V3($T), b: V3(T), t: T) -> V3(T)
+{
+  return v3f32
+  (
+    lerp(a.x, b.x, t),
+    lerp(a.y, b.y, t),
+    lerp(a.z, b.z, t)
+  );
+}
+
+lerp_v4 :: (a: V4($T), b: V4(T), t: T) -> V4(T)
+{
+  return v4f32
+  (
+    lerp(a.x, b.x, t),
+    lerp(a.y, b.y, t),
+    lerp(a.z, b.z, t),
+    lerp(a.w, b.w, t)
+  );
+}
 
 Mat4x4F32 :: struct
 {
@@ -251,6 +400,17 @@ mat4x4f32_rotate :: (a: Vec3F32, turns: float) -> Mat4x4F32
   return result;
 }
 
+mat4x4f32_transform :: (p: Vec3F32, r: Vec3F32, s: Vec3F32) -> Mat4x4F32
+{
+  result :=
+    mat4x4f32_translate(p) *
+    mat4x4f32_rotate(v3f32(1.0, 0.0, 0.0), r.x) *
+    mat4x4f32_rotate(v3f32(0.0, 1.0, 0.0), r.y) *
+    mat4x4f32_rotate(v3f32(0.0, 0.0, 1.0), r.z) *
+    mat4x4f32_scale(s);
+  return result;
+}
+
 mat4x4f32_transpose :: (m: *Mat4x4F32)
 {
   for row: 0..3
@@ -266,20 +426,20 @@ mat4x4f32_perspective :: (fov_turns: float, aspect: float, near: float, far: flo
 {
   tan_theta := tan_turns(fov_turns * .5);
   cot_theta := 1.0 / tan_theta;
-  denom := 1.0 / (far - near);
+  denom := 1.0 / (near - far);
 
   result: Mat4x4F32;
   result._00 = cot_theta / aspect;
   result._11 = cot_theta;
-  result._22 = (near + far) * denom;
-  result._23 = -2.0 * near * far * denom;
+  result._22 = near * denom;
+  result._23 = far * near * denom;
   result._32 = 1.0;
 
   fixup: Mat4x4F32;
   fixup._01 = -1.0;
   fixup._12 = 1.0;
   fixup._20 = 1.0;
-  fixup._33 = 1.0;
+  fixup._33 = -1.0;
 
   return result * fixup;
 }
@@ -295,4 +455,38 @@ mat4x4f32_ortho :: (left: float, right: float, bottom: float, top: float, near: 
   result._32 = (near + far) / (near - far);
   result._33 = 1.0;
   return result;
+}
+
+mat4x4f32_inverse :: (m: Mat4x4F32) -> Mat4x4F32, bool
+{
+  a := v3f32(m._00, m._10, m._20);
+  b := v3f32(m._01, m._11, m._21);
+  c := v3f32(m._02, m._12, m._22);
+  d := v3f32(m._03, m._13, m._23);
+  x := m._30;
+  y := m._31;
+  z := m._32;
+  w := m._33;
+  s := cross_v3(a, b);
+  t := cross_v3(c, d);
+  u := a * y - b * x;
+  v := c * w - d * z;
+  det := dot_v3(s, v) + dot_v3(t, u);
+  inv_det := 1.0 / det;
+  s *= inv_det;
+  t *= inv_det;
+  u *= inv_det;
+  v *= inv_det;
+  r0 := cross_v3(b, v) + t * y;
+  r1 := cross_v3(v, a) - t * x;
+  r2 := cross_v3(d, u) + s * w;
+  r3 := cross_v3(u, c) - s * z;
+  result := Mat4x4F32.{
+    r0.x, r0.y, r0.z, -dot_v3(b, t),
+    r1.x, r1.y, r1.z,  dot_v3(a, t),
+    r2.x, r2.y, r2.z, -dot_v3(d, s),
+    r3.x, r3.y, r3.z,  dot_v3(c, s)
+  };
+  epsilon := 0.0001;
+  return result, abs(det) < epsilon;
 }

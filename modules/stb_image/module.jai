@@ -8,6 +8,12 @@
 
 STBI_VERSION :: 1;
 
+_iobuf :: struct {
+    _Placeholder: *void;
+}
+
+FILE :: _iobuf;
+
 STBI :: enum s32 {
     default    :: 0;
 
@@ -130,6 +136,18 @@ stbi_zlib_decode_noheader_buffer :: (obuffer: *u8, olen: s32, ibuffer: *u8, ilen
 stb_image :: #library "lib/stb_image";
 
 #run {
+    {
+        info := type_info(_iobuf);
+        for info.members {
+            if it.name == {
+                case "_Placeholder";
+                    assert(it.offset_in_bytes == 0, "_iobuf._Placeholder has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "_iobuf._Placeholder has unexpected size % instead of 8", it.type.runtime_size);
+            }
+        }
+        assert(size_of(_iobuf) == 8, "_iobuf has size % instead of 8", size_of(_iobuf));
+    }
+
     {
         info := type_info(stbi_io_callbacks);
         for info.members {

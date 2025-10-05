@@ -5,14 +5,21 @@ using,only
   assert,
   String_Builder,
   print_to_builder,
-  builder_to_string
+  builder_to_string,
+  array_add,
+  Apollo_Time,
+  current_time_monotonic,
+  to_float64_seconds,
+  enum_highest_value,
+  operator- // NOTE(tt): I have no idea what this ends up importing...
 ) Basic :: #import "Basic";
 using,only
 (
   log, exp,
-  sin, cos, tan,
+  sin, cos, tan, atan2, acos,
   TAU, PI,
-  sqrt
+  sqrt, abs,
+  floor
 ) Math :: #import "Math";
 using,only
 (
@@ -36,3 +43,7 @@ using,only
   MEM_RESERVE, MEM_COMMIT, MEM_DECOMMIT, MEM_RELEASE,
   PAGE_READWRITE
 ) Windows :: #import "Windows";
+using,only
+(
+  stbi_load_from_memory
+) stb_image :: #import "stb_image";
