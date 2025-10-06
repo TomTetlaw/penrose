@@ -65,13 +65,19 @@ DR_MeshVertConstants :: struct
 DR_MeshFragConstants :: struct
 {
   specular_shininess: F32;
-  pad: Vec3F32;
+  specular_intensity: F32;
+  pad: Vec2F32;
 }
 
 DR_MeshMaterial :: struct
 {
   next: *DR_MeshMaterial;
+  specular_intensity := 1.0;
   specular_shininess: F32;
+  #if PENROSE_USE_IMGUI
+  {
+    specular_power: s32 = 4;
+  }
   tex_colour: *DR_Texture;
   tex_normal: *DR_Texture;
   tex_specular: *DR_Texture;
@@ -831,6 +837,7 @@ dr_draw_frame :: (camera: *CAM_Base)
         .{it.material.tex_specular.ref, sampler}
       ];
       frag_constants: DR_MeshFragConstants;
+      frag_constants.specular_intensity = it.material.specular_intensity;
       frag_constants.specular_shininess = it.material.specular_shininess;
       SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
       SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
@@ -858,7 +865,6 @@ dr_draw_frame :: (camera: *CAM_Base)
       SDL_DrawGPUIndexedPrimitives(lines_pass, xx dr_renderer.mesh_line.index_count, xx it.instance_count, 0, 0, xx it.base_instance);
     }
     SDL_EndGPURenderPass(lines_pass);
-
     colour_target = .{
       texture = swap_texture,
       load_op = .LOAD,
@@ -882,7 +888,19 @@ dr_draw_frame :: (camera: *CAM_Base)
       SDL_DrawGPUIndexedPrimitives(quads_pass, xx dr_renderer.mesh_quad.index_count, xx it.instance_count, 0, 0, xx it.base_instance);
     }
     SDL_EndGPURenderPass(quads_pass);
-
+    #if PENROSE_USE_IMGUI
+    {
+      ImGui.Render();
+      draw_data := ImGui.GetDrawData();
+      ImGui_ImplSDLGPU3_PrepareDrawData(draw_data, command_buffer);
+      target_info: SDL_GPUColorTargetInfo;
+      target_info.texture = swap_texture;
+      target_info.load_op = .LOAD;
+      target_info.store_op = .STORE;
+      render_pass := SDL_BeginGPURenderPass(command_buffer, *target_info, 1, null);
+      ImGui_ImplSDLGPU3_RenderDrawData(draw_data, command_buffer, render_pass);
+      SDL_EndGPURenderPass(render_pass);
+    }
     SDL_SubmitGPUCommandBuffer(command_buffer);
     dr_renderer.draw_meshes = null;
     dr_renderer.draw_lines = null;

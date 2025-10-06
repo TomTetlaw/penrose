@@ -30,6 +30,16 @@ main :: ()
     if device
     {
       SDL_ClaimWindowForGPUDevice(device, window);
+      #if PENROSE_USE_IMGUI
+      {
+        imgui_context := ImGui.CreateContext();
+        ImGui.SetCurrentContext(imgui_context);
+        ImGui_ImplSDL3_InitForSDLGPU(window);
+        imgui_info: ImGui_ImplSDLGPU3_InitInfo;
+        imgui_info.Device = device;
+        imgui_info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
+        ImGui_ImplSDLGPU3_Init(*imgui_info);
+      }
       SDL_ShowWindow(window);
       base_init();
       dr_init(window, device, resolution);
@@ -52,6 +62,10 @@ main :: ()
         }
         for events
         {
+          #if PENROSE_USE_IMGUI
+          {
+            ImGui_ImplSDL3_ProcessEvent(*it);
+          }
           type := cast(SDL_EventType) it.type;
           if type ==
           {
@@ -66,11 +80,26 @@ main :: ()
           }
         }
         // NOTE(tt): collect input
-        input := in_process_events(events);
+        #if PENROSE_USE_IMGUI
+        {
+          ImGui_ImplSDLGPU3_NewFrame();
+          ImGui_ImplSDL3_NewFrame();
+          ImGui.NewFrame();
+          io := ImGui.GetIO();
+          if !io.WantCaptureMouse && !io.WantCaptureKeyboard
+          {
+            in_process_events(events);
+          }
+        }
+        else
+        {
+          in_process_events(events);
+        }
         // NOTE(tt): update
         update_time();
         ed_update();
         // NOTE(tt): draw
+        g_draw();
         ed_draw();
         dr_draw_frame(*ed_editor.camera);
         arena_reset(arena_temp);

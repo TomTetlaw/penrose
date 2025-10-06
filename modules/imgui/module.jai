@@ -4465,6 +4465,7 @@ ImGui_ImplSDLGPU3_RenderState :: struct {
 
 #import "Basic"; // For assert, push_context
 
+user32 :: #library,system "user32";
 imgui :: #library,no_dll "lib/imgui";
 
 #run {

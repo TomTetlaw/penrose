@@ -61,6 +61,7 @@ ed_update :: ()
   }
   if ed_editor.selected_entity
   {
+    g_entity_imgui(ed_editor.selected_entity);
     if in_key_pressed(.Tab)
     {
       enum_cycle(*ed_editor.transform_mode);
@@ -296,14 +297,11 @@ ed_draw :: ()
 {
   for each_element(g_game_state.entities)
   {
-    instance: DR_MeshInstance;
-    instance.transform = mat4x4f32_transform(it.position, it.rotation, it.scale);
-    instance.colour = it.colour;
-    dr_draw_mesh(it.mesh, .[instance], *it.material);
+    transform := mat4x4f32_transform(it.position, it.rotation, it.scale);
     if ed_editor.selected_entity == it && !ed_editor.dragging_axis
     {
       colour := lerp_v4(v4f32(0.0, 1.0, 0.0, 1.0), v4f32(1.0, 1.0, 1.0, .25), sin(game_time*5)*.5+.5);
-      dr_draw_bounds(it.mesh.bounds_min, it.mesh.bounds_max, instance.transform, colour, 1.0, .01);
+      dr_draw_bounds(it.mesh.bounds_min, it.mesh.bounds_max, transform, colour, 1.0, .01);
     }
   }
 }

@@ -59,7 +59,12 @@ g_save_level :: (path: string)
     file_print_line(*file, "material_tex_colour: %", it.material.tex_colour.path);
     file_print_line(*file, "material_tex_normal: %", it.material.tex_normal.path);
     file_print_line(*file, "material_tex_specular: %", it.material.tex_specular.path);
+    #if PENROSE_USE_IMGUI
+    {
+      file_print_line(*file, "material_specular_power: %", it.material.specular_power);
+    }
     file_print_line(*file, "material_specular_shininess: %", it.material.specular_shininess);
+    file_print_line(*file, "material_specular_intensity: %", it.material.specular_intensity);
   }
 }
 
@@ -109,9 +114,105 @@ g_load_level :: (path: string)
         case "material_specular_shininess";
           shininess := parse_float(*right);
           entity.material.specular_shininess = shininess;
+        case "material_specular_intensity";
+          intensity := parse_float(*right);
+          entity.material.specular_intensity = intensity;
+      }
+      #if PENROSE_USE_IMGUI
+      {
+        if key ==
+        {
+          case "material_specular_power";
+            power := parse_int(*right);
+            entity.material.specular_power = xx power;
+        }
       }
     }
   }
+}
+
+g_draw :: ()
+{
+  for each_element(g_game_state.entities)
+  {
+    instance: DR_MeshInstance;
+    instance.transform = mat4x4f32_transform(it.position, it.rotation, it.scale);
+    instance.colour = it.colour;
+    dr_draw_mesh(it.mesh, .[instance], *it.material);
+  }
+}
+
+texture_picker_modal :: (path: string, dest: **DR_Texture)
+{
+  if ImGui.BeginPopupModal(cstr_from_str(arena_temp, path))
+  {
+    texture_paths := file_list("textures");
+    ImGui.BeginTable("textures", 3);
+    for texture_paths
+    {
+      if it_index % 3 == 0
+      {
+        ImGui.TableNextRow();
+      }
+      ImGui.TableNextColumn();
+      texture := dr_get_texture(it);
+      if texture
+      {
+        ImGui.BeginGroup();
+        ImGui.PushID(cast(s32) it_index);
+        ImGui.Text(it);
+        if ImGui.ImageButton("", .{_TexID = cast(ImTextureID) texture.ref}, ImVec2.{128, 128})
+        {
+          dest.* = texture;
+          ImGui.CloseCurrentPopup();
+        }
+        ImGui.PopID();
+        ImGui.EndGroup();
+      }
+    }
+    ImGui.EndTable();
+    ImGui.EndPopup();
+  }
+}
+
+modal_path: string;
+modal_dest: **DR_Texture;
+
+g_entity_imgui :: (entity: *Entity)
+{
+  ImGui.Begin("Entity");
+  ImGui.SeparatorText("transform");
+  ImGui.DragFloat3("position", *entity.position.f, v_speed = .5);
+  ImGui.DragFloat3("rotation", *entity.rotation.f, v_min = 0.0, v_max = 1.0, v_speed = .01);
+  ImGui.DragFloat3("scale", *entity.scale.f, v_min = .5, v_speed = .5);
+  ImGui.SeparatorText("material");
+  ImGui.ColorEdit4("colour", *entity.colour.f);
+  ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 1.0, v_max = 10.0, v_speed = 0.1);
+  ImGui.SliderInt("specular_shininess", *entity.material.specular_power, v_min = 2, v_max = 9);
+  ImGui.SeparatorText("textures");
+  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "Colour texture: %", entity.material.tex_colour.path))))
+  {
+    modal_path = entity.material.tex_colour.path;
+    modal_dest = *entity.material.tex_colour;
+    ImGui.OpenPopup(cstr_from_str(arena_temp, modal_path));
+  }
+  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "Normal texture: %", entity.material.tex_normal.path))))
+  {
+    modal_path = entity.material.tex_normal.path;
+    modal_dest = *entity.material.tex_normal;
+    ImGui.OpenPopup(cstr_from_str(arena_temp, modal_path));
+  }
+  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "Specular texture: %", entity.material.tex_specular.path))))
+  {
+    modal_path = entity.material.tex_specular.path;
+    modal_dest = *entity.material.tex_specular;
+    ImGui.OpenPopup(cstr_from_str(arena_temp, modal_path));
+  }
+
+  texture_picker_modal(modal_path, modal_dest);
+
+  entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
+  ImGui.End();
 }
 
 #scope_file

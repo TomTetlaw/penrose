@@ -18,7 +18,8 @@ using,only
 using,only
 (
   scan2,
-  parse_float
+  parse_float,
+  parse_int
 ) String :: #import "String";
 using,only
 (
@@ -42,6 +43,10 @@ using,only
   file_close,
   File
 ) FileModule :: #import "File";
+using,only
+(
+  file_list
+) FileUtils :: #import "File_Utilities";
 using,only
 (
   get_hash

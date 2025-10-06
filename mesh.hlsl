@@ -81,7 +81,8 @@ SamplerState sampler2: register(s2, space2);
 cbuffer FragConstantBuffer : register(b0, space3)
 {
   float specular_shininess;
-  float3 pad;
+  float specular_intensity;
+  float2 pad;
 }
 
 float4 frag_main(FragInput input) : SV_Target
@@ -93,6 +94,7 @@ float4 frag_main(FragInput input) : SV_Target
   float diffuse = max(dot(n, l), 0);
   float3 h = normalize(l + v);
   float specular = pow(max(dot(n, h), 0.0), specular_shininess);
-  float3 colour = texture0.Sample(sampler0, tex_coord).rgb*diffuse + specular*texture2.Sample(sampler2, tex_coord).rgb*2;
+  float3 spec_colour = specular*specular_intensity*texture2.Sample(sampler2, tex_coord).rgb*2;
+  float3 colour = input.colour.rgb * texture0.Sample(sampler0, tex_coord).rgb*diffuse + spec_colour;
   return float4(colour * input.colour.a, input.colour.a);
 }
