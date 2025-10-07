@@ -2,6 +2,7 @@
 G_GameState :: struct
 {
   arena: *Arena;
+  entities_arena: *Arena;
   entities: *Entity;
   last_entity: *Entity;
 }
@@ -25,13 +26,19 @@ g_init :: ()
   arena := mem_create_arena();
   g_game_state = arena_push_struct(arena, G_GameState);
   g_game_state.arena = arena;
-  g_load_level("levels/test_level.txt");
+  g_game_state.entities_arena = mem_create_arena();
+}
+
+g_create_entity :: () -> *Entity
+{
+  entity := arena_push_struct(g_game_state.entities_arena, Entity);
+  list_add(*g_game_state.entities, *g_game_state.last_entity, entity);
+  return entity;
 }
 
 g_spawn :: (mesh: *DR_Mesh, position: Vec3F32) -> *Entity
 {
-  entity := arena_push_struct(g_game_state.arena, Entity);
-  list_add(*g_game_state.entities, *g_game_state.last_entity, entity);
+  entity := g_create_entity();
   entity.position = position;
   entity.rotation = v3f32(0.0);
   entity.scale = v3f32(1.0);
@@ -42,6 +49,13 @@ g_spawn :: (mesh: *DR_Mesh, position: Vec3F32) -> *Entity
   entity.material.tex_specular = tex_load("textures/shipping_crates3_s.tga");
   entity.material.specular_shininess = 32;
   return entity;
+}
+
+g_clear_level :: ()
+{
+  arena_reset(g_game_state.entities_arena);
+  g_game_state.entities = null;
+  g_game_state.last_entity = null;
 }
 
 g_save_level :: (path: string)
@@ -70,6 +84,7 @@ g_save_level :: (path: string)
 
 g_load_level :: (path: string)
 {
+  g_clear_level();
   file_data, ok := read_entire_file(path,, arena_allocator(arena_temp));
   if ok
   {
@@ -85,8 +100,7 @@ g_load_level :: (path: string)
       if key ==
       {
         case "entity";
-          entity = arena_push_struct(g_game_state.arena, Entity);
-          list_add(*g_game_state.entities, *g_game_state.last_entity, entity);
+          entity = g_create_entity();
         case "position";
           position := parse_v3(right);
           entity.position = position;
@@ -140,79 +154,6 @@ g_draw :: ()
     instance.colour = it.colour;
     dr_draw_mesh(it.mesh, .[instance], *it.material);
   }
-}
-
-texture_picker_modal :: (path: string, dest: **DR_Texture)
-{
-  if ImGui.BeginPopupModal(cstr_from_str(arena_temp, path))
-  {
-    texture_paths := file_list("textures");
-    ImGui.BeginTable("textures", 3);
-    for texture_paths
-    {
-      if it_index % 3 == 0
-      {
-        ImGui.TableNextRow();
-      }
-      ImGui.TableNextColumn();
-      texture := dr_get_texture(it);
-      if texture
-      {
-        ImGui.BeginGroup();
-        ImGui.PushID(cast(s32) it_index);
-        ImGui.Text(it);
-        if ImGui.ImageButton("", .{_TexID = cast(ImTextureID) texture.ref}, ImVec2.{128, 128})
-        {
-          dest.* = texture;
-          ImGui.CloseCurrentPopup();
-        }
-        ImGui.PopID();
-        ImGui.EndGroup();
-      }
-    }
-    ImGui.EndTable();
-    ImGui.EndPopup();
-  }
-}
-
-modal_path: string;
-modal_dest: **DR_Texture;
-
-g_entity_imgui :: (entity: *Entity)
-{
-  ImGui.Begin("Entity");
-  ImGui.SeparatorText("transform");
-  ImGui.DragFloat3("position", *entity.position.f, v_speed = .5);
-  ImGui.DragFloat3("rotation", *entity.rotation.f, v_min = 0.0, v_max = 1.0, v_speed = .01);
-  ImGui.DragFloat3("scale", *entity.scale.f, v_min = .5, v_speed = .5);
-  ImGui.SeparatorText("material");
-  ImGui.ColorEdit4("colour", *entity.colour.f);
-  ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 1.0, v_max = 10.0, v_speed = 0.1);
-  ImGui.SliderInt("specular_shininess", *entity.material.specular_power, v_min = 2, v_max = 9);
-  ImGui.SeparatorText("textures");
-  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "Colour texture: %", entity.material.tex_colour.path))))
-  {
-    modal_path = entity.material.tex_colour.path;
-    modal_dest = *entity.material.tex_colour;
-    ImGui.OpenPopup(cstr_from_str(arena_temp, modal_path));
-  }
-  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "Normal texture: %", entity.material.tex_normal.path))))
-  {
-    modal_path = entity.material.tex_normal.path;
-    modal_dest = *entity.material.tex_normal;
-    ImGui.OpenPopup(cstr_from_str(arena_temp, modal_path));
-  }
-  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "Specular texture: %", entity.material.tex_specular.path))))
-  {
-    modal_path = entity.material.tex_specular.path;
-    modal_dest = *entity.material.tex_specular;
-    ImGui.OpenPopup(cstr_from_str(arena_temp, modal_path));
-  }
-
-  texture_picker_modal(modal_path, modal_dest);
-
-  entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
-  ImGui.End();
 }
 
 #scope_file

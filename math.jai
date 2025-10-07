@@ -191,6 +191,7 @@ v4u64 :: (x: u64, y: u64, z: u64, w: u64) -> Vec4U64 { return .{x, y, z, w}; }
 v4u64 :: (x: u64) -> Vec4U64 { return .{x, x, x, x}; }
 v4f32 :: (xyz: Vec3F32, w: float32) -> Vec4F32 { return .{xyz.x, xyz.y, xyz.z, w}; }
 v4f32 :: (xy: Vec2F32, zw: Vec2F32) -> Vec4F32 { return .{xy.x, xy.y, zw.x, zw.y}; }
+v4f32 :: (xy: Vec2F32, z: F32, w: F32) -> Vec4F32 { return .{xy.x, xy.y, z, z}; }
 v4f64 :: (xyz: Vec3F64, w: float64) -> Vec4F64 { return .{xyz.x, xyz.y, xyz.z, w}; }
 v4f64 :: (xy: Vec2F64, zw: Vec2F64) -> Vec4F64 { return .{xy.x, xy.y, zw.x, zw.y}; }
 v4s32 :: (xyz: Vec3S32, w: s32) -> Vec4S32 { return .{xyz.x, xyz.y, xyz.z, w}; }
@@ -292,6 +293,12 @@ rotate_v3 :: (m: Mat4x4F32, v: Vec3F32) -> Vec3F32
 {
   result := m * v4f32(v, 1.0);
   return result.xyz;
+}
+
+rotate_v2 :: (m: Mat4x4F32, v: Vec2F32) -> Vec2F32
+{
+  result := m * v4f32(v, 0.0, 1.0);
+  return result.xy;
 }
 
 lerp_v2 :: (a: V2($T), b: V2(T), t: T) -> V2(T)

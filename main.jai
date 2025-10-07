@@ -23,7 +23,7 @@ main :: ()
     displays := SDL_GetDisplays(*display_count);
     display_mode := SDL_GetDesktopDisplayMode(displays[0]);
     window_pos := SDL_WINDOWPOS_CENTERED;
-    resolution := Vec2F32.{xx display_mode.w, xx display_mode.h} * .75;
+    resolution := Vec2F32.{xx display_mode.w, xx display_mode.h};
     SDL_SetWindowSize(window, xx resolution.x, xx resolution.y);
     SDL_SetWindowPosition(window, window_pos, window_pos);
     device := SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
@@ -39,6 +39,7 @@ main :: ()
         imgui_info.Device = device;
         imgui_info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
         ImGui_ImplSDLGPU3_Init(*imgui_info);
+        imgui_io = ImGui.GetIO();
       }
       SDL_ShowWindow(window);
       base_init();
@@ -53,47 +54,32 @@ main :: ()
       material.specular_shininess = 128;
       while main_loop := true
       {
+        ImGui_ImplSDLGPU3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui.NewFrame();
         event: SDL_Event;
         events: [..] SDL_Event;
         events.allocator = arena_allocator(arena_temp);
         while SDL_PollEvent(*event)
         {
+          #if PENROSE_USE_IMGUI
+          {
+            ImGui_ImplSDL3_ProcessEvent(*event);
+          }
           array_add(*events, event);
         }
         for events
         {
-          #if PENROSE_USE_IMGUI
-          {
-            ImGui_ImplSDL3_ProcessEvent(*it);
-          }
           type := cast(SDL_EventType) it.type;
           if type ==
           {
             case .SDL_EVENT_QUIT; break main_loop;
-            case .SDL_EVENT_KEY_DOWN;
-            {
-              if it.key.scancode == .SDL_SCANCODE_ESCAPE
-              {
-                break main_loop;
-              }
-            }
           }
         }
         // NOTE(tt): collect input
         #if PENROSE_USE_IMGUI
         {
-          ImGui_ImplSDLGPU3_NewFrame();
-          ImGui_ImplSDL3_NewFrame();
-          ImGui.NewFrame();
-          io := ImGui.GetIO();
-          if !io.WantCaptureMouse && !io.WantCaptureKeyboard
-          {
-            in_process_events(events);
-          }
-        }
-        else
-        {
-          in_process_events(events);
+          in_process_events(events, !imgui_io.WantCaptureMouse, !imgui_io.WantTextInput);
         }
         // NOTE(tt): update
         update_time();
@@ -109,6 +95,8 @@ main :: ()
 }
 
 #scope_file
+
+imgui_io: *ImGuiIO;
 
 old_time: Apollo_Time;
 update_time :: ()

@@ -38,12 +38,19 @@ enum_cycle :: (e: *$T)
   e.* = cast(T) ((value + 1) % count);
 }
 
-
 cstr_from_str :: (arena: *Arena, str: string) -> *u8
 {
   data := arena_push(arena, xx (str.count + 1));
   copy(data, str.data, xx str.count);
   return data;
+}
+
+str_from_cstr :: (arena: *Arena, cstr: *u8) -> string
+{
+  length := c_style_strlen(cstr);
+  str := arena_push_string(arena, xx length);
+  copy(str.data, cstr, xx length);
+  return str;
 }
 
 str_format :: (arena: *Arena, format: string, args: ..Any) -> string

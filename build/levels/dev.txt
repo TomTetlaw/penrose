@@ -1,8 +1,8 @@
 entity
-position: [17, -5, -0.5]
+position: [0, 0, 0]
 rotation: [0, 0, 0]
-scale: [8.5, 9, 1]
-colour: [0, 1, 0, 1]
+scale: [25, 25, 1]
+colour: [1, 1, 1, 1]
 mesh: dr_default_cube
 material_tex_colour: textures/shipping_crates3.tga
 material_tex_normal: textures/shipping_crates3_local.tga
@@ -11,50 +11,50 @@ material_specular_power: 4
 material_specular_shininess: 16
 material_specular_intensity: 1
 entity
-position: [12.5, -9, 2.5]
+position: [5, 5, 5.5]
 rotation: [0, 0, 0]
-scale: [1, 1, 7]
-colour: [0, 0, 1, 1]
-mesh: dr_default_cube
-material_tex_colour: textures/shipping_crates3.tga
-material_tex_normal: textures/shipping_crates3_local.tga
-material_tex_specular: textures/shipping_crates3_s.tga
-material_specular_power: 4
-material_specular_shininess: 16
-material_specular_intensity: 1
-entity
-position: [17.5, 4.5, 4]
-rotation: [0, 0, 0]
-scale: [10, 10, 10]
-colour: [1, 0, 0, 1]
+scale: [1, 1, 10]
+colour: [1, 1, 1, 1]
 mesh: dr_default_cube
 material_tex_colour: textures/test_col.png
 material_tex_normal: textures/test_norm.png
 material_tex_specular: textures/test_spec.png
-material_specular_power: 9
-material_specular_shininess: 512
-material_specular_intensity: 10
-entity
-position: [12, 0, 7]
-rotation: [0, 0, 0]
-scale: [1, 1, 1]
-colour: [1, 1, 1, 1]
-mesh: dr_default_cube
-material_tex_colour: textures/shipping_crates3.tga
-material_tex_normal: textures/shipping_crates3_local.tga
-material_tex_specular: textures/shipping_crates3_s.tga
 material_specular_power: 4
-material_specular_shininess: 32
+material_specular_shininess: 16
 material_specular_intensity: 1
 entity
-position: [5.5, 0, 0]
+position: [-5, 5, 5.5]
 rotation: [0, 0, 0]
-scale: [1, 1, 1]
+scale: [1, 1, 10]
 colour: [1, 1, 1, 1]
 mesh: dr_default_cube
-material_tex_colour: textures/shipping_crates3.tga
-material_tex_normal: textures/shipping_crates3_local.tga
-material_tex_specular: textures/shipping_crates3_s.tga
+material_tex_colour: textures/test_col.png
+material_tex_normal: textures/test_norm.png
+material_tex_specular: textures/test_spec.png
+material_specular_power: 4
+material_specular_shininess: 16
+material_specular_intensity: 1
+entity
+position: [5, -5, 5.5]
+rotation: [0, 0, 0]
+scale: [1, 1, 10]
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube
+material_tex_colour: textures/test_col.png
+material_tex_normal: textures/test_norm.png
+material_tex_specular: textures/test_spec.png
+material_specular_power: 4
+material_specular_shininess: 16
+material_specular_intensity: 1
+entity
+position: [-5, -5, 5.5]
+rotation: [0, 0, 0]
+scale: [1, 1, 10]
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube
+material_tex_colour: textures/test_col.png
+material_tex_normal: textures/test_norm.png
+material_tex_specular: textures/test_spec.png
 material_specular_power: 4
 material_specular_shininess: 16
 material_specular_intensity: 1

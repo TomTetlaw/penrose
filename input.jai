@@ -98,7 +98,7 @@ in_mouse_drag :: (state: B8, button: IN_MouseButton) -> IN_DragState
   return .{false, false, false};
 }
 
-in_process_events :: (events: [] SDL_Event)
+in_process_events :: (events: [] SDL_Event, capture_mouse: bool, capture_keyboard: bool)
 {
   in_input_state.prev_mouse_states = in_input_state.mouse_states;
   in_input_state.mouse_delta = v2f32(0.0);
@@ -109,27 +109,34 @@ in_process_events :: (events: [] SDL_Event)
   for events
   {
     type := cast(SDL_EventType) it.type;
-    if type ==
+    if capture_keyboard
     {
-      case .SDL_EVENT_KEY_DOWN;
-        array_add(*keys, .{cast(IN_KeyCode) it.key.scancode, true});
-      case .SDL_EVENT_KEY_UP;
-        array_add(*keys, .{cast(IN_KeyCode) it.key.scancode, false});
-
-      case .SDL_EVENT_MOUSE_BUTTON_DOWN;
-        button := cast(IN_MouseButton) it.button.button - 1;
-        position := v2f32(xx it.button.x, xx it.button.y);
-        array_add(*clicks, .{button, position, true});
-        in_input_state.mouse_states[button] = true;
-      case .SDL_EVENT_MOUSE_BUTTON_UP;
-        button := cast(IN_MouseButton) it.button.button - 1;
-        position := v2f32(xx it.button.x, xx it.button.y);
-        array_add(*clicks, .{button, position, false});
-        in_input_state.mouse_states[button] = false;
-
-      case .SDL_EVENT_MOUSE_MOTION;
-        in_input_state.mouse_position = v2f32(xx it.motion.x, xx it.motion.y);
-        in_input_state.mouse_delta += v2f32(xx it.motion.xrel, xx it.motion.yrel);
+      if type ==
+      {
+        case .SDL_EVENT_KEY_DOWN;
+          array_add(*keys, .{cast(IN_KeyCode) it.key.scancode, true});
+        case .SDL_EVENT_KEY_UP;
+          array_add(*keys, .{cast(IN_KeyCode) it.key.scancode, false});
+      }
+    }
+    if capture_mouse
+    {
+      if type ==
+      {
+        case .SDL_EVENT_MOUSE_BUTTON_DOWN;
+          button := cast(IN_MouseButton) it.button.button - 1;
+          position := v2f32(xx it.button.x, xx it.button.y);
+          array_add(*clicks, .{button, position, true});
+          in_input_state.mouse_states[button] = true;
+        case .SDL_EVENT_MOUSE_BUTTON_UP;
+          button := cast(IN_MouseButton) it.button.button - 1;
+          position := v2f32(xx it.button.x, xx it.button.y);
+          array_add(*clicks, .{button, position, false});
+          in_input_state.mouse_states[button] = false;
+        case .SDL_EVENT_MOUSE_MOTION;
+          in_input_state.mouse_position = v2f32(xx it.motion.x, xx it.motion.y);
+          in_input_state.mouse_delta += v2f32(xx it.motion.xrel, xx it.motion.yrel);
+      }
     }
   }
   in_input_state.keys = keys;

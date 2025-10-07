@@ -8,7 +8,7 @@ ED_TransformMode :: enum
 ED_EditorState :: struct
 {
   arena: *Arena;
-  camera: CAM_Flying;
+  camera: CAM_Editor;
   selected_entity: *Entity;
   dragging_axis: bool;
   dragging_axis_index: int;
@@ -50,18 +50,21 @@ ED_TransformInfo :: struct
 
 ed_update :: ()
 {
-  cam_update(*ed_editor.camera);
-  if in_key_pressed(.F5)
-  {
-    g_save_level("levels/test_level.txt");
-  }
+  cam_editor_update(*ed_editor.camera);
   if in_key_pressed(.Space)
   {
     ed_spawn(dr_renderer.mesh_cube, ed_editor.camera.position + ed_editor.camera.forward*10);
   }
+  if in_key_pressed(.Escape) || ImGui.IsKeyPressed(.Escape)
+  {
+    if ed_editor.selected_entity
+    {
+      ed_editor.selected_entity = null;
+    }
+  }
   if ed_editor.selected_entity
   {
-    g_entity_imgui(ed_editor.selected_entity);
+    entity_imgui(ed_editor.selected_entity);
     if in_key_pressed(.Tab)
     {
       enum_cycle(*ed_editor.transform_mode);
@@ -91,6 +94,91 @@ ed_update :: ()
     }
   }
   update_selection();
+  editor_imgui();
+}
+
+ed_draw :: ()
+{
+  for each_element(g_game_state.entities)
+  {
+    transform := mat4x4f32_transform(it.position, it.rotation, it.scale);
+    if ed_editor.selected_entity == it && !ed_editor.dragging_axis
+    {
+      colour := lerp_v4(v4f32(0.0, 1.0, 0.0, 1.0), v4f32(1.0, 1.0, 1.0, .25), sin(game_time*5)*.5+.5);
+      dr_draw_bounds(it.mesh.bounds_min, it.mesh.bounds_max, transform, colour, 1.0, .01);
+    }
+  }
+}
+
+#scope_file
+
+level_name: string;
+
+editor_imgui :: ()
+{
+  if level_name
+  {
+    ImGui.Begin(cstr_from_str(arena_temp, str_format(arena_temp, "Level (%)###LevelWindow", level_name)));
+  }
+  else
+  {
+    ImGui.Begin("Level###LevelWindow");
+  }
+  if ImGui.Button("New")
+  {
+    g_clear_level();
+  }
+  if ImGui.Button("Load")
+  {
+    ImGui.OpenPopup("LevelPicker");
+  }
+  {
+    if !level_name
+    {
+      ImGui.BeginDisabled();
+    }
+    if ImGui.Button("Save")
+    {
+      g_save_level(str_format(arena_temp, "levels/%.txt", level_name));
+    }
+    if !level_name
+    {
+      ImGui.EndDisabled();
+    }
+  }
+  {
+    buffer: [256] u8;
+    copy(buffer.data, level_name.data, xx level_name.count);
+    if ImGui.InputText("Name", buffer.data, 256)
+    {
+      level_name = str_from_cstr(ed_editor.arena, buffer.data);
+    }
+  }
+  level_picker_modal();
+  if ImGui.Button("Quit")
+  {
+    exit(0);
+  }
+  ImGui.End();
+}
+
+level_picker_modal :: ()
+{
+  if ImGui.BeginPopup("LevelPicker")
+  {
+    files := file_list("levels");
+    for files
+    {
+      path, base, ext := path_decomp(it);
+      if ImGui.Button(cstr_from_str(arena_temp, base))
+      {
+        g_load_level(it);
+        level_name = base;
+        ImGui.CloseCurrentPopup();
+      }
+    }
+    ImGui.EndPopup();
+  }
 }
 
 update_selection :: () -> B8
@@ -293,20 +381,83 @@ update_scale_widget :: (transform: ED_TransformInfo, dest: *Vec3F32)
   }
 }
 
-ed_draw :: ()
+texture_picker_dest: **DR_Texture;
+
+texture_picker_modal :: ()
 {
-  for each_element(g_game_state.entities)
+  if texture_picker_dest && ImGui.BeginPopup("TexturePicker")
   {
-    transform := mat4x4f32_transform(it.position, it.rotation, it.scale);
-    if ed_editor.selected_entity == it && !ed_editor.dragging_axis
+    if ImGui.IsKeyPressed(.Escape)
     {
-      colour := lerp_v4(v4f32(0.0, 1.0, 0.0, 1.0), v4f32(1.0, 1.0, 1.0, .25), sin(game_time*5)*.5+.5);
-      dr_draw_bounds(it.mesh.bounds_min, it.mesh.bounds_max, transform, colour, 1.0, .01);
+      ImGui.CloseCurrentPopup();
+      texture_picker_dest = null;
     }
+    texture_paths := file_list("textures");
+    ImGui.BeginTable("textures", 3);
+    for texture_paths
+    {
+      if it_index % 3 == 0
+      {
+        ImGui.TableNextRow();
+      }
+      ImGui.TableNextColumn();
+      texture := dr_get_texture(it);
+      if texture
+      {
+        ImGui.PushID(cast(s32) it_index);
+        ImGui.Text(it);
+        if ImGui.ImageButton("", .{_TexID = cast(ImTextureID) texture.ref}, ImVec2.{64, 64})
+        {
+          texture_picker_dest.* = texture;
+          texture_picker_dest = null;
+          ImGui.CloseCurrentPopup();
+        }
+        ImGui.PopID();
+      }
+    }
+    ImGui.EndTable();
+    ImGui.EndPopup();
   }
 }
 
-#scope_file
+texture_property :: (label: string, texture: **DR_Texture)
+{
+  path, base, ext := path_decomp(texture.*.path);
+  label_str := str_format(arena_temp, "%: %", label, base);
+  ImGui.Text(label);
+  ImGui.SameLine();
+  if (ImGui.Button(base.data))
+  {
+    texture_picker_dest = texture;
+    ImGui.OpenPopup("TexturePicker");
+  }
+  ImGui.SameLine();
+  ImGui.Image(.{_TexID = cast(ImTextureID) texture.*.ref}, .{32, 32});
+}
+
+entity_imgui :: (entity: *Entity)
+{
+  ImGui.Begin("Entity");
+  draw_list := ImGui.GetWindowDrawList();
+  draw_list.AddCallback(draw_list, set_sampler_callback, null);
+  ImGui.SeparatorText("transform");
+  ImGui.DragFloat3("position", *entity.position.f, v_speed = .5);
+  ImGui.DragFloat3("rotation", *entity.rotation.f, v_min = 0.0, v_max = 1.0, v_speed = .01);
+  ImGui.DragFloat3("scale", *entity.scale.f, v_min = .5, v_speed = .5);
+  ImGui.SeparatorText("material");
+  ImGui.ColorEdit4("colour", *entity.colour.f);
+  ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 1.0, v_max = 10.0, v_speed = 0.1);
+  ImGui.SliderInt("specular_shininess", *entity.material.specular_power, v_min = 2, v_max = 9);
+  ImGui.SeparatorText("textures");
+  texture_property("colour", *entity.material.tex_colour);
+  texture_property("normal", *entity.material.tex_normal);
+  texture_property("specular", *entity.material.tex_specular);
+
+  texture_picker_modal();
+
+  entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
+  ImGui.End();
+}
 
 closest_point_on_line :: (ray_origin: Vec3F32, ray_dir: Vec3F32, line_point: Vec3F32, line_dir: Vec3F32) -> Vec3F32
 {
@@ -370,4 +521,13 @@ get_facing_bounds :: (transform: ED_TransformInfo) -> [3] Vec3F32, [3] Vec3F32
     result_max[2] = v3f32(bounds_max.x, bounds_max.y, bounds_min.z);
   }
   return result_min, result_max;
+}
+
+set_sampler_callback :: (parent_list: *ImDrawList, command: *ImDrawCmd) #c_call
+{
+  push_context
+  {
+    state := cast(*ImGui_ImplSDLGPU3_RenderState) ImGui.GetPlatformIO().Renderer_RenderState;
+    state.SamplerCurrent = dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
+  }
 }
