@@ -14,6 +14,8 @@ using,only
   enum_highest_value,
   operator-, // NOTE(tt): I have no idea what this ends up importing...
   formatInt,
+  enum_names,
+  enum_values_as_enum,
   exit
 ) Basic :: #import "Basic";
 using,only
@@ -21,7 +23,8 @@ using,only
   scan2,
   parse_float,
   parse_int,
-  path_decomp
+  path_decomp,
+  parse_enum
 ) String :: #import "String";
 using,only
 (

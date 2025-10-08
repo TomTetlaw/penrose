@@ -230,6 +230,9 @@ operator +   :: (a:  V4($T), b: T)     ->  V4(T) #symmetric {return V4(T).{a.x +
 operator -   :: (a:  V4($T), b: T)     ->  V4(T) #symmetric {return V4(T).{a.x - b,   a.y - b  , a.z - b  , a.w - b  };}
 operator *   :: (a:  V4($T), b: T)     ->  V4(T) #symmetric {return V4(T).{a.x * b,   a.y * b  , a.z * b  , a.w * b  };}
 operator /   :: (a:  V4($T), b: T)     ->  V4(T)            {return V4(T).{a.x / b,   a.y / b  , a.z / b  , a.w / b  };}
+operator -   :: (v: V2($T))            ->  V2(T)            {return V2(T).{-v.x, -v.y};}
+operator -   :: (v: V3($T))            ->  V3(T)            {return V3(T).{-v.x, -v.y, -v.z};}
+operator -   :: (v: V4($T))            ->  V4(T)            {return V4(T).{-v.x, -v.y, -v.z, -v.w};}
 
 snap_v3 :: (v: V3($T), step: T) -> V3(T)
 {
@@ -246,6 +249,10 @@ snap_v3 :: (v: *V3($T), step: T)
   v.y = floor(v.y / step) * step;
   v.z = floor(v.z / step) * step;
 }
+
+clamp_v2 :: (a: V2($T), min: V2(T), max: V2(T)) -> V2(T) { return v2(clamp(a.x, min.x, max.x), clamp(a.y, min.y, max.y)); }
+clamp_v3 :: (a: V3($T), min: V3(T), max: V3(T)) -> V3(T) { return v3(clamp(a.x, min.x, max.x), clamp(a.y, min.y, max.y), clamp(a.z, min.z, max.z)); }
+clamp_v4 :: (a: V4($T), min: V4(T), max: V4(T)) -> V4(T) { return v4(clamp(a.x, min.x, max.x), clamp(a.y, min.y, max.y), clamp(a.z, min.z, max.z), clamp(a.w, min.w, max.w)); }
 
 min_v2 :: (a: V2($T), b: V2(T)) -> V2(T) { return v2(min(a.x, b.x), min(a.y, b.y)); }
 min_v3 :: (a: V3($T), b: V3(T)) -> V3(T) { return v3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z)); }

@@ -25,7 +25,6 @@ build :: ()
     set_optimization(*options, .VERY_DEBUG);
   }
   set_build_options(options, workspace);
-  add_build_string("PENROSE_USE_IMGUI :: true;", workspace);
   make_directory_if_it_does_not_exist("./build/shaders");
   files := file_list("./");
   for files

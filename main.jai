@@ -23,24 +23,21 @@ main :: ()
     displays := SDL_GetDisplays(*display_count);
     display_mode := SDL_GetDesktopDisplayMode(displays[0]);
     window_pos := SDL_WINDOWPOS_CENTERED;
-    resolution := Vec2F32.{xx display_mode.w, xx display_mode.h};
+    resolution := Vec2F32.{xx display_mode.w, xx display_mode.h} * .9;
     SDL_SetWindowSize(window, xx resolution.x, xx resolution.y);
     SDL_SetWindowPosition(window, window_pos, window_pos);
     device := SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
     if device
     {
       SDL_ClaimWindowForGPUDevice(device, window);
-      #if PENROSE_USE_IMGUI
-      {
-        imgui_context := ImGui.CreateContext();
-        ImGui.SetCurrentContext(imgui_context);
-        ImGui_ImplSDL3_InitForSDLGPU(window);
-        imgui_info: ImGui_ImplSDLGPU3_InitInfo;
-        imgui_info.Device = device;
-        imgui_info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
-        ImGui_ImplSDLGPU3_Init(*imgui_info);
-        imgui_io = ImGui.GetIO();
-      }
+      imgui_context := ImGui.CreateContext();
+      ImGui.SetCurrentContext(imgui_context);
+      ImGui_ImplSDL3_InitForSDLGPU(window);
+      imgui_info: ImGui_ImplSDLGPU3_InitInfo;
+      imgui_info.Device = device;
+      imgui_info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
+      ImGui_ImplSDLGPU3_Init(*imgui_info);
+      imgui_io = ImGui.GetIO();
       SDL_ShowWindow(window);
       base_init();
       dr_init(window, device, resolution);
@@ -62,10 +59,7 @@ main :: ()
         events.allocator = arena_allocator(arena_temp);
         while SDL_PollEvent(*event)
         {
-          #if PENROSE_USE_IMGUI
-          {
-            ImGui_ImplSDL3_ProcessEvent(*event);
-          }
+          ImGui_ImplSDL3_ProcessEvent(*event);
           array_add(*events, event);
         }
         for events
@@ -77,10 +71,7 @@ main :: ()
           }
         }
         // NOTE(tt): collect input
-        #if PENROSE_USE_IMGUI
-        {
-          in_process_events(events, !imgui_io.WantCaptureMouse, !imgui_io.WantTextInput);
-        }
+        in_process_events(events, !imgui_io.WantCaptureMouse, !imgui_io.WantTextInput);
         // NOTE(tt): update
         update_time();
         ed_update();

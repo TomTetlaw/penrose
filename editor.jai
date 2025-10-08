@@ -51,10 +51,6 @@ ED_TransformInfo :: struct
 ed_update :: ()
 {
   cam_editor_update(*ed_editor.camera);
-  if in_key_pressed(.Space)
-  {
-    ed_spawn(dr_renderer.mesh_cube, ed_editor.camera.position + ed_editor.camera.forward*10);
-  }
   if in_key_pressed(.Escape) || ImGui.IsKeyPressed(.Escape)
   {
     if ed_editor.selected_entity
@@ -101,11 +97,21 @@ ed_draw :: ()
 {
   for each_element(g_game_state.entities)
   {
-    transform := mat4x4f32_transform(it.position, it.rotation, it.scale);
     if ed_editor.selected_entity == it && !ed_editor.dragging_axis
     {
       colour := lerp_v4(v4f32(0.0, 1.0, 0.0, 1.0), v4f32(1.0, 1.0, 1.0, .25), sin(game_time*5)*.5+.5);
-      dr_draw_bounds(it.mesh.bounds_min, it.mesh.bounds_max, transform, colour, 1.0, .01);
+      if it.collision.type ==
+      {
+        case .CollisionType_Box;
+        {
+          box_min, box_max := g_entity_world_bounds(it, it.collision.box_scale);
+          dr_draw_bounds(box_min, box_max, mat4x4f32_identity(), colour, 1.0, .01);
+        }
+        case .CollisionType_Capsule;
+        {
+          dr_draw_capsule(it.position, it.collision.capsule_radius, it.collision.capsule_height, 32, colour, 1.0);
+        }
+      }
     }
   }
 }
@@ -158,6 +164,16 @@ editor_imgui :: ()
   if ImGui.Button("Quit")
   {
     exit(0);
+  }
+  ImGui.SeparatorText("spawn");
+  if ImGui.Button("cube")
+  {
+    ed_spawn(dr_renderer.mesh_cube, ed_editor.camera.position + ed_editor.camera.forward*10);
+  }
+  if ImGui.Button("info_player_start")
+  {
+    entity := ed_spawn(dr_renderer.mesh_cube, ed_editor.camera.position + ed_editor.camera.forward*10);
+    entity.material.tex_colour = dr_get_texture("textures/info_player_start.png");
   }
   ImGui.End();
 }
@@ -444,6 +460,27 @@ entity_imgui :: (entity: *Entity)
   ImGui.DragFloat3("position", *entity.position.f, v_speed = .5);
   ImGui.DragFloat3("rotation", *entity.rotation.f, v_min = 0.0, v_max = 1.0, v_speed = .01);
   ImGui.DragFloat3("scale", *entity.scale.f, v_min = .5, v_speed = .5);
+  ImGui.SeparatorText("collision");
+  if ImGui.BeginCombo("collision_type", cstr_from_str(arena_temp, enum_names(CollisionType)[entity.collision.type]))
+  {
+    for enum_values_as_enum(CollisionType)
+    {
+      if ImGui.Button(cstr_from_str(arena_temp, enum_names(CollisionType)[it]))
+      {
+        entity.collision.type = it;
+      }
+    }
+    ImGui.EndCombo();
+  }
+  if entity.collision.type == .CollisionType_Box
+  {
+    ImGui.DragFloat3("box_scale", *entity.collision.box_scale.f);
+  }
+  if entity.collision.type == .CollisionType_Capsule
+  {
+    ImGui.DragFloat("capsule_radius", *entity.collision.capsule_radius);
+    ImGui.DragFloat("capsule_height", *entity.collision.capsule_height);
+  }
   ImGui.SeparatorText("material");
   ImGui.ColorEdit4("colour", *entity.colour.f);
   ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 1.0, v_max = 10.0, v_speed = 0.1);
@@ -452,9 +489,8 @@ entity_imgui :: (entity: *Entity)
   texture_property("colour", *entity.material.tex_colour);
   texture_property("normal", *entity.material.tex_normal);
   texture_property("specular", *entity.material.tex_specular);
-
+  ImGui.DragFloat2("tex_coord_scale", *entity.material.tex_coord_scale.f);
   texture_picker_modal();
-
   entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
   ImGui.End();
 }

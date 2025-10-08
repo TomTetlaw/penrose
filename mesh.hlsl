@@ -82,12 +82,12 @@ cbuffer FragConstantBuffer : register(b0, space3)
 {
   float specular_shininess;
   float specular_intensity;
-  float2 pad;
+  float2 tex_coord_scale;
 }
 
 float4 frag_main(FragInput input) : SV_Target
 {
-  float2 tex_coord = input.tex_coord;
+  float2 tex_coord = input.tex_coord * tex_coord_scale;
   float3 v = normalize(input.view_dir);
   float3 n = normalize((texture1.Sample(sampler1, tex_coord).xyz * 2.0 - 1.0) * float3(1, -1, 1));
   float3 l = normalize(input.light_dir);

@@ -66,7 +66,7 @@ DR_MeshFragConstants :: struct
 {
   specular_shininess: F32;
   specular_intensity: F32;
-  pad: Vec2F32;
+  tex_coord_scale: Vec2F32;
 }
 
 DR_MeshMaterial :: struct
@@ -74,10 +74,8 @@ DR_MeshMaterial :: struct
   next: *DR_MeshMaterial;
   specular_intensity := 1.0;
   specular_shininess: F32;
-  #if PENROSE_USE_IMGUI
-  {
-    specular_power: s32 = 4;
-  }
+  specular_power: s32 = 4;
+  tex_coord_scale := Vec2F32.{1, 1};
   tex_colour: *DR_Texture;
   tex_normal: *DR_Texture;
   tex_specular: *DR_Texture;
@@ -458,6 +456,31 @@ dr_draw_bounds :: (bounds_min: Vec3F32, bounds_max: Vec3F32, to_world: Mat4x4F32
   dr_draw_lines(line_instances);
 }
 
+dr_draw_sphere :: (center: Vec3F32, radius: F32, segments: int, colour: Vec4F32, thickness: F32)
+{
+  dr_draw_circle(center, v3f32(1, 0, 0), radius, segments, colour, thickness);
+  dr_draw_circle(center, v3f32(0, 1, 0), radius, segments, colour, thickness);
+  dr_draw_circle(center, v3f32(0, 0, 1), radius, segments, colour, thickness);
+}
+
+dr_draw_capsule :: (center: Vec3F32, radius: F32, height: F32, segments: int, colour: Vec4F32, thickness: F32)
+{
+  half := height * 0.5;
+  top_center := center + v3f32(0, 0, half);
+  bottom_center := center - v3f32(0, 0, half);
+  dr_draw_circle(top_center, v3f32(1, 0, 0), radius, segments, colour, thickness);
+  dr_draw_circle(top_center, v3f32(0, 1, 0), radius, segments, colour, thickness);
+  dr_draw_circle(bottom_center, v3f32(1, 0, 0), radius, segments, colour, thickness);
+  dr_draw_circle(bottom_center, v3f32(0, 1, 0), radius, segments, colour, thickness);
+  line_instances := DR_LineInstance.[
+    .{start=top_center + v3f32(radius, 0, 0), end=bottom_center + v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
+    .{start=top_center - v3f32(radius, 0, 0), end=bottom_center - v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
+    .{start=top_center + v3f32(0, radius, 0), end=bottom_center + v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
+    .{start=top_center - v3f32(0, radius, 0), end=bottom_center - v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
+  ];
+  dr_draw_lines(line_instances);
+}
+
 dr_draw_circle :: (center: Vec3F32, normal: Vec3F32, radius: F32, segments: int, colour: Vec4F32, thickness: F32)
 {
   n := normalize_v3(normal);
@@ -820,9 +843,7 @@ dr_draw_frame :: (camera: *CAM_Base)
     vert_constants.camera_pos = camera.position;
     vert_constants.viewport.xy = dr_renderer.resolution;
     vert_constants.viewport.zw = v2f32(0.1, 1000.0);
-
     sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
-
     main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
     SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
     SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
@@ -839,14 +860,20 @@ dr_draw_frame :: (camera: *CAM_Base)
       frag_constants: DR_MeshFragConstants;
       frag_constants.specular_intensity = it.material.specular_intensity;
       frag_constants.specular_shininess = it.material.specular_shininess;
+      frag_constants.tex_coord_scale = it.material.tex_coord_scale;
       SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
       SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
       SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
       SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
-      SDL_DrawGPUIndexedPrimitives(main_pass, xx it.index_count, xx it.instance_count, xx it.base_index, xx it.base_vertex, xx it.base_instance);
+      SDL_DrawGPUIndexedPrimitives(main_pass,
+        xx it.index_count,
+        xx it.instance_count,
+        xx it.base_index,
+        xx it.base_vertex,
+        xx it.base_instance
+      );
     }
     SDL_EndGPURenderPass(main_pass);
-
     colour_target = .{
       texture = swap_texture,
       load_op = .LOAD,
@@ -888,19 +915,16 @@ dr_draw_frame :: (camera: *CAM_Base)
       SDL_DrawGPUIndexedPrimitives(quads_pass, xx dr_renderer.mesh_quad.index_count, xx it.instance_count, 0, 0, xx it.base_instance);
     }
     SDL_EndGPURenderPass(quads_pass);
-    #if PENROSE_USE_IMGUI
-    {
-      ImGui.Render();
-      draw_data := ImGui.GetDrawData();
-      ImGui_ImplSDLGPU3_PrepareDrawData(draw_data, command_buffer);
-      target_info: SDL_GPUColorTargetInfo;
-      target_info.texture = swap_texture;
-      target_info.load_op = .LOAD;
-      target_info.store_op = .STORE;
-      render_pass := SDL_BeginGPURenderPass(command_buffer, *target_info, 1, null);
-      ImGui_ImplSDLGPU3_RenderDrawData(draw_data, command_buffer, render_pass);
-      SDL_EndGPURenderPass(render_pass);
-    }
+    ImGui.Render();
+    draw_data := ImGui.GetDrawData();
+    ImGui_ImplSDLGPU3_PrepareDrawData(draw_data, command_buffer);
+    target_info: SDL_GPUColorTargetInfo;
+    target_info.texture = swap_texture;
+    target_info.load_op = .LOAD;
+    target_info.store_op = .STORE;
+    render_pass := SDL_BeginGPURenderPass(command_buffer, *target_info, 1, null);
+    ImGui_ImplSDLGPU3_RenderDrawData(draw_data, command_buffer, render_pass);
+    SDL_EndGPURenderPass(render_pass);
     SDL_SubmitGPUCommandBuffer(command_buffer);
     dr_renderer.draw_meshes = null;
     dr_renderer.draw_lines = null;
