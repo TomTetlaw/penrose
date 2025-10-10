@@ -302,12 +302,6 @@ rotate_v3 :: (m: Mat4x4F32, v: Vec3F32) -> Vec3F32
   return result.xyz;
 }
 
-rotate_v2 :: (m: Mat4x4F32, v: Vec2F32) -> Vec2F32
-{
-  result := m * v4f32(v, 0.0, 1.0);
-  return result.xy;
-}
-
 lerp_v2 :: (a: V2($T), b: V2(T), t: T) -> V2(T)
 {
   return v2f32(lerp(a.x, b.x, t), lerp(a.y, b.y, t));

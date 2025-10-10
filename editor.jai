@@ -10,6 +10,7 @@ ED_EditorState :: struct
   arena: *Arena;
   level_name: string;
   camera: CAM_Editor;
+  copied_entity: *Entity;
   selected_entity: *Entity;
   dragging_axis: bool;
   dragging_axis_index: int;
@@ -26,18 +27,21 @@ ed_spawn :: (type_name: string, position: Vec3F32) -> *Entity
 {
   entity := g_create_entity_from_type_name(type_name);
   entity.position = position;
-  snap_v3(*entity.position, 0.5);
   return entity;
 }
 
 ed_save :: ()
 {
-  path := str_format(arena_temp, "levels/%.txt", ed_editor.level_name);
-  g_save_level(path, .{include_editor_only = true});
+  if ed_editor.level_name
+  {
+    path := str_format(arena_temp, "levels/%.txt", ed_editor.level_name);
+    g_save_level(path, .{include_editor_only = true});
+  }
 }
 
 ed_load :: (name: string)
 {
+  ed_editor.level_name = name;
   path := str_format(arena_temp, "levels/%.txt", name);
   g_load_level(path);
 }
@@ -107,6 +111,20 @@ ed_update :: ()
       g_remove_entity(ed_editor.selected_entity);
       ed_editor.selected_entity = null;
     }
+    if in_input_state.control_down && in_key_pressed(.C)
+    {
+      ed_editor.copied_entity = ed_editor.selected_entity;
+    }
+  }
+  if ed_editor.copied_entity && in_input_state.control_down && in_key_pressed(.V)
+  {
+    entity := g_create_entity_from_type_name(ed_editor.copied_entity.info.type_name);
+    prev := entity.prev;
+    next := entity.next;
+    copy(entity, ed_editor.copied_entity, xx entity.info.size);
+    entity.prev = prev;
+    entity.next = next;
+    ed_editor.selected_entity = entity;
   }
   update_selection();
   editor_imgui();
@@ -114,6 +132,7 @@ ed_update :: ()
   {
     ed_save();
     g_start_level();
+    game_paused = false;
   }
 }
 
@@ -123,15 +142,15 @@ ed_draw :: ()
   {
     if ed_editor.selected_entity == it && !ed_editor.dragging_axis
     {
-      colour := lerp_v4(v4f32(0.0, 1.0, 0.0, 1.0), v4f32(1.0, 1.0, 1.0, .25), sin(game_time*5)*.5+.5);
+      colour := lerp_v4(v4f32(0.0, 1.0, 0.0, 1.0), v4f32(1.0, 1.0, 1.0, .25), sin(real_time*5)*.5+.5);
       if it.collision.type ==
       {
-        case .CollisionType_Box;
+        case .Box;
         {
           box_min, box_max := g_entity_world_bounds(it, it.collision.box_scale);
           dr_draw_bounds(box_min, box_max, mat4x4f32_identity(), colour, 1.0, .01);
         }
-        case .CollisionType_Capsule;
+        case .Capsule;
         {
           dr_draw_capsule(it.position, it.collision.capsule_radius, it.collision.capsule_height, 32, colour, 1.0);
         }
@@ -203,10 +222,14 @@ editor_imgui :: ()
   ImGui.Begin("Entities");
   for each_entity(.{include_editor_only = true})
   {
-    if ImGui.Button(cstr_from_str(arena_temp, ifx it.name then it.name else it.info.type_name))
+    name := str_format(arena_temp, "%_%", ifx it.name then it.name else it.info.type_name, it_index);
+    name_cstr := cstr_from_str(arena_temp, name);
+    ImGui.PushID(name_cstr);
+    if ImGui.Button(name_cstr)
     {
       ed_editor.selected_entity = it;
     }
+    ImGui.PopID();
   }
   ImGui.End();
 }
@@ -342,10 +365,6 @@ update_translate_widget :: (transform: ED_TransformInfo, dest: *Vec3F32)
     closest := closest_point_on_line(ray.origin, ray.dir, ed_editor.drag_start_pos, axis_dir);
     delta := dot_v3(closest - ed_editor.drag_start_pos, axis_dir);
     result := ed_editor.drag_start_object_pos + axis_dir*delta;
-    if !in_input_state.alt_down
-    {
-      snap_v3(*result, 0.5);
-    }
     dest.* = result;
   }
 }
@@ -421,10 +440,6 @@ update_scale_widget :: (transform: ED_TransformInfo, dest: *Vec3F32)
     result := ed_editor.drag_start_object_scale;
     result[ed_editor.dragging_axis_index] *= factor;
     result[ed_editor.dragging_axis_index] = max(.01, result[ed_editor.dragging_axis_index]);
-    if !in_input_state.alt_down
-    {
-        snap_v3(*result, 0.5);
-    }
     dest.* = result;
   }
 }
@@ -507,19 +522,19 @@ entity_imgui :: (entity: *Entity)
     }
     ImGui.EndCombo();
   }
-  if entity.collision.type == .CollisionType_Box
+  if entity.collision.type == .Box
   {
     ImGui.DragFloat3("box_scale", *entity.collision.box_scale.f);
   }
-  if entity.collision.type == .CollisionType_Capsule
+  if entity.collision.type == .Capsule
   {
     ImGui.DragFloat("capsule_radius", *entity.collision.capsule_radius);
     ImGui.DragFloat("capsule_height", *entity.collision.capsule_height);
   }
   ImGui.SeparatorText("material");
   ImGui.ColorEdit4("colour", *entity.colour.f);
-  ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 1.0, v_max = 10.0, v_speed = 0.1);
-  if (ImGui.SliderInt("specular_power", *entity.material.specular_power, v_min = 2, v_max = 9))
+  ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 0.1, v_max = 10.0, v_speed = 0.1);
+  if (ImGui.SliderInt("specular_power", *entity.material.specular_power, v_min = 2, v_max = 15))
   {
     entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
   }

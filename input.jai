@@ -114,9 +114,11 @@ in_process_events :: (events: [] SDL_Event, capture_mouse: bool, capture_keyboar
       if type ==
       {
         case .SDL_EVENT_KEY_DOWN;
-          array_add(*keys, .{cast(IN_KeyCode) it.key.scancode, true});
+          key := IN_KeyPress.{cast(IN_KeyCode) it.key.scancode, true};
+          array_add(*keys, key);
         case .SDL_EVENT_KEY_UP;
-          array_add(*keys, .{cast(IN_KeyCode) it.key.scancode, false});
+          key := IN_KeyPress.{cast(IN_KeyCode) it.key.scancode, false};
+          array_add(*keys, key);
       }
     }
     if capture_mouse

@@ -77,7 +77,7 @@ DR_MeshMaterial :: struct
   lighting_intensity := 1.0;
   specular_intensity := 1.0;
   specular_shininess := 32.0;
-  specular_power: s32 = 7;
+  specular_power: s32 = 9;
   tex_coord_scale := Vec2F32.{1, 1};
   tex_colour: *DR_Texture;
   tex_normal: *DR_Texture;

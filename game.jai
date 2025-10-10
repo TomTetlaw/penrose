@@ -17,8 +17,8 @@ G_GameState :: struct
 
 CollisionType :: enum
 {
-  CollisionType_Box;
-  CollisionType_Capsule;
+  Box;
+  Capsule;
 }
 
 CollisionInfo :: struct
@@ -44,8 +44,9 @@ CollisionCapsule :: struct
 
 CollisionResult :: struct
 {
-  colliding: B8;
+  hit: B8;
   normal: Vec3F32;
+  depth: F32;
 }
 
 collision_check_box_box :: (a: CollisionBox, b: CollisionBox) -> CollisionResult
@@ -69,8 +70,9 @@ collision_check_box_box :: (a: CollisionBox, b: CollisionBox) -> CollisionResult
   center_a := (a.box_min + a.box_max)*.5;
   center_b := (b.box_min + b.box_max)*.5;
   delta := center_b - center_a;
-  if dot_v3(delta, normal) < 0.0 normal = -normal;
-  return .{true, normal};
+  d := dot_v3(delta, normal);
+  if d < 0.0 normal = -normal;
+  return .{true, normal, 0.0};
 }
 
 closest_point_on_segment :: (p: Vec3F32, capsule_top: Vec3F32, capsule_bottom: Vec3F32) -> Vec3F32
@@ -83,17 +85,16 @@ closest_point_on_segment :: (p: Vec3F32, capsule_top: Vec3F32, capsule_bottom: V
 
 collision_check_box_capsule :: (a: CollisionBox, b: CollisionCapsule) -> CollisionResult
 {
-  capsule_bottom := b.capsule_center - b.capsule_height*.5 - b.capsule_radius*.5;
-  capsule_top := b.capsule_center + b.capsule_height*.5 + b.capsule_radius*.5;
+  capsule_bottom := b.capsule_center - v3f32(0, 0, b.capsule_height*.5);
+  capsule_top := b.capsule_center + v3f32(0, 0, b.capsule_height*.5);
   box_closest := clamp_v3(b.capsule_center, a.box_min, a.box_max);
   segment_closest := closest_point_on_segment(box_closest, capsule_top, capsule_bottom);
   delta := box_closest - segment_closest;
-  dist_sq := dot_v3(delta, delta);
-  if dist_sq <= b.capsule_radius * b.capsule_radius
+  d := dot_v2(delta.xy, delta.xy);
+  if d <= b.capsule_radius * b.capsule_radius
   {
-    dist := sqrt(dist_sq);
     normal := normalize_v3(delta);
-    return .{true, normal};
+    return .{true, normal, b.capsule_radius - sqrt(d)};
   }
   return .{};
 }
@@ -107,23 +108,23 @@ g_entity_world_bounds :: (entity: *Entity, extra_scale := Vec3F32.{1, 1, 1}) -> 
 
 collision_check :: (a: *Entity, b: *Entity) -> CollisionResult
 {
-  if a.collision.type == .CollisionType_Box && b.collision.type == .CollisionType_Box
+  if a.collision.type == .Box && b.collision.type == .Box
   {
     box_min_a, box_max_a := g_entity_world_bounds(a, a.collision.box_scale);
     box_min_b, box_max_b := g_entity_world_bounds(b, b.collision.box_scale);
     return collision_check_box_box(.{box_min_a, box_max_a}, .{box_min_b, box_max_b});
   }
-  if a.collision.type == .CollisionType_Box && b.collision.type == .CollisionType_Capsule
+  if a.collision.type == .Box && b.collision.type == .Capsule
   {
     box_min_a, box_max_a := g_entity_world_bounds(a, a.collision.box_scale);
     capsule_center := b.position;
-    return collision_check_box_capsule(.{box_min_a, box_max_a}, .{capsule_center, b.collision.capsule_height, b.collision.capsule_radius});
+    return collision_check_box_capsule(.{box_min_a, box_max_a}, .{capsule_center, b.collision.capsule_radius, b.collision.capsule_height});
   }
-  if a.collision.type == .CollisionType_Capsule && b.collision.type == .CollisionType_Box
+  if a.collision.type == .Capsule && b.collision.type == .Box
   {
     box_min_b, box_max_b := g_entity_world_bounds(b, b.collision.box_scale);
     capsule_center := a.position;
-    result := collision_check_box_capsule(.{box_min_b, box_max_b}, .{capsule_center, a.collision.capsule_height, a.collision.capsule_radius});
+    result := collision_check_box_capsule(.{box_min_b, box_max_b}, .{capsule_center, a.collision.capsule_radius, a.collision.capsule_height});
     result.normal = -result.normal;
     return result;
   }
@@ -134,6 +135,7 @@ EntityTypeInfo :: struct
 {
   type_name: string;
   type: Type;
+  size: int;
 }
 
 Entity :: struct
@@ -178,7 +180,6 @@ g_create_entity :: ($T: Type) -> *T
       break;
     }
   }
-  entity.mesh = dr_renderer.mesh_cube;
   if entity.mesh_path
   {
     entity.mesh = dr_get_mesh(entity.mesh_path);
@@ -234,8 +235,6 @@ g_start_level :: ()
   set_fps_mode(true);
   player_start := g_find_entity_by_name("player_start", .{include_editor_only = true});
   g_game_state.player = g_create_entity(Player);
-  g_game_state.player.position = player_start.position;
-  g_game_state.player.camera.position = player_start.position;
   g_game_state.mode = .Game;
 }
 
@@ -246,17 +245,30 @@ g_remove_entity :: (entity: *Entity)
 
 g_update :: ()
 {
-  for each_entity()
-  {
-    if it.info.type == Player
-    {
-      player := g_downcast(it, Player);
-      cam_player_update(*player.camera);
-    }
-  }
   if g_game_state.mode == .Game
   {
-    if in_key_pressed(.Escape) || in_key_pressed(.F5)
+    player := g_game_state.player;
+    move_speed := player.camera.move_speed;
+    movement: Vec3F32;
+    movement.x = in_key_state(.W) - in_key_state(.S);
+    movement.y = in_key_state(.A) - in_key_state(.D);
+    movement = rotate_v3(mat4x4f32_rotate(v3f32(0, 0, 1), player.camera.yaw), movement);
+    player.position += v3f32(movement.xy, 0.0) * move_speed * game_delta;
+    for each_entity(.{exclude_types = .[Player]})
+    {
+      collision := collision_check(player, it);
+      if collision.hit
+      {
+        resolve := player.position + collision.normal * collision.depth;
+        player.position.x = resolve.x;
+        player.position.y = resolve.y;
+      }
+    }
+    player.camera.position = player.position;
+    cam_player_update(*player.camera);
+    dr_draw_capsule(player.position, player.collision.capsule_radius, player.collision.capsule_height, 8, v4f32(0,1,0,1), 1.0);
+
+    if in_key_pressed(.Escape)
     {
       g_clear_level();
       game_paused = true;
@@ -267,9 +279,24 @@ g_update :: ()
   }
 }
 
+g_draw :: (filter := EntityFilter.{})
+{
+  for each_entity(filter)
+  {
+    if it.mesh
+    {
+      instance: DR_MeshInstance;
+      instance.transform = mat4x4f32_transform(it.position, it.rotation, it.scale);
+      instance.colour = it.colour;
+      dr_draw_mesh(it.mesh, .[instance], *it.material);
+    }
+  }
+}
+
 EntityFilter :: struct
 {
   include_types: [] Type;
+  exclude_types: [] Type;
   include_editor_only: bool;
 }
 
@@ -282,7 +309,8 @@ is_entity_filtered :: (entity: *Entity, filter: EntityFilter) -> bool
 {
   filtered := entity.removed ||
     (!filter.include_editor_only && entity.editor_only) ||
-    (filter.include_types.count > 0 && !array_find(filter.include_types, entity.info.type));
+    (filter.include_types.count > 0 && !array_find(filter.include_types, entity.info.type)) ||
+    (filter.exclude_types.count > 0 && array_find(filter.exclude_types, entity.info.type));
   return filtered;
 }
 
@@ -297,20 +325,8 @@ for_expansion :: (filter: EntityFilter, body: Code, flags: For_Flags) #expand
   }
 }
 
-g_draw :: (filter := EntityFilter.{})
-{
-  for each_entity(filter)
-  {
-    instance: DR_MeshInstance;
-    instance.transform = mat4x4f32_transform(it.position, it.rotation, it.scale);
-    instance.colour = it.colour;
-    dr_draw_mesh(it.mesh, .[instance], *it.material);
-  }
-}
-
 g_save_level :: (path: string, filter := EntityFilter.{})
 {
-  print("g_save_level: path=%\n", path);
   file := file_open(path, for_writing = true);
   defer file_close(*file);
   for each_entity(filter)
@@ -338,7 +354,6 @@ g_save_level :: (path: string, filter := EntityFilter.{})
 
 g_load_level :: (path: string)
 {
-  print("g_load_level: path=%\n", path);
   g_clear_level();
   file_data, ok := read_entire_file(path,, arena_allocator(arena_temp));
   if ok

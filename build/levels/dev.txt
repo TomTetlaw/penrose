@@ -1,8 +1,8 @@
 entity: Prop
-position: [10, 0, 0]
+position: [10, 0, -19.568558]
 rotation: [0, 0, 0]
-scale: [25, 25, 1]
-collision_type: CollisionType_Box
+scale: [50, 50, 1]
+collision_type: Box
 collision_box_scale: [1, 1, 1]
 collision_capsule_radius: 0
 collision_capsule_height: 0
@@ -11,16 +11,16 @@ mesh: dr_default_cube_mesh
 material_tex_colour: textures/test_col.png
 material_tex_normal: textures/test_norm.png
 material_tex_specular: textures/test_spec.png
-material_specular_power: 7
-material_specular_shininess: 32
+material_specular_power: 9
+material_specular_shininess: 512
 material_specular_intensity: 1
 material_tex_coord_scale: [1.5, 1.5]
 material_lighting_intensity: 1
 entity: PlayerStart
-position: [6.5, 1.5, 1]
+position: [9.658928, -1.101656, 1]
 rotation: [0, 0, 0]
 scale: [1, 1, 1]
-collision_type: CollisionType_Box
+collision_type: Box
 collision_box_scale: [1, 1, 1]
 collision_capsule_radius: 0
 collision_capsule_height: 0
@@ -34,3 +34,75 @@ material_specular_shininess: 32
 material_specular_intensity: 1
 material_tex_coord_scale: [1, 1]
 material_lighting_intensity: 0
+entity: Prop
+position: [20.151146, -9.774045, 0.563471]
+rotation: [0, 0, 0]
+scale: [1, 1, 6]
+collision_type: Box
+collision_box_scale: [1, 1, 1]
+collision_capsule_radius: 0
+collision_capsule_height: 0
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube_mesh
+material_tex_colour: textures/test_col.png
+material_tex_normal: textures/test_norm.png
+material_tex_specular: textures/test_spec.png
+material_specular_power: 7
+material_specular_shininess: 32
+material_specular_intensity: 1
+material_tex_coord_scale: [1, 1]
+material_lighting_intensity: 1
+entity: Prop
+position: [-0.435623, -9.774045, 0.563471]
+rotation: [0, 0, 0]
+scale: [1, 1, 6]
+collision_type: Box
+collision_box_scale: [1, 1, 1]
+collision_capsule_radius: 0
+collision_capsule_height: 0
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube_mesh
+material_tex_colour: textures/test_col.png
+material_tex_normal: textures/test_norm.png
+material_tex_specular: textures/test_spec.png
+material_specular_power: 7
+material_specular_shininess: 32
+material_specular_intensity: 1
+material_tex_coord_scale: [1, 1]
+material_lighting_intensity: 1
+entity: Prop
+position: [-0.435623, 10.243826, 0.563471]
+rotation: [0, 0, 0]
+scale: [1, 1, 6]
+collision_type: Box
+collision_box_scale: [1, 1, 1]
+collision_capsule_radius: 0
+collision_capsule_height: 0
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube_mesh
+material_tex_colour: textures/test_col.png
+material_tex_normal: textures/test_norm.png
+material_tex_specular: textures/test_spec.png
+material_specular_power: 7
+material_specular_shininess: 32
+material_specular_intensity: 1
+material_tex_coord_scale: [1, 1]
+material_lighting_intensity: 1
+entity: Prop
+position: [19.941818, 10.243826, 0.563471]
+rotation: [0, 0, 0]
+scale: [1, 1, 6]
+collision_type: Box
+collision_box_scale: [1, 1, 1]
+collision_capsule_radius: 0
+collision_capsule_height: 0
+colour: [1, 1, 1, 1]
+mesh: dr_default_cube_mesh
+material_tex_colour: textures/test_col.png
+material_tex_normal: textures/test_norm.png
+material_tex_specular: textures/test_spec.png
+material_specular_power: 7
+material_specular_shininess: 32
+material_specular_intensity: 1
+material_tex_coord_scale: [1, 1]
+material_lighting_intensity: 1

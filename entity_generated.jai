@@ -4,16 +4,16 @@ g_create_entity_from_type_name :: (str: string) -> *Entity #expand
   {
     case "Entity"; #through;
     case; return g_create_entity(Entity);
-    case "Player"; return g_create_entity(Player);
     case "Prop"; return g_create_entity(Prop);
     case "PlayerStart"; return g_create_entity(PlayerStart);
+    case "Player"; return g_create_entity(Player);
 
   }
 }
 g_entity_type_info := EntityTypeInfo.[
-  .{"Entity", Entity},
-  .{"Player", Player},
-  .{"Prop", Prop},
-  .{"PlayerStart", PlayerStart},
+  .{"Entity", Entity, size_of(Entity)},
+  .{"Prop", Prop, size_of(Prop)},
+  .{"PlayerStart", PlayerStart, size_of(PlayerStart)},
+  .{"Player", Player, size_of(Player)},
 
 ];

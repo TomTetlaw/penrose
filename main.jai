@@ -4,7 +4,7 @@ SDL_WINDOW_BORDERLESS: u64: 0x0000000000000010;
 SDL_WINDOW_HIDDEN: u64: 0x0000000000000008;
 SDL_WINDOWPOS_CENTERED: s32: 0x2FFF0000;
 
-game_paused: bool;
+game_paused := true;
 game_delta: float;
 game_time: float;
 real_delta: float;
@@ -49,13 +49,9 @@ main :: ()
       in_init();
       ed_init();
       g_init();
-      material: DR_MeshMaterial;
-      material.tex_colour = tex_load("textures/shipping_crates3.tga");
-      material.tex_normal = tex_load("textures/shipping_crates3_local.tga");
-      material.tex_specular = tex_load("textures/shipping_crates3_s.tga");
-      material.specular_shininess = 128;
       while main_loop := true
       {
+        update_time();
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui.NewFrame();
@@ -78,7 +74,6 @@ main :: ()
         // NOTE(tt): collect input
         in_process_events(events, !imgui_io.WantCaptureMouse, !imgui_io.WantTextInput);
         // NOTE(tt): update
-        update_time();
         g_update();
         if g_game_state.mode == .Editor
         {
@@ -90,14 +85,16 @@ main :: ()
         {
           ed_draw();
         }
-        if g_game_state.mode == .Game
+        camera: *CAM_Base;
+        if g_game_state.mode == .Editor
         {
-          dr_draw_frame(*g_game_state.player.camera);
+          camera = *ed_editor.camera;
         }
         else
         {
-          dr_draw_frame(*ed_editor.camera);
+          camera = *g_game_state.player.camera;
         }
+        dr_draw_frame(camera);
         arena_reset(arena_temp);
       }
     }
@@ -116,16 +113,16 @@ update_time :: ()
   now := current_time_monotonic();
   diff := now - old_time;
   old_time = now;
-  delta := cast(F32) to_float64_seconds(diff);
-  real_time += delta;
-  real_delta = delta;
+  real_time = cast(F32) to_float64_seconds(now);
+  real_delta = cast(F32) to_float64_seconds(diff);
   if game_paused
   {
     game_delta = 0.0;
   }
   else
   {
-    game_time += delta;
-    game_delta = delta;
+    game_time += real_delta;
+    game_delta = real_delta;
   }
+  frame_num += 1;
 }

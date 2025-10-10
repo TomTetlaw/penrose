@@ -44,7 +44,7 @@ cam_editor_update :: (camera: *CAM_Editor)
     movement.y = in_key_state(.A) - in_key_state(.D);
     movement.z = in_key_state(.E) - in_key_state(.Q);
     movement = rotate_v3(rotation, movement);
-    camera.position += movement * move_speed * game_delta;
+    camera.position += movement * move_speed * real_delta;
   }
   transform := mat4x4f32_translate(camera.position) * rotation;
   camera.view = mat4x4f32_inverse(transform);
@@ -63,12 +63,6 @@ cam_player_update :: (camera: *CAM_Player)
   yaw := mat4x4f32_rotate(v3f32(0, 0, 1), camera.yaw);
   pitch := mat4x4f32_rotate(v3f32(0, 1, 0), camera.pitch);
   rotation := yaw * pitch;
-  move_speed := camera.move_speed;
-  movement: Vec2F32;
-  movement.x = in_key_state(.W) - in_key_state(.S);
-  movement.y = in_key_state(.A) - in_key_state(.D);
-  movement = rotate_v2(rotation, movement);
-  camera.position += v3f32(movement, 0.0) * move_speed * game_delta;
   transform := mat4x4f32_translate(camera.position) * rotation;
   camera.view = mat4x4f32_inverse(transform);
   camera.forward = v3f32(camera.view.m[0][0], camera.view.m[0][1], camera.view.m[0][2]);

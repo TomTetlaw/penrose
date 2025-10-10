@@ -95,7 +95,7 @@ HERE
 
 EntityTypeInfoCode :: #string HERE
 g_entity_type_info := EntityTypeInfo.[
-  .{"Entity", Entity},
+  .{"Entity", Entity, size_of(Entity)},
 %1
 ];
 HERE
@@ -116,7 +116,7 @@ generate_code :: (entity_types: [] *Type_Info_Struct) -> string
     builder: String_Builder;
     for entity_types
     {
-      print_to_builder(*builder, "  .{\"%1\", %1},\n", it.name);
+      print_to_builder(*builder, "  .{\"%1\", %1, size_of(%1)},\n", it.name);
     }
     code := tprint(EntityTypeInfoCode, builder_to_string(*builder));
     append(*full_builder, code);
