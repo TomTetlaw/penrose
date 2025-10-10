@@ -67,14 +67,17 @@ DR_MeshFragConstants :: struct
   specular_shininess: F32;
   specular_intensity: F32;
   tex_coord_scale: Vec2F32;
+  lighting_intensity: F32;
+  pad: Vec3F32;
 }
 
 DR_MeshMaterial :: struct
 {
   next: *DR_MeshMaterial;
+  lighting_intensity := 1.0;
   specular_intensity := 1.0;
-  specular_shininess: F32;
-  specular_power: s32 = 4;
+  specular_shininess := 32.0;
+  specular_power: s32 = 7;
   tex_coord_scale := Vec2F32.{1, 1};
   tex_colour: *DR_Texture;
   tex_normal: *DR_Texture;
@@ -146,6 +149,7 @@ DR_RendererState :: struct
   textures: *DR_Texture;
   tex_white: *DR_Texture;
   tex_black: *DR_Texture;
+  tex_normal: *DR_Texture;
   depth_target: *DR_Texture;
 
   draw_meshes: *DR_DrawMesh;
@@ -619,7 +623,7 @@ dr_create_builtin_meshes :: () {
     16,17,18, 16,18,19,
     20,21,22, 20,22,23,
   ];
-  dr_renderer.mesh_cube = dr_create_mesh("dr_default_cube", cube_vertices, cube_indices);
+  dr_renderer.mesh_cube = dr_create_mesh("dr_default_cube_mesh", cube_vertices, cube_indices);
   line_vertices := DR_MeshVertex.[
     .{position = v3f32(-1,  2, 0), tex_coord=v2f32(-1,  2), colour=v4f32(1.0)},
     .{position = v3f32( 1,  2, 0), tex_coord=v2f32( 1,  2), colour=v4f32(1.0)},
@@ -652,6 +656,13 @@ dr_create_builtin_meshes :: () {
     0, 1, 2, 2, 3, 0
   ];
   dr_renderer.mesh_quad = dr_create_mesh("dr_quad", quad_vertices, quad_indices);
+}
+
+dr_create_builtin_textures :: ()
+{
+  dr_renderer.tex_white = dr_create_draw_texture("dr_default_white_texture", 1, 1, u8.[255, 255, 255, 255].data);
+  dr_renderer.tex_black = dr_create_draw_texture("dr_default_black_texture", 1, 1, u8.[0, 0, 0, 0].data);
+  dr_renderer.tex_normal = dr_create_draw_texture("dr_default_normal_texture", 1, 1, u8.[0, 128, 0, 0].data);
 }
 
 dr_create_sampler_set :: ()
@@ -711,9 +722,8 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .None, .Triangles);
   dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .DepthTest, .Triangles);
   dr_renderer.depth_target = dr_create_target_texture("depth_target", xx resolution.x, xx resolution.y, dr_depth_format, SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
-  dr_renderer.tex_white = dr_create_draw_texture("dr_white", 1, 1, u8.[255, 255, 255, 255].data);
-  dr_renderer.tex_black = dr_create_draw_texture("dr_white", 1, 1, u8.[0, 0, 0, 0].data);
   dr_create_builtin_meshes();
+  dr_create_builtin_textures();
   dr_create_sampler_set();
 }
 
@@ -861,6 +871,7 @@ dr_draw_frame :: (camera: *CAM_Base)
       frag_constants.specular_intensity = it.material.specular_intensity;
       frag_constants.specular_shininess = it.material.specular_shininess;
       frag_constants.tex_coord_scale = it.material.tex_coord_scale;
+      frag_constants.lighting_intensity = it.material.lighting_intensity;
       SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
       SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
       SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);

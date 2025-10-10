@@ -205,6 +205,23 @@ list_add :: (first: **$T, last: **T, value: *T, $next := "next", $prev := "prev"
   }
 }
 
+list_remove :: (first: **$T, last: **T, value: *T, $next := "next", $prev := "prev")
+{
+  using,only(tprint) Basic :: #import "Basic";
+  #insert,scope() -> string
+  {
+    code ::#string HERE
+    if value.%1 value.%1.%2 = value.%2;
+    if value.%2 value.%2.%1 = value.%1;
+    if value == first.* first.* = null;
+    if value == last.* last.* = null;
+    value.%1 = null;
+    value.%2 = null;
+    HERE
+    return tprint(code, next, prev);
+  }
+}
+
 LinkedListIterator :: struct($T: Type, $next := "next")
 {
   first: *T;

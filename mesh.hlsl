@@ -83,18 +83,54 @@ cbuffer FragConstantBuffer : register(b0, space3)
   float specular_shininess;
   float specular_intensity;
   float2 tex_coord_scale;
+  float lighting_intensity;
+  float3 pad;
+}
+
+float diffuse_oren_nayar(float3 normal, float3 light_dir, float3 view_dir, float roughness)
+{
+  float n_dot_l = saturate(dot(normal, light_dir));
+  float n_dot_v = saturate(dot(normal, view_dir));
+  if (n_dot_l <= 0.0f)
+  {
+    return 0.0f;
+  }
+  float sigma = roughness * (0.5f * 3.14159265f);
+  float sigma2 = sigma * sigma;
+  float a = 1.0f - (sigma2 / (2.0f * (sigma2 + 0.33f)));
+  float b = 0.45f * (sigma2 / (sigma2 + 0.09f));
+  float alpha_cos = max(n_dot_l, n_dot_v);
+  float beta_cos  = min(n_dot_l, n_dot_v);
+  float sin_alpha = sqrt(saturate(1.0f - alpha_cos * alpha_cos));
+  float sin_beta  = sqrt(saturate(1.0f - beta_cos  * beta_cos));
+  float cos_lv = dot(light_dir, view_dir);
+  float denom = sin_alpha * sin_beta;
+  float cos_phi = 0.0f;
+  if (denom > 1e-5f)
+  {
+    cos_phi = clamp((cos_lv - (n_dot_l * n_dot_v)) / denom, -1.0f, 1.0f);
+  }
+  float tan_beta = (beta_cos > 1e-5f) ? (sin_beta / beta_cos) : 0.0f;
+  float oren_nayar = n_dot_l * (a + b * cos_phi * sin_alpha * tan_beta);
+  return oren_nayar;
 }
 
 float4 frag_main(FragInput input) : SV_Target
 {
   float2 tex_coord = input.tex_coord * tex_coord_scale;
-  float3 v = normalize(input.view_dir);
-  float3 n = normalize((texture1.Sample(sampler1, tex_coord).xyz * 2.0 - 1.0) * float3(1, -1, 1));
-  float3 l = normalize(input.light_dir);
-  float diffuse = max(dot(n, l), 0);
-  float3 h = normalize(l + v);
-  float specular = pow(max(dot(n, h), 0.0), specular_shininess);
-  float3 spec_colour = specular*specular_intensity*texture2.Sample(sampler2, tex_coord).rgb*2;
-  float3 colour = input.colour.rgb * texture0.Sample(sampler0, tex_coord).rgb*diffuse + spec_colour;
+  float3 colour = input.colour.rgb * texture0.Sample(sampler0, tex_coord).rgb;
+  if (lighting_intensity > 0)
+  {
+    float3 v = normalize(input.view_dir);
+    float3 n = normalize((texture1.Sample(sampler1, tex_coord).xyz * 2.0 - 1.0) * float3(1, -1, 1));
+    float3 l = normalize(input.light_dir);
+    float diffuse = max(dot(n, l), 0);
+    //float diffuse = diffuse_oren_nayar(n, l, v, 0.5);
+    float3 h = normalize(l + v);
+    float specular = pow(max(dot(n, h), 0.0), specular_shininess);
+    float3 spec_colour = specular*specular_intensity*texture2.Sample(sampler2, tex_coord).rgb*2;
+    colour *= lighting_intensity * diffuse;
+    colour += lighting_intensity * spec_colour;
+  }
   return float4(colour * input.colour.a, input.colour.a);
 }

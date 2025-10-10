@@ -1,5 +1,5 @@
-entity
-position: [0, 0, 0]
+entity: Prop
+position: [10, 0, 0]
 rotation: [0, 0, 0]
 scale: [25, 25, 1]
 collision_type: CollisionType_Box
@@ -7,84 +7,17 @@ collision_box_scale: [1, 1, 1]
 collision_capsule_radius: 0
 collision_capsule_height: 0
 colour: [1, 1, 1, 1]
-mesh: dr_default_cube
-material_tex_colour: textures/shipping_crates3.tga
-material_tex_normal: textures/shipping_crates3_local.tga
-material_tex_specular: textures/shipping_crates3_s.tga
-material_specular_power: 4
-material_specular_shininess: 16
-material_specular_intensity: 1
-material_tex_coord_scale: [1, 1]
-entity
-position: [5, 5, 5.5]
-rotation: [0, 0, 0]
-scale: [1, 1, 10]
-collision_type: CollisionType_Box
-collision_box_scale: [1, 1, 1]
-collision_capsule_radius: 0
-collision_capsule_height: 0
-colour: [1, 1, 1, 1]
-mesh: dr_default_cube
+mesh: dr_default_cube_mesh
 material_tex_colour: textures/test_col.png
 material_tex_normal: textures/test_norm.png
 material_tex_specular: textures/test_spec.png
-material_specular_power: 4
-material_specular_shininess: 16
+material_specular_power: 7
+material_specular_shininess: 32
 material_specular_intensity: 1
-material_tex_coord_scale: [1, 1]
-entity
-position: [-5, 5, 5.5]
-rotation: [0, 0, 0]
-scale: [1, 1, 10]
-collision_type: CollisionType_Box
-collision_box_scale: [1.25, 1.25, 1]
-collision_capsule_radius: 0.5
-collision_capsule_height: 10
-colour: [1, 1, 1, 1]
-mesh: dr_default_cube
-material_tex_colour: textures/test_col.png
-material_tex_normal: textures/test_norm.png
-material_tex_specular: textures/test_spec.png
-material_specular_power: 4
-material_specular_shininess: 16
-material_specular_intensity: 1
-material_tex_coord_scale: [1, 1]
-entity
-position: [5, -5, 5.5]
-rotation: [0, 0, 0]
-scale: [1, 1, 10]
-collision_type: CollisionType_Box
-collision_box_scale: [1, 1, 1]
-collision_capsule_radius: 0
-collision_capsule_height: 0
-colour: [1, 1, 1, 1]
-mesh: dr_default_cube
-material_tex_colour: textures/test_col.png
-material_tex_normal: textures/test_norm.png
-material_tex_specular: textures/test_spec.png
-material_specular_power: 4
-material_specular_shininess: 16
-material_specular_intensity: 1
-material_tex_coord_scale: [1, 1]
-entity
-position: [-5, -5, 5.5]
-rotation: [0, 0, 0]
-scale: [1, 1, 10]
-collision_type: CollisionType_Box
-collision_box_scale: [1, 1, 1]
-collision_capsule_radius: 0
-collision_capsule_height: 0
-colour: [1, 1, 1, 1]
-mesh: dr_default_cube
-material_tex_colour: textures/test_col.png
-material_tex_normal: textures/test_norm.png
-material_tex_specular: textures/test_spec.png
-material_specular_power: 4
-material_specular_shininess: 16
-material_specular_intensity: 1
-material_tex_coord_scale: [1, 1]
-entity
-position: [-0.5, -1.5, 1]
+material_tex_coord_scale: [1.5, 1.5]
+material_lighting_intensity: 1
+entity: PlayerStart
+position: [6.5, 1.5, 1]
 rotation: [0, 0, 0]
 scale: [1, 1, 1]
 collision_type: CollisionType_Box
@@ -92,11 +25,12 @@ collision_box_scale: [1, 1, 1]
 collision_capsule_radius: 0
 collision_capsule_height: 0
 colour: [1, 1, 1, 1]
-mesh: dr_default_cube
+mesh: dr_default_cube_mesh
 material_tex_colour: textures/info_player_start.png
-material_tex_normal: textures/shipping_crates3_local.tga
-material_tex_specular: textures/shipping_crates3_s.tga
-material_specular_power: 4
-material_specular_shininess: 16
+material_tex_normal: dr_default_normal_texture
+material_tex_specular: dr_default_white_texture
+material_specular_power: 7
+material_specular_shininess: 32
 material_specular_intensity: 1
 material_tex_coord_scale: [1, 1]
+material_lighting_intensity: 0

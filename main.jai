@@ -11,12 +11,17 @@ real_delta: float;
 real_time: float;
 frame_num: int;
 
+set_fps_mode :: (enabled: bool)
+{
+  SDL_SetWindowRelativeMouseMode(window, enabled);
+}
+
 main :: ()
 {
   SDL_Init(SDL_INIT_VIDEO);
   SDL_ShaderCross_Init();
   window_flags := SDL_WINDOW_VULKAN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN;
-  window := SDL_CreateWindow("Walker", 1, 1, window_flags);
+  window = SDL_CreateWindow("Walker", 1, 1, window_flags);
   if window
   {
     display_count: s32;
@@ -74,11 +79,25 @@ main :: ()
         in_process_events(events, !imgui_io.WantCaptureMouse, !imgui_io.WantTextInput);
         // NOTE(tt): update
         update_time();
-        ed_update();
+        g_update();
+        if g_game_state.mode == .Editor
+        {
+          ed_update();
+        }
         // NOTE(tt): draw
-        g_draw();
-        ed_draw();
-        dr_draw_frame(*ed_editor.camera);
+        g_draw(.{include_editor_only = g_game_state.mode == .Editor});
+        if g_game_state.mode == .Editor
+        {
+          ed_draw();
+        }
+        if g_game_state.mode == .Game
+        {
+          dr_draw_frame(*g_game_state.player.camera);
+        }
+        else
+        {
+          dr_draw_frame(*ed_editor.camera);
+        }
         arena_reset(arena_temp);
       }
     }
@@ -88,6 +107,8 @@ main :: ()
 #scope_file
 
 imgui_io: *ImGuiIO;
+
+window: *SDL_Window;
 
 old_time: Apollo_Time;
 update_time :: ()

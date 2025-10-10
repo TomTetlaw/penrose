@@ -26,10 +26,13 @@ build :: ()
   }
   set_build_options(options, workspace);
   make_directory_if_it_does_not_exist("./build/shaders");
+
+  compiler_begin_intercept(workspace);
+
   files := file_list("./");
   for files
   {
-    if contains(it, ".jai") && !contains(it, "build.jai")
+    if contains(it, ".jai") && !contains(it, "build.jai") && !contains(it, "_generated.jai")
     {
       add_build_file(it, workspace);
     }
@@ -39,7 +42,86 @@ build :: ()
       copy_file(tprint("%.hlsl", base), tprint("build/shaders/%.hlsl", base));
     }
   }
+
+  entity_types: [..] *Type_Info_Struct;
+  generated_code := false;
+  while true
+  {
+    message := compiler_wait_for_message();
+    if message.kind ==
+    {
+      case .COMPLETE;
+        break;
+
+      case .TYPECHECKED;
+        typechecked := cast(*Message_Typechecked) message;
+        for typechecked.structs
+        {
+          if is_subclass_of(it.expression.defined_type, "Entity")
+          {
+            array_add(*entity_types, it.expression.defined_type);
+          }
+        }
+
+      case .PHASE;
+        phase := cast(*Message_Phase) message;
+        if phase.phase == .TYPECHECKED_ALL_WE_CAN
+        {
+          if !generated_code
+          {
+            generated_code = true;
+            code := generate_code(entity_types);
+            write_entire_file("entity_generated.jai", code);
+            add_build_string(code, workspace);
+          }
+        }
+    }
+  }
+  compiler_end_intercept(workspace);
   set_build_options_dc(.{do_output=false});
+}
+
+CreateEntityFromStringCode :: #string HERE
+g_create_entity_from_type_name :: (str: string) -> *Entity #expand
+{
+  if str ==
+  {
+    case "Entity"; #through;
+    case; return g_create_entity(Entity);
+%1
+  }
+}
+HERE
+
+EntityTypeInfoCode :: #string HERE
+g_entity_type_info := EntityTypeInfo.[
+  .{"Entity", Entity},
+%1
+];
+HERE
+
+generate_code :: (entity_types: [] *Type_Info_Struct) -> string
+{
+  full_builder: String_Builder;
+  {
+    builder: String_Builder;
+    for entity_types
+    {
+      print_to_builder(*builder, "    case \"%1\"; return g_create_entity(%1);\n", it.name);
+    }
+    code := tprint(CreateEntityFromStringCode, builder_to_string(*builder));
+    append(*full_builder, code);
+  }
+  {
+    builder: String_Builder;
+    for entity_types
+    {
+      print_to_builder(*builder, "  .{\"%1\", %1},\n", it.name);
+    }
+    code := tprint(EntityTypeInfoCode, builder_to_string(*builder));
+    append(*full_builder, code);
+  }
+  return builder_to_string(*full_builder);
 }
 
 #run build();

@@ -245,7 +245,7 @@ IN_KeyCode :: enum u32
 
   HOME                 :: 74;
   PAGEUP               :: 75;
-  DELETE               :: 76;
+  Delete               :: 76;
   END                  :: 77;
   PAGEDOWN             :: 78;
   RIGHT                :: 79;

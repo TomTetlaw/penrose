@@ -16,6 +16,7 @@ using,only
   formatInt,
   enum_names,
   enum_values_as_enum,
+  array_find,
   exit
 ) Basic :: #import "Basic";
 using,only

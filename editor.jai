@@ -8,6 +8,7 @@ ED_TransformMode :: enum
 ED_EditorState :: struct
 {
   arena: *Arena;
+  level_name: string;
   camera: CAM_Editor;
   selected_entity: *Entity;
   dragging_axis: bool;
@@ -21,11 +22,24 @@ ED_EditorState :: struct
 
 ed_editor: *ED_EditorState;
 
-ed_spawn :: (mesh: *DR_Mesh, position: Vec3F32) -> *Entity
+ed_spawn :: (type_name: string, position: Vec3F32) -> *Entity
 {
-  entity := g_spawn(mesh, position);
+  entity := g_create_entity_from_type_name(type_name);
+  entity.position = position;
   snap_v3(*entity.position, 0.5);
   return entity;
+}
+
+ed_save :: ()
+{
+  path := str_format(arena_temp, "levels/%.txt", ed_editor.level_name);
+  g_save_level(path, .{include_editor_only = true});
+}
+
+ed_load :: (name: string)
+{
+  path := str_format(arena_temp, "levels/%.txt", name);
+  g_load_level(path);
 }
 
 ed_init :: ()
@@ -88,14 +102,24 @@ ed_update :: ()
       case .Scale;
         update_scale_widget(transform, *entity.scale);
     }
+    if in_key_pressed(.Delete)
+    {
+      g_remove_entity(ed_editor.selected_entity);
+      ed_editor.selected_entity = null;
+    }
   }
   update_selection();
   editor_imgui();
+  if in_key_pressed(.F5)
+  {
+    ed_save();
+    g_start_level();
+  }
 }
 
 ed_draw :: ()
 {
-  for each_element(g_game_state.entities)
+  for each_entity(.{include_editor_only = true})
   {
     if ed_editor.selected_entity == it && !ed_editor.dragging_axis
     {
@@ -118,13 +142,11 @@ ed_draw :: ()
 
 #scope_file
 
-level_name: string;
-
 editor_imgui :: ()
 {
-  if level_name
+  if ed_editor.level_name
   {
-    ImGui.Begin(cstr_from_str(arena_temp, str_format(arena_temp, "Level (%)###LevelWindow", level_name)));
+    ImGui.Begin(cstr_from_str(arena_temp, str_format(arena_temp, "Level (%)###LevelWindow", ed_editor.level_name)));
   }
   else
   {
@@ -139,25 +161,25 @@ editor_imgui :: ()
     ImGui.OpenPopup("LevelPicker");
   }
   {
-    if !level_name
+    if !ed_editor.level_name
     {
       ImGui.BeginDisabled();
     }
     if ImGui.Button("Save")
     {
-      g_save_level(str_format(arena_temp, "levels/%.txt", level_name));
+      ed_save();
     }
-    if !level_name
+    if !ed_editor.level_name
     {
       ImGui.EndDisabled();
     }
   }
   {
     buffer: [256] u8;
-    copy(buffer.data, level_name.data, xx level_name.count);
+    copy(buffer.data, ed_editor.level_name.data, xx ed_editor.level_name.count);
     if ImGui.InputText("Name", buffer.data, 256)
     {
-      level_name = str_from_cstr(ed_editor.arena, buffer.data);
+      ed_editor.level_name = str_from_cstr(ed_editor.arena, buffer.data);
     }
   }
   level_picker_modal();
@@ -166,14 +188,25 @@ editor_imgui :: ()
     exit(0);
   }
   ImGui.SeparatorText("spawn");
-  if ImGui.Button("cube")
+  not_spawnable := string.["Player"];
+  for g_entity_type_info
   {
-    ed_spawn(dr_renderer.mesh_cube, ed_editor.camera.position + ed_editor.camera.forward*10);
+    if !array_find(not_spawnable, it.type_name)
+    {
+      if ImGui.Button(cstr_from_str(arena_temp, it.type_name))
+      {
+        ed_spawn(it.type_name, ed_editor.camera.position + ed_editor.camera.forward*10);
+      }
+    }
   }
-  if ImGui.Button("info_player_start")
+  ImGui.End();
+  ImGui.Begin("Entities");
+  for each_entity(.{include_editor_only = true})
   {
-    entity := ed_spawn(dr_renderer.mesh_cube, ed_editor.camera.position + ed_editor.camera.forward*10);
-    entity.material.tex_colour = dr_get_texture("textures/info_player_start.png");
+    if ImGui.Button(cstr_from_str(arena_temp, ifx it.name then it.name else it.info.type_name))
+    {
+      ed_editor.selected_entity = it;
+    }
   }
   ImGui.End();
 }
@@ -188,8 +221,7 @@ level_picker_modal :: ()
       path, base, ext := path_decomp(it);
       if ImGui.Button(cstr_from_str(arena_temp, base))
       {
-        g_load_level(it);
-        level_name = base;
+        ed_load(base);
         ImGui.CloseCurrentPopup();
       }
     }
@@ -214,7 +246,7 @@ update_selection :: () -> B8
     );
     selected: *Entity;
     min_t := MaxF32;
-    for each_element(g_game_state.entities)
+    for each_entity(.{include_editor_only = true})
     {
       transform := mat4x4f32_transform(it.position, it.rotation, it.scale);
       bounds_min := transform * v4f32(it.mesh.bounds_min, 1.0);
@@ -408,20 +440,23 @@ texture_picker_modal :: ()
       ImGui.CloseCurrentPopup();
       texture_picker_dest = null;
     }
+    paths: [..] string;
+    paths.allocator = arena_allocator(arena_temp);
     texture_paths := file_list("textures");
+    array_add(*paths, ..texture_paths);
     ImGui.BeginTable("textures", 3);
-    for texture_paths
+    for each_element(dr_renderer.textures)
     {
       if it_index % 3 == 0
       {
         ImGui.TableNextRow();
       }
       ImGui.TableNextColumn();
-      texture := dr_get_texture(it);
+      texture := dr_get_texture(it.path);
       if texture
       {
         ImGui.PushID(cast(s32) it_index);
-        ImGui.Text(it);
+        ImGui.Text(it.path);
         if ImGui.ImageButton("", .{_TexID = cast(ImTextureID) texture.ref}, ImVec2.{64, 64})
         {
           texture_picker_dest.* = texture;
@@ -484,14 +519,17 @@ entity_imgui :: (entity: *Entity)
   ImGui.SeparatorText("material");
   ImGui.ColorEdit4("colour", *entity.colour.f);
   ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 1.0, v_max = 10.0, v_speed = 0.1);
-  ImGui.SliderInt("specular_shininess", *entity.material.specular_power, v_min = 2, v_max = 9);
+  if (ImGui.SliderInt("specular_power", *entity.material.specular_power, v_min = 2, v_max = 9))
+  {
+    entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
+  }
+  ImGui.DragFloat("lighting_intensity", *entity.material.lighting_intensity, v_min = 0.0, v_max = 1.0, v_speed = .01);
   ImGui.SeparatorText("textures");
   texture_property("colour", *entity.material.tex_colour);
   texture_property("normal", *entity.material.tex_normal);
   texture_property("specular", *entity.material.tex_specular);
   ImGui.DragFloat2("tex_coord_scale", *entity.material.tex_coord_scale.f);
   texture_picker_modal();
-  entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
   ImGui.End();
 }
 
