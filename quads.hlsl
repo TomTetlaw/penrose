@@ -41,7 +41,8 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId)
   float4 colour = input.colour * instance.colour;
   float2 tex_coord = input.tex_coord;
   float2 size = instance.props.xy;
-  float4 clip_center = mul(view_to_clip, mul(world_to_view, float4(instance.position, 1)));
+  float4 view_center = mul(world_to_view, float4(instance.position, 1));
+  float4 clip_center = mul(view_to_clip, view_center);
   float2 clip_size = size / viewport.xy * 2.0;
   float2 corner_offset = input.position.xy * clip_size;
   float4 clip = clip_center;

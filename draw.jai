@@ -647,10 +647,10 @@ dr_create_builtin_meshes :: () {
   ];
   dr_renderer.mesh_line = dr_create_mesh("dr_line", line_vertices, line_indices);
   quad_vertices := DR_MeshVertex.[
-    .{position = v3f32(0, 0, 0), tex_coord=v2f32(0,  0), colour=v4f32(1.0)},
-    .{position = v3f32(1, 0, 0), tex_coord=v2f32(1,  0), colour=v4f32(1.0)},
-    .{position = v3f32(1, 1, 0), tex_coord=v2f32(1,  1), colour=v4f32(1.0)},
-    .{position = v3f32(0, 1, 0), tex_coord=v2f32(0,  1), colour=v4f32(1.0)},
+    .{position = v3f32(-.5, -.5, 0), tex_coord=v2f32(0, 0), colour=v4f32(1.0)},
+    .{position = v3f32( .5, -.5, 0), tex_coord=v2f32(1, 0), colour=v4f32(1.0)},
+    .{position = v3f32( .5,  .5, 0), tex_coord=v2f32(1, 1), colour=v4f32(1.0)},
+    .{position = v3f32(-.5,  .5, 0), tex_coord=v2f32(0, 1), colour=v4f32(1.0)},
   ];
   quad_indices := u32.[
     0, 1, 2, 2, 3, 0

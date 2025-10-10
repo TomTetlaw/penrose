@@ -1,5 +1,5 @@
 entity: Prop
-position: [10, 0, -2.817305]
+position: [10, 0, -1]
 rotation: [0, 0, 0]
 scale: [50, 50, 1]
 collision_type: Box
@@ -18,7 +18,7 @@ material_specular_intensity: 1
 material_tex_coord_scale: [1.5, 1.5]
 material_lighting_intensity: 1
 entity: PlayerStart
-position: [9.658928, -1.101656, 1]
+position: [9.658928, -1.101656, 0]
 rotation: [0, 0, 0]
 scale: [1, 1, 1]
 collision_type: Box
@@ -37,7 +37,7 @@ material_specular_intensity: 1
 material_tex_coord_scale: [1, 1]
 material_lighting_intensity: 0
 entity: Prop
-position: [20.151146, -9.774045, 0.563471]
+position: [20.151146, -9.774045, 2.375934]
 rotation: [0, 0, 0]
 scale: [1, 1, 6]
 collision_type: Box
@@ -56,7 +56,7 @@ material_specular_intensity: 1
 material_tex_coord_scale: [1, 1]
 material_lighting_intensity: 1
 entity: Prop
-position: [-0.435623, -9.774045, 0.563471]
+position: [-0.435623, -9.774045, 2.410873]
 rotation: [0, 0, 0]
 scale: [1, 1, 6]
 collision_type: Box
@@ -75,7 +75,7 @@ material_specular_intensity: 1
 material_tex_coord_scale: [1, 1]
 material_lighting_intensity: 1
 entity: Prop
-position: [-0.435623, 10.243826, 0.563471]
+position: [-0.435623, 10.243826, 2.379692]
 rotation: [0, 0, 0]
 scale: [1, 1, 6]
 collision_type: Box
@@ -94,7 +94,7 @@ material_specular_intensity: 1
 material_tex_coord_scale: [1, 1]
 material_lighting_intensity: 1
 entity: Prop
-position: [19.941818, 10.243826, 0.563471]
+position: [19.941818, 10.243826, 2.404555]
 rotation: [0, 0, 0]
 scale: [1, 1, 6]
 collision_type: Box
@@ -108,6 +108,24 @@ material_tex_colour: textures/test_col.png
 material_tex_normal: textures/test_norm.png
 material_tex_specular: textures/test_spec.png
 material_specular_power: 7
+material_specular_shininess: 32
+material_specular_intensity: 1
+material_tex_coord_scale: [1, 1]
+material_lighting_intensity: 1
+entity: UsableObject
+position: [20.053699, 7.340679, 0.392109]
+rotation: [0, 0, 0]
+scale: [1, 1, 1]
+collision_type: None
+collision_enabled: true
+collision_box_scale: [1, 1, 1]
+collision_capsule_radius: 0
+collision_capsule_height: 0
+colour: [1, 1, 1, 1]
+material_tex_colour: dr_default_white_texture
+material_tex_normal: dr_default_normal_texture
+material_tex_specular: dr_default_white_texture
+material_specular_power: 9
 material_specular_shininess: 32
 material_specular_intensity: 1
 material_tex_coord_scale: [1, 1]

@@ -17,6 +17,7 @@ G_GameState :: struct
 
 CollisionType :: enum
 {
+  None;
   Box;
   Capsule;
 }
@@ -50,46 +51,15 @@ CollisionResult :: struct
   depth: F32;
 }
 
-collision_check_box_box :: (a: CollisionBox, b: CollisionBox) -> CollisionResult
-{
-  if (a.box_max.x < b.box_min.x || a.box_min.x > b.box_max.x) return .{};
-  if (a.box_max.y < b.box_min.y || a.box_min.y > b.box_max.y) return .{};
-  if (a.box_max.z < b.box_min.z || a.box_min.z > b.box_max.z) return .{};
-  overlap := min_v3(a.box_max, b.box_max) - max_v3(a.box_min, b.box_min);
-  min_overlap := overlap.x;
-  normal := v3f32(1, 0, 0);
-  if overlap.y < min_overlap
-  {
-    min_overlap = overlap.y;
-    normal = v3f32(0, 1, 0);
-  }
-  if overlap.z < min_overlap
-  {
-    min_overlap = overlap.z;
-    normal = v3f32(0,0,1);
-  }
-  center_a := (a.box_min + a.box_max)*.5;
-  center_b := (b.box_min + b.box_max)*.5;
-  delta := center_b - center_a;
-  d := dot_v3(delta, normal);
-  if d < 0.0 normal = -normal;
-  return .{true, normal, 0.0};
-}
-
-closest_point_on_segment :: (p: Vec3F32, capsule_top: Vec3F32, capsule_bottom: Vec3F32) -> Vec3F32
-{
-  ab := capsule_top - capsule_bottom;
-  t := dot_v3(p - capsule_bottom, ab) / dot_v3(ab, ab);
-  t = clamp(t, 0.0, 1.0);
-  return capsule_bottom + ab * t;
-}
-
 collision_check_box_capsule :: (a: CollisionBox, b: CollisionCapsule) -> CollisionResult
 {
   capsule_bottom := b.capsule_center - v3f32(0, 0, b.capsule_height*.5);
   capsule_top := b.capsule_center + v3f32(0, 0, b.capsule_height*.5);
   box_closest := clamp_v3(b.capsule_center, a.box_min, a.box_max);
-  segment_closest := closest_point_on_segment(box_closest, capsule_top, capsule_bottom);
+  ab := capsule_top - capsule_bottom;
+  t := dot_v3(box_closest - capsule_bottom, ab) / dot_v3(ab, ab);
+  t = clamp(t, 0.0, 1.0);
+  segment_closest := capsule_bottom + ab * t;
   delta := box_closest - segment_closest;
   d := dot_v2(delta.xy, delta.xy);
   if d <= b.capsule_radius * b.capsule_radius
@@ -100,27 +70,8 @@ collision_check_box_capsule :: (a: CollisionBox, b: CollisionCapsule) -> Collisi
   return .{};
 }
 
-g_entity_world_bounds :: (entity: *Entity, extra_scale := Vec3F32.{1, 1, 1}) -> Vec3F32, Vec3F32
-{
-  bounds_min := entity.position + entity.mesh.bounds_min*entity.scale*extra_scale;
-  bounds_max := entity.position + entity.mesh.bounds_max*entity.scale*extra_scale;
-  return bounds_min, bounds_max;
-}
-
 collision_check :: (a: *Entity, b: *Entity) -> CollisionResult
 {
-  if a.collision.type == .Box && b.collision.type == .Box
-  {
-    box_min_a, box_max_a := g_entity_world_bounds(a, a.collision.box_scale);
-    box_min_b, box_max_b := g_entity_world_bounds(b, b.collision.box_scale);
-    return collision_check_box_box(.{box_min_a, box_max_a}, .{box_min_b, box_max_b});
-  }
-  if a.collision.type == .Box && b.collision.type == .Capsule
-  {
-    box_min_a, box_max_a := g_entity_world_bounds(a, a.collision.box_scale);
-    capsule_center := b.position;
-    return collision_check_box_capsule(.{box_min_a, box_max_a}, .{capsule_center, b.collision.capsule_radius, b.collision.capsule_height});
-  }
   if a.collision.type == .Capsule && b.collision.type == .Box
   {
     box_min_b, box_max_b := g_entity_world_bounds(b, b.collision.box_scale);
@@ -156,6 +107,7 @@ Entity :: struct
   material: DR_MeshMaterial;
   colour := Vec4F32.{1, 1, 1, 1};
   collision: CollisionInfo;
+  collision.type = .Box;
 }
 
 g_game_state: *G_GameState;
@@ -269,8 +221,6 @@ g_update :: ()
     }
     player.camera.position = player.position;
     cam_player_update(*player.camera);
-    dr_draw_capsule(player.position, player.collision.capsule_radius, player.collision.capsule_height, 8, v4f32(0,1,0,1), 1.0);
-
     if in_key_pressed(.Escape)
     {
       g_clear_level();
@@ -294,6 +244,22 @@ g_draw :: (filter := EntityFilter.{})
       dr_draw_mesh(it.mesh, .[instance], *it.material);
     }
   }
+
+  for each_entity(.{include_types = .[UsableObject]})
+  {
+    quad: DR_QuadInstance;
+    quad.position = it.position;
+    quad.colour = v4f32(212.0, 188.0, 125.0, 255.0) / 255.0;
+    quad.props = quad_props(v2f32(64.0), 1.0);
+    dr_draw_quads(.[quad]);
+  }
+}
+
+g_entity_world_bounds :: (entity: *Entity, extra_scale := Vec3F32.{1, 1, 1}) -> Vec3F32, Vec3F32
+{
+  bounds_min := entity.position + entity.mesh.bounds_min*entity.scale*extra_scale;
+  bounds_max := entity.position + entity.mesh.bounds_max*entity.scale*extra_scale;
+  return bounds_min, bounds_max;
 }
 
 EntityFilter :: struct
@@ -344,10 +310,22 @@ g_save_level :: (path: string, filter := EntityFilter.{})
     file_print_line(*file, "collision_capsule_radius: %", it.collision.capsule_radius);
     file_print_line(*file, "collision_capsule_height: %", it.collision.capsule_height);
     file_print_v4(*file, "colour", it.colour);
-    file_print_line(*file, "mesh: %", it.mesh.path);
-    file_print_line(*file, "material_tex_colour: %", it.material.tex_colour.path);
-    file_print_line(*file, "material_tex_normal: %", it.material.tex_normal.path);
-    file_print_line(*file, "material_tex_specular: %", it.material.tex_specular.path);
+    if it.mesh
+    {
+      file_print_line(*file, "mesh: %", it.mesh.path);
+    }
+    if it.material.tex_colour
+    {
+      file_print_line(*file, "material_tex_colour: %", it.material.tex_colour.path);
+    }
+    if it.material.tex_normal
+    {
+      file_print_line(*file, "material_tex_normal: %", it.material.tex_normal.path);
+    }
+    if it.material.tex_specular
+    {
+      file_print_line(*file, "material_tex_specular: %", it.material.tex_specular.path);
+    }
     file_print_line(*file, "material_specular_power: %", it.material.specular_power);
     file_print_line(*file, "material_specular_shininess: %", it.material.specular_shininess);
     file_print_line(*file, "material_specular_intensity: %", it.material.specular_intensity);

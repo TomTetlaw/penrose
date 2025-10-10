@@ -84,14 +84,17 @@ ed_update :: ()
       enum_cycle(*ed_editor.transform_mode);
     }
     entity := ed_editor.selected_entity;
-    bounds_min := entity.mesh.bounds_min;
-    bounds_max := entity.mesh.bounds_max;
     rotation := mat4x4f32_rotate(v3f32(1, 0, 0), entity.rotation.x) *
       mat4x4f32_rotate(v3f32(0, 1, 0), entity.rotation.y) *
       mat4x4f32_rotate(v3f32(0, 0, 1), entity.rotation.z);
     transform: ED_TransformInfo;
-    transform.bounds_min = bounds_min;
-    transform.bounds_max = bounds_max;
+    if entity.mesh
+    {
+      bounds_min := entity.mesh.bounds_min;
+      bounds_max := entity.mesh.bounds_max;
+      transform.bounds_min = bounds_min;
+      transform.bounds_max = bounds_max;
+    }
     transform.position = entity.position;
     transform.rotation = entity.rotation;
     transform.scale = entity.scale;
@@ -271,14 +274,17 @@ update_selection :: () -> B8
     min_t := MaxF32;
     for each_entity(.{include_editor_only = true})
     {
-      transform := mat4x4f32_transform(it.position, it.rotation, it.scale);
-      bounds_min := transform * v4f32(it.mesh.bounds_min, 1.0);
-      bounds_max := transform * v4f32(it.mesh.bounds_max, 1.0);
-      hit, t := intersection_rayf32_boundsf32(ray, bounds_min.xyz, bounds_max.xyz);
-      if hit && t < min_t
+      if it.mesh
       {
-        selected = it;
-        min_t = min(min_t, t);
+        transform := mat4x4f32_transform(it.position, it.rotation, it.scale);
+        bounds_min := transform * v4f32(it.mesh.bounds_min, 1.0);
+        bounds_max := transform * v4f32(it.mesh.bounds_max, 1.0);
+        hit, t := intersection_rayf32_boundsf32(ray, bounds_min.xyz, bounds_max.xyz);
+        if hit && t < min_t
+        {
+          selected = it;
+          min_t = min(min_t, t);
+        }
       }
     }
     if selected
