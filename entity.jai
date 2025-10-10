@@ -23,5 +23,6 @@ Player :: struct
   base.collision.type = .Capsule;
   base.collision.capsule_height = 6.0;
   base.collision.capsule_radius = 1.0;
+  move_speed := 6.0;
   camera: CAM_Player;
 }

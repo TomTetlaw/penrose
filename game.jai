@@ -24,6 +24,7 @@ CollisionType :: enum
 CollisionInfo :: struct
 {
   type: CollisionType;
+  enabled := true;
   box_scale := Vec3F32.{1, 1, 1};
   capsule_radius: F32;
   capsule_height: F32;
@@ -248,20 +249,22 @@ g_update :: ()
   if g_game_state.mode == .Game
   {
     player := g_game_state.player;
-    move_speed := player.camera.move_speed;
     movement: Vec3F32;
     movement.x = in_key_state(.W) - in_key_state(.S);
     movement.y = in_key_state(.A) - in_key_state(.D);
     movement = rotate_v3(mat4x4f32_rotate(v3f32(0, 0, 1), player.camera.yaw), movement);
-    player.position += v3f32(movement.xy, 0.0) * move_speed * game_delta;
+    player.position += v3f32(movement.xy, 0.0) * player.move_speed * game_delta;
     for each_entity(.{exclude_types = .[Player]})
     {
-      collision := collision_check(player, it);
-      if collision.hit
+      if it.collision.enabled
       {
-        resolve := player.position + collision.normal * collision.depth;
-        player.position.x = resolve.x;
-        player.position.y = resolve.y;
+        collision := collision_check(player, it);
+        if collision.hit
+        {
+          resolve := player.position + collision.normal * collision.depth;
+          player.position.x = resolve.x;
+          player.position.y = resolve.y;
+        }
       }
     }
     player.camera.position = player.position;
@@ -336,6 +339,7 @@ g_save_level :: (path: string, filter := EntityFilter.{})
     file_print_v3(*file, "rotation", it.rotation);
     file_print_v3(*file, "scale", it.scale);
     file_print_line(*file, "collision_type: %", enum_names(CollisionType)[it.collision.type]);
+    file_print_line(*file, "collision_enabled: %", it.collision.enabled);
     file_print_v3(*file, "collision_box_scale", it.collision.box_scale);
     file_print_line(*file, "collision_capsule_radius: %", it.collision.capsule_radius);
     file_print_line(*file, "collision_capsule_height: %", it.collision.capsule_height);
@@ -380,6 +384,9 @@ g_load_level :: (path: string)
         case "collision_type";
           type := parse_enum(*right, CollisionType);
           entity.collision.type = type;
+        case "collision_enabled";
+          enabled := parse_bool(*right);
+          entity.collision.enabled = enabled;
         case "collision_box_scale";
           box_scale := parse_v3(right);
           entity.collision.box_scale = box_scale;

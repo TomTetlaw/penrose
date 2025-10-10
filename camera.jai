@@ -12,7 +12,6 @@ CAM_Player :: struct
   using #as base: CAM_Base;
   rotation_input: Vec2F32;
   yaw, pitch: F32;
-  move_speed :: 25.0;
 }
 
 CAM_Editor :: struct

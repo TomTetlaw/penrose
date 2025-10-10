@@ -511,6 +511,7 @@ entity_imgui :: (entity: *Entity)
   ImGui.DragFloat3("rotation", *entity.rotation.f, v_min = 0.0, v_max = 1.0, v_speed = .01);
   ImGui.DragFloat3("scale", *entity.scale.f, v_min = .5, v_speed = .5);
   ImGui.SeparatorText("collision");
+  ImGui.Checkbox("enabled", *entity.collision.enabled);
   if ImGui.BeginCombo("collision_type", cstr_from_str(arena_temp, enum_names(CollisionType)[entity.collision.type]))
   {
     for enum_values_as_enum(CollisionType)

@@ -25,7 +25,8 @@ using,only
   parse_float,
   parse_int,
   path_decomp,
-  parse_enum
+  parse_enum,
+  parse_bool
 ) String :: #import "String";
 using,only
 (
