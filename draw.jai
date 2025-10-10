@@ -629,12 +629,10 @@ dr_create_builtin_meshes :: () {
     .{position = v3f32( 1,  2, 0), tex_coord=v2f32( 1,  2), colour=v4f32(1.0)},
     .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1), colour=v4f32(1.0)},
     .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1), colour=v4f32(1.0)},
-
     .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1), colour=v4f32(1.0)},
     .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1), colour=v4f32(1.0)},
     .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0), colour=v4f32(1.0)},
     .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0), colour=v4f32(1.0)},
-
     .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0), colour=v4f32(1.0)},
     .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0), colour=v4f32(1.0)},
     .{position = v3f32(-1, -1, 0), tex_coord=v2f32(-1, -1), colour=v4f32(1.0)},

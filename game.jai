@@ -92,18 +92,18 @@ EntityTypeInfo :: struct
 
 Entity :: struct
 {
-  next: *Entity;
-  prev: *Entity;
+  next: *Entity; @no_serialize
+  prev: *Entity; @no_serialize
+  info: EntityTypeInfo; @no_serialize
+  editor_only: bool; @no_serialize
+  removed: bool; @no_serialize
+  mesh_path := ""; @no_serialize
+  texture_paths: [3] string; @no_serialize
   name: string;
-  info: EntityTypeInfo;
-  editor_only: bool;
-  removed: bool;
-  mesh_path := "";
   mesh: *DR_Mesh;
   position: Vec3F32;
   rotation: Vec3F32;
   scale := Vec3F32.{1, 1, 1};
-  texture_paths: [3] string;
   material: DR_MeshMaterial;
   colour := Vec4F32.{1, 1, 1, 1};
   collision: CollisionInfo;
@@ -409,6 +409,26 @@ g_load_level :: (path: string)
   }
 }
 
+file_print_time :: (file: *File, name: string, t: F32)
+{
+  file_write(file, str_format(arena_temp, "%: %\n", t - game_time));
+}
+
+file_print_v2 :: (file: *File, name: string, v: Vec2F32)
+{
+  file_write(file, str_format(arena_temp, "%: [%, %]\n", name, v.x, v.y));
+}
+
+file_print_v3 :: (file: *File, name: string, v: Vec3F32)
+{
+  file_write(file, str_format(arena_temp, "%: [%, %, %]\n", name, v.x, v.y, v.z));
+}
+
+file_print_v4 :: (file: *File, name: string, v: Vec4F32)
+{
+  file_write(file, str_format(arena_temp, "%: [%, %, %, %]\n", name, v.x, v.y, v.z, v.w));
+}
+
 #scope_file
 
 parse_v2 :: (str: string) -> Vec2F32
@@ -447,24 +467,4 @@ parse_v4 :: (str: string) -> Vec4F32
 parse_time :: (str: string) -> F32
 {
   return game_time + parse_float(*str);
-}
-
-file_print_time :: (file: *File, name: string, t: F32)
-{
-  file_write(file, str_format(arena_temp, "%: %\n", t - game_time));
-}
-
-file_print_v2 :: (file: *File, name: string, v: Vec2F32)
-{
-  file_write(file, str_format(arena_temp, "%: [%, %]\n", name, v.x, v.y));
-}
-
-file_print_v3 :: (file: *File, name: string, v: Vec3F32)
-{
-  file_write(file, str_format(arena_temp, "%: [%, %, %]\n", name, v.x, v.y, v.z));
-}
-
-file_print_v4 :: (file: *File, name: string, v: Vec4F32)
-{
-  file_write(file, str_format(arena_temp, "%: [%, %, %, %]\n", name, v.x, v.y, v.z, v.w));
 }
