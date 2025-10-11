@@ -71,6 +71,7 @@ using,only
 ) Windows :: #import "Windows";
 using,only
 (
-  stbi_load_from_memory
+  stbi_load_from_memory,
+  stbi_image_free
 ) stb_image :: #import "stb_image";
 #import "imgui";

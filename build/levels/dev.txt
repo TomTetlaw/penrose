@@ -1,7 +1,7 @@
 entity: Prop
-entity.base.name: ds
+entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [0, 5.297233, 0]
+entity.base.position: [0, 5.349163, 0]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [25, 15.70805, 1]
 entity.base.material.lighting_intensity: 1
@@ -21,7 +21,7 @@ entity.base.collision.capsule_height: 0
 entity: PlayerStart
 entity.base.name: player_start
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [0, 0, 3]
+entity.base.position: [0, 5.44207, 3]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material.lighting_intensity: 0
@@ -41,9 +41,9 @@ entity.base.collision.capsule_height: 0
 entity: Prop
 entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [4.874647, 10.686233, 4.280955]
+entity.base.position: [8.060588, 10.686233, 3.751767]
 entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 7.848335]
+entity.base.scale: [1, 1, 7.229988]
 entity.base.material.lighting_intensity: 1
 entity.base.material.specular_intensity: 1
 entity.base.material.specular_shininess: 32
@@ -61,69 +61,9 @@ entity.base.collision.capsule_height: 0
 entity: Prop
 entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [-3.450997, 10.686233, 4.280955]
+entity.base.position: [11.648485, 9.417757, 3.472]
 entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 7.848335]
-entity.base.material.lighting_intensity: 1
-entity.base.material.specular_intensity: 1
-entity.base.material.specular_shininess: 32
-entity.base.material.specular_power: 9
-entity.base.material.tex_coord_scale: [1, 1]
-entity.base.material.tex_colour: textures/test_col.png
-entity.base.material.tex_normal: textures/test_norm.png
-entity.base.material.tex_specular: textures/test_spec.png
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: true
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity: Prop
-entity.base.name: 
-entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [-3.411124, -0.878552, 4.280955]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 7.848335]
-entity.base.material.lighting_intensity: 1
-entity.base.material.specular_intensity: 1
-entity.base.material.specular_shininess: 32
-entity.base.material.specular_power: 9
-entity.base.material.tex_coord_scale: [1, 1]
-entity.base.material.tex_colour: textures/test_col.png
-entity.base.material.tex_normal: textures/test_norm.png
-entity.base.material.tex_specular: textures/test_spec.png
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: true
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity: Prop
-entity.base.name: 
-entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [7.36193, -1.367244, 4.280955]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 7.848335]
-entity.base.material.lighting_intensity: 1
-entity.base.material.specular_intensity: 1
-entity.base.material.specular_shininess: 32
-entity.base.material.specular_power: 9
-entity.base.material.tex_coord_scale: [1, 1]
-entity.base.material.tex_colour: textures/test_col.png
-entity.base.material.tex_normal: textures/test_norm.png
-entity.base.material.tex_specular: textures/test_spec.png
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: true
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity: Prop
-entity.base.name: 
-entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [11.648485, 9.417757, 2.192783]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1.761295, 5.987388, 11.583828]
+entity.base.scale: [1.761295, 5.987388, 7]
 entity.base.material.lighting_intensity: 1
 entity.base.material.specular_intensity: 1
 entity.base.material.specular_shininess: 32
@@ -139,8 +79,8 @@ entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
 entity: UsableObject
-entity.base.name: 
-entity.base.position: [10.678966, 2.828794, 4.343222]
+entity.base.name: door_switch
+entity.base.position: [10.678966, 2.864464, 4.343222]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material.lighting_intensity: 1
@@ -166,7 +106,7 @@ entity.base.name: test_door
 entity.base.mesh: dr_default_cube_mesh
 entity.base.position: [11.305032, 4.986739, 3.471928]
 entity.base.rotation: [0, 0, 0]
-entity.base.scale: [0.5, 3, 6]
+entity.base.scale: [0.5, 3, 7]
 entity.base.material.lighting_intensity: 1
 entity.base.material.specular_intensity: 1
 entity.base.material.specular_shininess: 32
@@ -185,9 +125,9 @@ entity.open: false
 entity: Prop
 entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [11.648485, 0.597919, 2.192783]
+entity.base.position: [11.648, 0.597919, 3.472]
 entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1.761295, 5.987388, 11.61768]
+entity.base.scale: [1.761295, 5.987388, 7]
 entity.base.material.lighting_intensity: 1
 entity.base.material.specular_intensity: 1
 entity.base.material.specular_shininess: 32
@@ -205,9 +145,9 @@ entity.base.collision.capsule_height: 0
 entity: Prop
 entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [3.246226, 4.783401, 8.381162]
+entity.base.position: [3.246226, 4.783401, 7.158387]
 entity.base.rotation: [0, 0, 0]
-entity.base.scale: [18.701469, 28.3508, 0.877767]
+entity.base.scale: [18.701469, 14.893857, 0.877767]
 entity.base.material.lighting_intensity: 1
 entity.base.material.specular_intensity: 1
 entity.base.material.specular_shininess: 32
@@ -223,9 +163,9 @@ entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
 entity: Prop
-entity.base.name: ds
+entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [19.587553, 5.297233, 0]
+entity.base.position: [24.970322, 5.297233, 0]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [25, 15.70805, 1]
 entity.base.material.lighting_intensity: 1
@@ -239,6 +179,66 @@ entity.base.material.tex_specular: textures/test_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-3.99337, 10.686233, 3.751767]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 7.229988]
+entity.base.material.lighting_intensity: 1
+entity.base.material.specular_intensity: 1
+entity.base.material.specular_shininess: 32
+entity.base.material.specular_power: 9
+entity.base.material.tex_coord_scale: [1, 1]
+entity.base.material.tex_colour: textures/test_col.png
+entity.base.material.tex_normal: textures/test_norm.png
+entity.base.material.tex_specular: textures/test_spec.png
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-3.99337, 0.565696, 3.751767]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 7.229988]
+entity.base.material.lighting_intensity: 1
+entity.base.material.specular_intensity: 1
+entity.base.material.specular_shininess: 32
+entity.base.material.specular_power: 9
+entity.base.material.tex_coord_scale: [1, 1]
+entity.base.material.tex_colour: textures/test_col.png
+entity.base.material.tex_normal: textures/test_norm.png
+entity.base.material.tex_specular: textures/test_spec.png
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [8.061, 0.565696, 3.751767]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 7.229988]
+entity.base.material.lighting_intensity: 1
+entity.base.material.specular_intensity: 1
+entity.base.material.specular_shininess: 32
+entity.base.material.specular_power: 9
+entity.base.material.tex_coord_scale: [1, 1]
+entity.base.material.tex_colour: textures/test_col.png
+entity.base.material.tex_normal: textures/test_norm.png
+entity.base.material.tex_specular: textures/test_spec.png
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0

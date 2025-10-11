@@ -47,8 +47,8 @@ main :: ()
       base_init();
       dr_init(window, device, resolution);
       in_init();
-      ed_init();
       g_init();
+      ed_init();
       while main_loop := true
       {
         update_time();
@@ -99,6 +99,7 @@ main :: ()
       }
     }
   }
+  write_editor_config();
 }
 
 #scope_file

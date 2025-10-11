@@ -41,7 +41,7 @@ ed_save :: ()
 
 ed_load :: (name: string)
 {
-  ed_editor.level_name = name;
+  ed_editor.level_name = str_copy(ed_editor.arena, name);
   path := str_format(arena_temp, "levels/%.txt", name);
   g_load_level(path);
 }
@@ -51,6 +51,45 @@ ed_init :: ()
   arena := mem_create_arena();
   ed_editor = arena_push_struct(arena, ED_EditorState);
   ed_editor.arena = arena;
+  read_editor_config();
+}
+
+read_editor_config :: ()
+{
+  file_data, ok := read_entire_file("editor_config.txt",, arena_allocator(arena_temp));
+  if ok
+  {
+    _, lines := file_to_array("", true, true, false, true, file_data);
+    for lines
+    {
+      key, right := break_by_spaces(it);
+      key.count -= 1;
+      if key ==
+      {
+        case "last_loaded_level";
+          ed_load(right);
+        case "camera_position";
+          ed_editor.camera.position = parse_v3(right);
+        case "camera_yaw";
+          ed_editor.camera.yaw = parse_float(*right);
+        case "camera_pitch";
+          ed_editor.camera.pitch = parse_float(*right);
+      }
+    }
+  }
+}
+
+write_editor_config :: ()
+{
+  file, ok := file_open("editor_config.txt", for_writing = true);
+  defer file_close(*file);
+  if ok
+  {
+    file_print_line(*file, "last_loaded_level: %", ed_editor.level_name);
+    file_print_v3(*file, "camera_position", ed_editor.camera.position);
+    file_print_line(*file, "camera_yaw: %", ed_editor.camera.yaw);
+    file_print_line(*file, "camera_pitch: %", ed_editor.camera.pitch);
+  }
 }
 
 ED_TransformInfo :: struct
@@ -127,6 +166,7 @@ ed_update :: ()
     copy(entity, ed_editor.copied_entity, xx entity.info.size);
     entity.prev = prev;
     entity.next = next;
+  entity.name = str_copy(ed_editor.arena, entity.name);
     ed_editor.selected_entity = entity;
   }
   update_selection();
@@ -150,12 +190,13 @@ ed_draw :: ()
       {
         case .Box;
         {
-          box_min, box_max := g_entity_world_bounds(it, it.collision.box_scale);
-          dr_draw_bounds(box_min, box_max, mat4x4f32_identity(), colour, 1.0, .01);
+          box := g_collision_box(it);
+          dr_draw_bounds(box.bounds_min, box.bounds_max, colour, 1.0);
         }
         case .Capsule;
         {
-          dr_draw_capsule(it.position, it.collision.capsule_radius, it.collision.capsule_height, 32, colour, 1.0);
+          capsule := g_collision_capsule(it);
+          dr_draw_capsule(capsule.center, capsule.radius, capsule.height, colour, 1.0);
         }
       }
     }
@@ -270,6 +311,7 @@ editor_imgui :: ()
   level_picker_modal();
   if ImGui.Button("Quit")
   {
+    write_editor_config();
     exit(0);
   }
   ImGui.SeparatorText("spawn");
@@ -288,9 +330,9 @@ editor_imgui :: ()
   ImGui.Begin("Entities");
   for each_entity(.{include_editor_only = true})
   {
-    name := str_format(arena_temp, "%_%", ifx it.name then it.name else it.info.type_name, it_index);
+    name := ifx it.name then it.name else it.info.type_name;
     name_cstr := cstr_from_str(arena_temp, name);
-    ImGui.PushID(name_cstr);
+    ImGui.PushID(cast(s32) it_index);
     if ImGui.Button(name_cstr)
     {
       ed_editor.selected_entity = it;
@@ -478,7 +520,7 @@ update_scale_widget :: (transform: ED_TransformInfo, dest: *Vec3F32)
     {
       colour[it] = 1.0;
     }
-    dr_draw_bounds(scale_bounds_min[it], scale_bounds_max[it], mat4x4f32_identity(), colour, 1.0, .02);
+    dr_draw_bounds(scale_bounds_min[it], scale_bounds_max[it], colour, 1.0);
   }
   drag_state := in_mouse_drag(ed_editor.dragging_axis, .Left);
   if drag_state.started && axis != -1

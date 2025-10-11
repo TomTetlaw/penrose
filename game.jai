@@ -33,15 +33,50 @@ CollisionInfo :: struct
 
 CollisionBox :: struct
 {
-  box_min: Vec3F32;
-  box_max: Vec3F32;
+  bounds_min: Vec3F32;
+  bounds_max: Vec3F32;
 }
 
 CollisionCapsule :: struct
 {
-  capsule_center: Vec3F32;
-  capsule_radius: F32;
-  capsule_height: F32;
+  center: Vec3F32;
+  top: Vec3F32;
+  bottom: Vec3F32;
+  radius: F32;
+  height: F32;
+}
+
+g_collision_capsule :: (entity: *Entity) -> CollisionCapsule
+{
+  bottom := entity.position - v3f32(0, 0, entity.collision.capsule_height*.5);
+  top := entity.position + v3f32(0, 0, entity.collision.capsule_height*.5);
+  result: CollisionCapsule;
+  result.center = entity.position;
+  result.top = top;
+  result.bottom = bottom;
+  result.radius = entity.collision.capsule_radius;
+  result.height = entity.collision.capsule_height;
+  return result;
+}
+
+g_collision_box :: (entity: *Entity) -> CollisionBox
+{
+  if entity.mesh
+  {
+    local_min := entity.mesh.bounds_min * entity.scale * entity.collision.box_scale;
+    local_max := entity.mesh.bounds_max * entity.scale * entity.collision.box_scale;
+    bounds_min := entity.position + local_min;
+    bounds_max := entity.position + local_max;
+    return .{bounds_min, bounds_max};
+  }
+  else
+  {
+    local_min := v3f32(-.5) * entity.scale * entity.collision.box_scale;
+    local_max := v3f32(.5) * entity.scale * entity.collision.box_scale;
+    bounds_min := entity.position + local_min;
+    bounds_max := entity.position + local_max;
+    return .{bounds_min, bounds_max};
+  }
 }
 
 CollisionResult :: struct
@@ -51,32 +86,37 @@ CollisionResult :: struct
   depth: F32;
 }
 
-collision_check_box_capsule :: (a: CollisionBox, b: CollisionCapsule) -> CollisionResult
+collision_check_box_capsule :: (box: CollisionBox, capsule: CollisionCapsule) -> CollisionResult
 {
-  capsule_bottom := b.capsule_center - v3f32(0, 0, b.capsule_height*.5);
-  capsule_top := b.capsule_center + v3f32(0, 0, b.capsule_height*.5);
-  box_closest := clamp_v3(b.capsule_center, a.box_min, a.box_max);
-  ab := capsule_top - capsule_bottom;
-  t := dot_v3(box_closest - capsule_bottom, ab) / dot_v3(ab, ab);
+  box_closest := clamp_v3(capsule.center, box.bounds_min, box.bounds_max);
+  ab := capsule.top - capsule.bottom;
+  t := dot_v3(box_closest - capsule.bottom, ab) / dot_v3(ab, ab);
   t = clamp(t, 0.0, 1.0);
-  segment_closest := capsule_bottom + ab * t;
+  segment_closest := capsule.bottom + ab * t;
   delta := box_closest - segment_closest;
-  d := dot_v2(delta.xy, delta.xy);
-  if d <= b.capsule_radius * b.capsule_radius
+  d := dot_v3(delta, delta);
+  if d <= capsule.radius * capsule.radius
   {
     normal := normalize_v3(delta);
-    return .{true, normal, b.capsule_radius - sqrt(d)};
+    return .{true, normal, capsule.radius - sqrt(d)};
   }
   return .{};
 }
 
 collision_check :: (a: *Entity, b: *Entity) -> CollisionResult
 {
+  if a.collision.type == .Box && b.collision.type == .Capsule
+  {
+    capsule := g_collision_capsule(b);
+    box := g_collision_box(a);
+    result := collision_check_box_capsule(box, capsule);
+    return result;
+  }
   if a.collision.type == .Capsule && b.collision.type == .Box
   {
-    box_min_b, box_max_b := g_entity_world_bounds(b, b.collision.box_scale);
-    capsule_center := a.position;
-    result := collision_check_box_capsule(.{box_min_b, box_max_b}, .{capsule_center, a.collision.capsule_radius, a.collision.capsule_height});
+    capsule := g_collision_capsule(a);
+    box := g_collision_box(b);
+    result := collision_check_box_capsule(box, capsule);
     result.normal = -result.normal;
     return result;
   }
@@ -189,7 +229,7 @@ g_start_level :: ()
   set_fps_mode(true);
   player_start := g_find_entity_by_name("player_start", .{include_editor_only = true});
   g_game_state.player = g_create_entity(Player);
-  g_game_state.player.position = v3f32(player_start.position.xy, player_start.position.z);
+  g_game_state.player.position = player_start.position;
   g_game_state.mode = .Game;
   for each_entity()
   {
@@ -217,8 +257,10 @@ g_update :: ()
       if it.collision.enabled
       {
         collision := collision_check(player, it);
+        colour := v4f32(1,0,0,1);
         if collision.hit
         {
+          colour = v4f32(0,1,0,1);
           resolve := player.position + collision.normal * collision.depth;
           player.position.x = resolve.x;
           player.position.y = resolve.y;
@@ -229,7 +271,9 @@ g_update :: ()
     for each_entity(.{include_types = .[Door]})
     {
       door := g_downcast(it, Door);
-      open_z := door.spawn_position.z + 8.0;
+      box := g_collision_box(door);
+      span := box.bounds_max - box.bounds_min;
+      open_z := door.spawn_position.z + span.z;
       close_z := door.spawn_position.z;
       if door.open
       {
@@ -278,7 +322,6 @@ handle_usable :: (usable: *UsableObject)
       if door
       {
         door.open = !door.open;
-        door.collision.enabled = !door.open;
       }
   }
 }
@@ -311,17 +354,6 @@ g_draw :: (filter := EntityFilter.{})
     quad.props = quad_props(usable.pixel_size, 1.0);
     dr_draw_quads(.[quad]);
   }
-}
-
-g_entity_world_bounds :: (entity: *Entity, extra_scale := Vec3F32.{1, 1, 1}) -> Vec3F32, Vec3F32
-{
-  if entity.mesh
-  {
-    bounds_min := entity.position + entity.mesh.bounds_min*entity.scale*extra_scale;
-    bounds_max := entity.position + entity.mesh.bounds_max*entity.scale*extra_scale;
-    return bounds_min, bounds_max;
-  }
-  return .{}, .{};
 }
 
 EntityFilter :: struct
@@ -389,62 +421,4 @@ g_load_level :: (path: string)
       }
     }
   }
-}
-
-file_print_time :: (file: *File, name: string, t: F32)
-{
-  file_write(file, str_format(arena_temp, "%: %\n", t - game_time));
-}
-
-file_print_v2 :: (file: *File, name: string, v: Vec2F32)
-{
-  file_write(file, str_format(arena_temp, "%: [%, %]\n", name, v.x, v.y));
-}
-
-file_print_v3 :: (file: *File, name: string, v: Vec3F32)
-{
-  file_write(file, str_format(arena_temp, "%: [%, %, %]\n", name, v.x, v.y, v.z));
-}
-
-file_print_v4 :: (file: *File, name: string, v: Vec4F32)
-{
-  file_write(file, str_format(arena_temp, "%: [%, %, %, %]\n", name, v.x, v.y, v.z, v.w));
-}
-
-parse_v2 :: (str: string) -> Vec2F32
-{
-  x, y: F32;
-  scan2(str, "[%, %]", *x, *y);
-  result: Vec2F32;
-  result.x = x;
-  result.y = y;
-  return result;
-}
-
-parse_v3 :: (str: string) -> Vec3F32
-{
-  x, y, z: F32;
-  scan2(str, "[%, %, %]", *x, *y, *z);
-  result: Vec3F32;
-  result.x = x;
-  result.y = y;
-  result.z = z;
-  return result;
-}
-
-parse_v4 :: (str: string) -> Vec4F32
-{
-  x, y, z, w: F32;
-  scan2(str, "[%, %, %, %]", *x, *y, *z, *w);
-  result: Vec4F32;
-  result.x = x;
-  result.y = y;
-  result.z = z;
-  result.w = w;
-  return result;
-}
-
-parse_time :: (str: string) -> F32
-{
-  return game_time + parse_float(*str);
 }

@@ -9,6 +9,7 @@ tex_load :: (path: string) -> *DR_Texture
     if pixels
     {
       result := dr_create_draw_texture(path, w, h, pixels);
+      stbi_image_free(pixels);
       return result;
     }
   }

@@ -439,23 +439,21 @@ quad_props :: (size: Vec2F32, border: F32) -> Vec4F32
   return result;
 }
 
-dr_draw_bounds :: (bounds_min: Vec3F32, bounds_max: Vec3F32, to_world: Mat4x4F32, colour: Vec4F32, thickness: F32, padding: F32)
+dr_draw_bounds :: (bounds_min: Vec3F32, bounds_max: Vec3F32, colour: Vec4F32, thickness: F32)
 {
-  min := (to_world * v4f32(bounds_min, 1.0)).xyz - v3f32(padding);
-  max := (to_world * v4f32(bounds_max, 1.0)).xyz + v3f32(padding);
   line_instances := DR_LineInstance.[
-    .{start=v3f32(min.x, min.y, min.z), end=v3f32(max.x, min.y, min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(max.x, min.y, min.z), end=v3f32(max.x, min.y, max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(max.x, min.y, max.z), end=v3f32(min.x, min.y, max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(min.x, min.y, max.z), end=v3f32(min.x, min.y, min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(min.x, max.y, min.z), end=v3f32(max.x, max.y, min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(max.x, max.y, min.z), end=v3f32(max.x, max.y, max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(max.x, max.y, max.z), end=v3f32(min.x, max.y, max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(min.x, max.y, max.z), end=v3f32(min.x, max.y, min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(min.x, min.y, min.z), end=v3f32(min.x, max.y, min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(max.x, min.y, min.z), end=v3f32(max.x, max.y, min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(max.x, min.y, max.z), end=v3f32(max.x, max.y, max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(min.x, min.y, max.z), end=v3f32(min.x, max.y, max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_min.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_min.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_min.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_min.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_min.x, bounds_max.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_max.x, bounds_max.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_max.x, bounds_max.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_min.x, bounds_max.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
   ];
   dr_draw_lines(line_instances);
 }
@@ -467,20 +465,19 @@ dr_draw_sphere :: (center: Vec3F32, radius: F32, segments: int, colour: Vec4F32,
   dr_draw_circle(center, v3f32(0, 0, 1), radius, segments, colour, thickness);
 }
 
-dr_draw_capsule :: (center: Vec3F32, radius: F32, height: F32, segments: int, colour: Vec4F32, thickness: F32)
+dr_draw_capsule :: (center: Vec3F32, radius: F32, height: F32, colour: Vec4F32, thickness: F32)
 {
-  half := height * 0.5;
-  top_center := center + v3f32(0, 0, half);
-  bottom_center := center - v3f32(0, 0, half);
-  dr_draw_circle(top_center, v3f32(1, 0, 0), radius, segments, colour, thickness);
-  dr_draw_circle(top_center, v3f32(0, 1, 0), radius, segments, colour, thickness);
-  dr_draw_circle(bottom_center, v3f32(1, 0, 0), radius, segments, colour, thickness);
-  dr_draw_circle(bottom_center, v3f32(0, 1, 0), radius, segments, colour, thickness);
+  top := center + v3f32(0, 0, height * 0.5);
+  bottom := center - v3f32(0, 0, height * 0.5);
+  dr_draw_circle(top, v3f32(1, 0, 0), radius, 8, colour, thickness);
+  dr_draw_circle(top, v3f32(0, 1, 0), radius, 8, colour, thickness);
+  dr_draw_circle(bottom, v3f32(1, 0, 0), radius, 8, colour, thickness);
+  dr_draw_circle(bottom, v3f32(0, 1, 0), radius, 8, colour, thickness);
   line_instances := DR_LineInstance.[
-    .{start=top_center + v3f32(radius, 0, 0), end=bottom_center + v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
-    .{start=top_center - v3f32(radius, 0, 0), end=bottom_center - v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
-    .{start=top_center + v3f32(0, radius, 0), end=bottom_center + v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
-    .{start=top_center - v3f32(0, radius, 0), end=bottom_center - v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
+    .{start=top + v3f32(radius, 0, 0), end=bottom + v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
+    .{start=top - v3f32(radius, 0, 0), end=bottom - v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
+    .{start=top + v3f32(0, radius, 0), end=bottom + v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
+    .{start=top - v3f32(0, radius, 0), end=bottom - v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
   ];
   dr_draw_lines(line_instances);
 }
@@ -718,7 +715,7 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.quad_instances = dr_create_storage_buffer("quad_instances", size_of(DR_QuadInstance) * dr_max_quad_instances, null, 0, 0);
   dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest | .DepthWrite, .Triangles);
   dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .None, .Triangles);
-  dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .DepthTest, .Triangles);
+  dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .None, .Triangles);
   dr_renderer.depth_target = dr_create_target_texture("depth_target", xx resolution.x, xx resolution.y, dr_depth_format, SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
   dr_create_builtin_meshes();
   dr_create_builtin_textures();

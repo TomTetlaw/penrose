@@ -281,3 +281,61 @@ file_print_line :: (file: *File, format: string, args: ..Any)
   str := builder_to_string(*builder,, allocator);
   file_write(file, str);
 }
+
+file_print_time :: (file: *File, name: string, t: F32)
+{
+  file_write(file, str_format(arena_temp, "%: %\n", t - game_time));
+}
+
+file_print_v2 :: (file: *File, name: string, v: Vec2F32)
+{
+  file_write(file, str_format(arena_temp, "%: [%, %]\n", name, v.x, v.y));
+}
+
+file_print_v3 :: (file: *File, name: string, v: Vec3F32)
+{
+  file_write(file, str_format(arena_temp, "%: [%, %, %]\n", name, v.x, v.y, v.z));
+}
+
+file_print_v4 :: (file: *File, name: string, v: Vec4F32)
+{
+  file_write(file, str_format(arena_temp, "%: [%, %, %, %]\n", name, v.x, v.y, v.z, v.w));
+}
+
+parse_v2 :: (str: string) -> Vec2F32
+{
+  x, y: F32;
+  scan2(str, "[%, %]", *x, *y);
+  result: Vec2F32;
+  result.x = x;
+  result.y = y;
+  return result;
+}
+
+parse_v3 :: (str: string) -> Vec3F32
+{
+  x, y, z: F32;
+  scan2(str, "[%, %, %]", *x, *y, *z);
+  result: Vec3F32;
+  result.x = x;
+  result.y = y;
+  result.z = z;
+  return result;
+}
+
+parse_v4 :: (str: string) -> Vec4F32
+{
+  x, y, z, w: F32;
+  scan2(str, "[%, %, %, %]", *x, *y, *z, *w);
+  result: Vec4F32;
+  result.x = x;
+  result.y = y;
+  result.z = z;
+  result.w = w;
+  return result;
+}
+
+parse_time :: (str: string) -> F32
+{
+  return game_time + parse_float(*str);
+}
