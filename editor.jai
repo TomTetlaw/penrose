@@ -162,6 +162,68 @@ ed_draw :: ()
   }
 }
 
+vec2_property :: (name: string, dest: *Vec2F32) -> bool
+{
+  return ImGui.DragFloat2(cstr_from_str(arena_temp, name), *dest.f);
+}
+
+vec3_property :: (name: string, dest: *Vec3F32) -> bool
+{
+  return ImGui.DragFloat3(cstr_from_str(arena_temp, name), *dest.f);
+}
+
+vec4_property :: (name: string, dest: *Vec4F32) -> bool
+{
+  return ImGui.DragFloat4(cstr_from_str(arena_temp, name), *dest.f);
+}
+
+colour_property :: (name: string, dest: *Vec4F32) -> bool
+{
+  return ImGui.ColorEdit4(cstr_from_str(arena_temp, name), *dest.f);
+}
+
+string_property :: (name: string, dest: *string) -> bool
+{
+  buffer: [256] u8;
+  copy(buffer.data, dest.data, xx dest.count);
+  result := ImGui.InputText(cstr_from_str(arena_temp, name), buffer.data, 256);
+  if result
+  {
+    dest.* = str_from_cstr(ed_editor.arena, buffer.data);
+  }
+  return result;
+}
+
+texture_property :: (label: string, texture: **DR_Texture)
+{
+  path, base, ext := path_decomp(texture.*.path);
+  label_str := str_format(arena_temp, "%: %", label, base);
+  ImGui.Text(label);
+  ImGui.SameLine();
+  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "%###%", base, get_hash(texture.*.path, get_hash(label))))))
+  {
+    texture_picker_dest = texture;
+    ImGui.OpenPopup("TexturePicker");
+  }
+  ImGui.SameLine();
+  ImGui.Image(.{_TexID = cast(ImTextureID) texture.*.ref}, .{32, 32});
+}
+
+enum_property :: (name: string, dest: *$T)
+{
+  if ImGui.BeginCombo(cstr_from_str(arena_temp, name), cstr_from_str(arena_temp, enum_names(T)[dest.*]))
+  {
+    for enum_values_as_enum(T)
+    {
+      if ImGui.Button(cstr_from_str(arena_temp, enum_names(T)[it]))
+      {
+        dest.* = it;
+      }
+    }
+    ImGui.EndCombo();
+  }
+}
+
 #scope_file
 
 editor_imgui :: ()
@@ -177,6 +239,7 @@ editor_imgui :: ()
   if ImGui.Button("New")
   {
     g_clear_level();
+    ed_editor.level_name = "";
   }
   if ImGui.Button("Load")
   {
@@ -461,50 +524,28 @@ texture_picker_modal :: ()
       ImGui.CloseCurrentPopup();
       texture_picker_dest = null;
     }
-    paths: [..] string;
-    paths.allocator = arena_allocator(arena_temp);
-    texture_paths := file_list("textures");
-    array_add(*paths, ..texture_paths);
-    ImGui.BeginTable("textures", 3);
-    for each_element(dr_renderer.textures)
+    if ImGui.BeginTable("textures", 3)
     {
-      if it_index % 3 == 0
+      for each_element(dr_renderer.textures)
       {
-        ImGui.TableNextRow();
-      }
-      ImGui.TableNextColumn();
-      texture := dr_get_texture(it.path);
-      if texture
-      {
-        ImGui.PushID(cast(s32) it_index);
-        ImGui.Text(it.path);
-        if ImGui.ImageButton("", .{_TexID = cast(ImTextureID) texture.ref}, ImVec2.{64, 64})
+        if contains(it.path, ".png") || contains(it.path, ".tga")
         {
-          texture_picker_dest.* = texture;
-          texture_picker_dest = null;
-          ImGui.CloseCurrentPopup();
+          path, base, ext := path_decomp(it.path);
+          ImGui.Text("%.%", base, ext);
+          cstr := cstr_from_str(arena_temp, str_format(arena_temp, "%.%", base, ext));
+          if ImGui.ImageButton(cstr, .{_TexID = cast(ImTextureID) it.ref}, ImVec2.{64, 64})
+          {
+            texture_picker_dest.* = it;
+            texture_picker_dest = null;
+            ImGui.CloseCurrentPopup();
+          }
+          ImGui.TableNextColumn();
         }
-        ImGui.PopID();
       }
+      ImGui.EndTable();
     }
-    ImGui.EndTable();
     ImGui.EndPopup();
   }
-}
-
-texture_property :: (label: string, texture: **DR_Texture)
-{
-  path, base, ext := path_decomp(texture.*.path);
-  label_str := str_format(arena_temp, "%: %", label, base);
-  ImGui.Text(label);
-  ImGui.SameLine();
-  if (ImGui.Button(base.data))
-  {
-    texture_picker_dest = texture;
-    ImGui.OpenPopup("TexturePicker");
-  }
-  ImGui.SameLine();
-  ImGui.Image(.{_TexID = cast(ImTextureID) texture.*.ref}, .{32, 32});
 }
 
 entity_imgui :: (entity: *Entity)
@@ -512,45 +553,7 @@ entity_imgui :: (entity: *Entity)
   ImGui.Begin("Entity");
   draw_list := ImGui.GetWindowDrawList();
   draw_list.AddCallback(draw_list, set_sampler_callback, null);
-  ImGui.SeparatorText("transform");
-  ImGui.DragFloat3("position", *entity.position.f, v_speed = .5);
-  ImGui.DragFloat3("rotation", *entity.rotation.f, v_min = 0.0, v_max = 1.0, v_speed = .01);
-  ImGui.DragFloat3("scale", *entity.scale.f, v_min = .5, v_speed = .5);
-  ImGui.SeparatorText("collision");
-  ImGui.Checkbox("enabled", *entity.collision.enabled);
-  if ImGui.BeginCombo("collision_type", cstr_from_str(arena_temp, enum_names(CollisionType)[entity.collision.type]))
-  {
-    for enum_values_as_enum(CollisionType)
-    {
-      if ImGui.Button(cstr_from_str(arena_temp, enum_names(CollisionType)[it]))
-      {
-        entity.collision.type = it;
-      }
-    }
-    ImGui.EndCombo();
-  }
-  if entity.collision.type == .Box
-  {
-    ImGui.DragFloat3("box_scale", *entity.collision.box_scale.f);
-  }
-  if entity.collision.type == .Capsule
-  {
-    ImGui.DragFloat("capsule_radius", *entity.collision.capsule_radius);
-    ImGui.DragFloat("capsule_height", *entity.collision.capsule_height);
-  }
-  ImGui.SeparatorText("material");
-  ImGui.ColorEdit4("colour", *entity.colour.f);
-  ImGui.DragFloat("specular_intensity", *entity.material.specular_intensity, v_min = 0.1, v_max = 10.0, v_speed = 0.1);
-  if (ImGui.SliderInt("specular_power", *entity.material.specular_power, v_min = 2, v_max = 15))
-  {
-    entity.material.specular_shininess = cast(F32) 1 << entity.material.specular_power;
-  }
-  ImGui.DragFloat("lighting_intensity", *entity.material.lighting_intensity, v_min = 0.0, v_max = 1.0, v_speed = .01);
-  ImGui.SeparatorText("textures");
-  texture_property("colour", *entity.material.tex_colour);
-  texture_property("normal", *entity.material.tex_normal);
-  texture_property("specular", *entity.material.tex_specular);
-  ImGui.DragFloat2("tex_coord_scale", *entity.material.tex_coord_scale.f);
+  g_entity_imgui(entity);
   texture_picker_modal();
   ImGui.End();
 }

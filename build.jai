@@ -98,7 +98,7 @@ g_entity_type_info := EntityTypeInfo.[
 HERE
 
 SerializeEntityCode :: #string HERE
-g_serialize_entity :: (base_entity: *Entity, file: *File)
+g_write_entity :: (base_entity: *Entity, file: *File)
 {
   if base_entity.info.type ==
   {
@@ -107,53 +107,125 @@ g_serialize_entity :: (base_entity: *Entity, file: *File)
 }
 HERE
 
-SerializeMember :: #type (info: *Type_Info, name: string) -> string;
+DeserializeEntityCode :: #string HERE
+g_read_entity_member :: (base_entity: *Entity, key: string, value: string)
+{
+  if base_entity.info.type ==
+  {
+    %1
+  }
+}
+HERE
 
-generate_deserialize_member_code :: (info: *Type_Info, name: string) -> string
+EntityImGUICode :: #string HERE
+g_entity_imgui :: (base_entity: *Entity)
+{
+  if base_entity.info.type ==
+  {
+    %1
+  }
+}
+HERE
+
+PerMemberCallback :: #type (info: *Type_Info, name: string, base_name: string) -> string;
+
+generate_imgui_member_code :: (info: *Type_Info, name: string, base_name: string) -> string
 {
   if info.type ==
   {
     case .POINTER;
       pointer_to := cast(*Type_Info_Pointer) info;
-      return generate_deserialize_member_code(pointer_to.pointer_to, name);
+      return generate_imgui_member_code(pointer_to.pointer_to, name, base_name);
     case .ARRAY;
       element_type := cast(*Type_Info_Array) info;
-      return generate_deserialize_member_code(element_type.element_type, name);
+      return generate_imgui_member_code(element_type.element_type, name, base_name);
     case .STRUCT;
     {
       struct_info := cast(*Type_Info_Struct) info;
       if struct_info.name ==
       {
         case "V2";
-          return tprint("entity.%1 = parse_v2(value);\n", name);
+          return tprint("vec2_property(\"%\", *%);\n", name, name);
         case "V3";
-          return tprint("entity.%1 = parse_v3(value);\n", name);
+          return tprint("vec3_property(\"%\", *%);\n", name, name);
         case "V4";
-          return tprint("entity.%1 = parse_v4(value);\n", name);
-        case "DR_Mesh";
-          return tprint("entity.%1 = dr_get_mesh(value);\n", name);
+          if array_find(struct_info.notes, "colour")
+          {
+            return tprint("colour_property(\"%\", *%);\n", name, name);
+          }
+          else
+          {
+            return tprint("vec4_property(\"%\", *%);\n", name, name);
+          }
         case "DR_Texture";
-          return tprint("entity.%1 = dr_get_texture(value);\n", name);
+          return tprint("texture_property(\"%\", *%);\n", name, name);
       }
     }
     case .INTEGER;
-      return tprint("entity.%1 = parse_int(*value);\n", name);
+      return tprint("ImGui.DragInt(\"%\", *%);\n", name, name);
     case .FLOAT;
-      return tprint("entity.%1 = parse_float(*value);\n", name);
+      return tprint("ImGui.DragFloat(\"%\", *%);\n", name, name);
+    case .STRING;
+      return tprint("string_property(\"%\", *%);\n", name, name);
+    case .BOOL;
+      return tprint("ImGui.Checkbox(\"%\", *%);\n", name, name);
+    case .ENUM;
+      return tprint("enum_property(\"%\", *%);\n", name, name);
   }
-  return name;
+  return "";
 }
 
-generate_serialize_member_code :: (info: *Type_Info, name: string) -> string
+generate_deserialize_member_code :: (info: *Type_Info, name: string, base_name: string) -> string
 {
   if info.type ==
   {
     case .POINTER;
       pointer_to := cast(*Type_Info_Pointer) info;
-      return generate_serialize_member_code(pointer_to.pointer_to, name);
+      return generate_deserialize_member_code(pointer_to.pointer_to, name, base_name);
     case .ARRAY;
       element_type := cast(*Type_Info_Array) info;
-      return generate_serialize_member_code(element_type.element_type, name);
+      return generate_deserialize_member_code(element_type.element_type, name, base_name);
+    case .STRUCT;
+    {
+      struct_info := cast(*Type_Info_Struct) info;
+      if struct_info.name ==
+      {
+        case "V2";
+          return tprint("if key == \"%1\" %1 = parse_v2(value);\n", name);
+        case "V3";
+          return tprint("if key == \"%1\" %1 = parse_v3(value);\n", name);
+        case "V4";
+          return tprint("if key == \"%1\" %1 = parse_v4(value);\n", name);
+        case "DR_Mesh";
+          return tprint("if key == \"%1\" %1 = dr_get_mesh(value);\n", name);
+        case "DR_Texture";
+          return tprint("if key == \"%1\" %1 = dr_get_texture(value);\n", name);
+      }
+    }
+    case .INTEGER;
+      return tprint("if key == \"%1\" %1 = xx parse_int(*value);\n", name);
+    case .FLOAT;
+      return tprint("if key == \"%1\" %1 = parse_float(*value);\n", name);
+    case .STRING;
+      return tprint("if key == \"%1\" %1 = value;\n", name);
+    case .BOOL;
+      return tprint("if key == \"%1\" %1 = parse_bool(*value);\n", name);
+    case .ENUM;
+      return tprint("if key == \"%1\" %1 = parse_enum(*value, type_of(%1));\n", name);
+  }
+  return name;
+}
+
+generate_serialize_member_code :: (info: *Type_Info, name: string, base_name: string) -> string
+{
+  if info.type ==
+  {
+    case .POINTER;
+      pointer_to := cast(*Type_Info_Pointer) info;
+      return generate_serialize_member_code(pointer_to.pointer_to, name, base_name);
+    case .ARRAY;
+      element_type := cast(*Type_Info_Array) info;
+      return generate_serialize_member_code(element_type.element_type, name, base_name);
     case .STRUCT;
     {
       struct_info := cast(*Type_Info_Struct) info;
@@ -167,7 +239,7 @@ generate_serialize_member_code :: (info: *Type_Info, name: string) -> string
           return tprint("file_print_v4(file, \"%1\", %1);\n", name);
         case "DR_Mesh"; #through;
         case "DR_Texture";
-          return tprint("file_print_line(file, \"%1\", %1.path);\n", name);
+          return tprint("if %1 file_print_line(file, \"%1: \%\", %1.path);\n", name);
       }
     }
     case;
@@ -176,32 +248,32 @@ generate_serialize_member_code :: (info: *Type_Info, name: string) -> string
   return name;
 }
 
-generate_serialization_code :: (info: *Type_Info_Struct, base: string, callback: SerializeMember) -> string
+generate_per_member_code :: (info: *Type_Info_Struct, base: string, callback: PerMemberCallback, note_filter: string) -> string
 {
   filtered_members :: string.["next", "prev"];
   handled_types :: string.["DR_Mesh", "DR_Texture", "V2", "V3", "V4"];
   builder: String_Builder;
   for info.members
   {
-    if !array_find(filtered_members, it.name) && !array_find(it.notes, "no_serialize")
+    if !array_find(filtered_members, it.name) && !array_find(it.notes, note_filter)
     {
       if it.type.type == .STRUCT
       {
         info := cast(*Type_Info_Struct) it.type;
         if array_find(handled_types, info.name)
         {
-          code := callback(it.type, tprint("%.%", base, it.name));
+          code := callback(it.type, tprint("%.%", base, it.name), it.name);
           append(*builder, code);
         }
         else
         {
-          code := callback(info, tprint("%.%", base, it.name));
+          code := generate_per_member_code(info, tprint("%.%", base, it.name), callback, note_filter);
           append(*builder, code);
         }
       }
       else
       {
-        code := callback(it.type, tprint("%.%", base, it.name));
+        code := callback(it.type, tprint("%.%", base, it.name), it.name);
         append(*builder, code);
       }
     }
@@ -216,10 +288,30 @@ generate_code :: (entity_types: [] *Type_Info_Struct) -> string
     builder: String_Builder;
     for entity_types
     {
-      code := generate_serialization_code(it, "entity", generate_serialize_member_code);
+      code := generate_per_member_code(it, "entity", generate_serialize_member_code, "no_serialize");
       print_to_builder(*builder, "case %1; entity := g_downcast(base_entity, %1);\n%\n", it.name, code);
     }
     code := tprint(SerializeEntityCode, builder_to_string(*builder));
+    append(*full_builder, code);
+  }
+  {
+    builder: String_Builder;
+    for entity_types
+    {
+      code := generate_per_member_code(it, "entity", generate_deserialize_member_code, "no_serialize");
+      print_to_builder(*builder, "case %1; entity := g_downcast(base_entity, %1);\n%\n", it.name, code);
+    }
+    code := tprint(DeserializeEntityCode, builder_to_string(*builder));
+    append(*full_builder, code);
+  }
+  {
+    builder: String_Builder;
+    for entity_types
+    {
+      code := generate_per_member_code(it, "entity", generate_imgui_member_code, "no_imgui");
+      print_to_builder(*builder, "case %1; entity := g_downcast(base_entity, %1);\n%\n", it.name, code);
+    }
+    code := tprint(EntityImGUICode, builder_to_string(*builder));
     append(*full_builder, code);
   }
   {

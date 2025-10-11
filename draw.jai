@@ -380,7 +380,7 @@ dr_create_draw_texture :: (name: string, width: int, height: int, data: *void) -
 	{
 	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
 	  texture := arena_push_struct(dr_renderer.arena, DR_Texture);
-	  texture.path = name;
+	  texture.path = str_copy(dr_renderer.arena, name);
 	  texture.ref = ref;
 	  stack_push(*dr_renderer.textures, texture);
     dr_queue_texture_upload(ref, data, width, height, 4, info.num_levels > 1);
@@ -723,6 +723,10 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_create_builtin_meshes();
   dr_create_builtin_textures();
   dr_create_sampler_set();
+  for file_list("textures",, arena_allocator(arena_temp))
+  {
+    dr_get_texture(it);
+  }
 }
 
 dr_get_sampler :: (filter: SDL_GPUFilter, mip_filter: SDL_GPUSamplerMipmapMode, address_mode: SDL_GPUSamplerAddressMode) -> *SDL_GPUSampler

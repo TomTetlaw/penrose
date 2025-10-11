@@ -92,15 +92,16 @@ EntityTypeInfo :: struct
 
 Entity :: struct
 {
-  next: *Entity; @no_serialize
-  prev: *Entity; @no_serialize
-  info: EntityTypeInfo; @no_serialize
-  editor_only: bool; @no_serialize
-  removed: bool; @no_serialize
-  mesh_path := ""; @no_serialize
-  texture_paths: [3] string; @no_serialize
+  next: *Entity; @no_serialize @no_imgui
+  prev: *Entity; @no_serialize @no_imgui
+  info: EntityTypeInfo; @no_serialize @no_imgui
+  editor_only: bool; @no_serialize @no_imgui
+  removed: bool; @no_serialize @no_imgui
+  mesh_path := ""; @no_serialize @no_imgui
+  texture_paths: [3] string; @no_serialize @no_imgui
   name: string;
-  mesh: *DR_Mesh;
+  mesh: *DR_Mesh;  @no_imgui
+  spawn_position: Vec3F32; @no_serialize @no_imgui
   position: Vec3F32;
   rotation: Vec3F32;
   scale := Vec3F32.{1, 1, 1};
@@ -188,7 +189,12 @@ g_start_level :: ()
   set_fps_mode(true);
   player_start := g_find_entity_by_name("player_start", .{include_editor_only = true});
   g_game_state.player = g_create_entity(Player);
+  g_game_state.player.position = v3f32(player_start.position.xy, player_start.position.z);
   g_game_state.mode = .Game;
+  for each_entity()
+  {
+    it.spawn_position = it.position;
+  }
 }
 
 g_remove_entity :: (entity: *Entity)
@@ -219,7 +225,21 @@ g_update :: ()
         }
       }
     }
-    player.camera.position = player.position;
+    player.camera.position = v3f32(player.position.xy, player.position.z + player.collision.capsule_height*.5);
+    for each_entity(.{include_types = .[Door]})
+    {
+      door := g_downcast(it, Door);
+      open_z := door.spawn_position.z + 8.0;
+      close_z := door.spawn_position.z;
+      if door.open
+      {
+        door.position.z = approach(door.position.z, open_z, 1.0, game_delta);
+      }
+      else
+      {
+        door.position.z = approach(door.position.z, close_z, 1.0, game_delta);
+      }
+    }
     cam_player_update(*player.camera);
     if in_key_pressed(.Escape)
     {
@@ -229,6 +249,37 @@ g_update :: ()
       ed_load(ed_editor.level_name);
       set_fps_mode(false);
     }
+    if in_key_pressed(.E)
+    {
+      for each_entity(.{include_types = .[UsableObject]})
+      {
+        usable := g_downcast(it, UsableObject);
+        if usable_in_focus(usable)
+        {
+          handle_usable(usable);
+        }
+      }
+    }
+  }
+}
+
+handle_usable :: (usable: *UsableObject)
+{
+  if usable.type ==
+  {
+    case .Custom;
+      if usable.custom_id ==
+      {
+        case 1;
+          print("Hello!\n");
+      }
+    case .TriggerDoor;
+      door := g_downcast(g_find_entity_by_name(usable.target_name), Door);
+      if door
+      {
+        door.open = !door.open;
+        door.collision.enabled = !door.open;
+      }
   }
 }
 
@@ -244,22 +295,33 @@ g_draw :: (filter := EntityFilter.{})
       dr_draw_mesh(it.mesh, .[instance], *it.material);
     }
   }
-
   for each_entity(.{include_types = .[UsableObject]})
   {
+    usable := g_downcast(it, UsableObject);
     quad: DR_QuadInstance;
     quad.position = it.position;
-    quad.colour = v4f32(212.0, 188.0, 125.0, 255.0) / 255.0;
-    quad.props = quad_props(v2f32(64.0), 1.0);
+    if usable_in_focus(usable)
+    {
+      quad.colour = v4f32(0, 1, 0, 1);
+    }
+    else
+    {
+      quad.colour = v4f32(212.0, 188.0, 125.0, 255.0) / 255.0;
+    }
+    quad.props = quad_props(usable.pixel_size, 1.0);
     dr_draw_quads(.[quad]);
   }
 }
 
 g_entity_world_bounds :: (entity: *Entity, extra_scale := Vec3F32.{1, 1, 1}) -> Vec3F32, Vec3F32
 {
-  bounds_min := entity.position + entity.mesh.bounds_min*entity.scale*extra_scale;
-  bounds_max := entity.position + entity.mesh.bounds_max*entity.scale*extra_scale;
-  return bounds_min, bounds_max;
+  if entity.mesh
+  {
+    bounds_min := entity.position + entity.mesh.bounds_min*entity.scale*extra_scale;
+    bounds_max := entity.position + entity.mesh.bounds_max*entity.scale*extra_scale;
+    return bounds_min, bounds_max;
+  }
+  return .{}, .{};
 }
 
 EntityFilter :: struct
@@ -300,37 +362,8 @@ g_save_level :: (path: string, filter := EntityFilter.{})
   defer file_close(*file);
   for each_entity(filter)
   {
-    file_print_line(*file, "entity: %", it.info.type_name);
-    file_print_v3(*file, "position", it.position);
-    file_print_v3(*file, "rotation", it.rotation);
-    file_print_v3(*file, "scale", it.scale);
-    file_print_line(*file, "collision_type: %", enum_names(CollisionType)[it.collision.type]);
-    file_print_line(*file, "collision_enabled: %", it.collision.enabled);
-    file_print_v3(*file, "collision_box_scale", it.collision.box_scale);
-    file_print_line(*file, "collision_capsule_radius: %", it.collision.capsule_radius);
-    file_print_line(*file, "collision_capsule_height: %", it.collision.capsule_height);
-    file_print_v4(*file, "colour", it.colour);
-    if it.mesh
-    {
-      file_print_line(*file, "mesh: %", it.mesh.path);
-    }
-    if it.material.tex_colour
-    {
-      file_print_line(*file, "material_tex_colour: %", it.material.tex_colour.path);
-    }
-    if it.material.tex_normal
-    {
-      file_print_line(*file, "material_tex_normal: %", it.material.tex_normal.path);
-    }
-    if it.material.tex_specular
-    {
-      file_print_line(*file, "material_tex_specular: %", it.material.tex_specular.path);
-    }
-    file_print_line(*file, "material_specular_power: %", it.material.specular_power);
-    file_print_line(*file, "material_specular_shininess: %", it.material.specular_shininess);
-    file_print_line(*file, "material_specular_intensity: %", it.material.specular_intensity);
-    file_print_v2(*file, "material_tex_coord_scale", it.material.tex_coord_scale);
-    file_print_line(*file, "material_lighting_intensity: %", it.material.lighting_intensity);
+    file_print_line(*file, "entity: %", it.info.type);
+    g_write_entity(it, *file);
   }
 }
 
@@ -346,64 +379,13 @@ g_load_level :: (path: string)
     {
       key, right := break_by_spaces(it);
       key.count -= 1; // NOTE(tt): skip the ':'
-      if key ==
+      if key == "entity"
       {
-        case "entity";
-          entity = g_create_entity_from_type_name(right);
-        case "position";
-          position := parse_v3(right);
-          entity.position = position;
-        case "rotation";
-          rotation := parse_v3(right);
-          entity.rotation = rotation;
-        case "scale";
-          scale := parse_v3(right);
-          entity.scale = scale;
-        case "collision_type";
-          type := parse_enum(*right, CollisionType);
-          entity.collision.type = type;
-        case "collision_enabled";
-          enabled := parse_bool(*right);
-          entity.collision.enabled = enabled;
-        case "collision_box_scale";
-          box_scale := parse_v3(right);
-          entity.collision.box_scale = box_scale;
-        case "collision_capsule_radius";
-          radius := parse_float(*right);
-          entity.collision.capsule_radius = radius;
-        case "collision_capsule_height";
-          height := parse_float(*right);
-          entity.collision.capsule_height = height;
-        case "colour";
-          colour := parse_v4(right);
-          entity.colour = colour;
-        case "mesh";
-          mesh_path := right;
-          entity.mesh = dr_get_mesh(mesh_path);
-        case "material_tex_colour";
-          tex_path := right;
-          entity.material.tex_colour = dr_get_texture(tex_path);
-        case "material_tex_normal";
-          tex_path := right;
-          entity.material.tex_normal = dr_get_texture(tex_path);
-        case "material_tex_specular";
-          tex_path := right;
-          entity.material.tex_specular = dr_get_texture(tex_path);
-        case "material_specular_shininess";
-          shininess := parse_float(*right);
-          entity.material.specular_shininess = shininess;
-        case "material_specular_intensity";
-          intensity := parse_float(*right);
-          entity.material.specular_intensity = intensity;
-        case "material_specular_power";
-          power := parse_int(*right);
-          entity.material.specular_power = xx power;
-        case "material_tex_coord_scale";
-          tex_coord_scale := parse_v2(right);
-          entity.material.tex_coord_scale = tex_coord_scale;
-        case "material_lighting_intensity";
-          lighting_intensity := parse_float(*right);
-          entity.material.lighting_intensity = lighting_intensity;
+        entity = g_create_entity_from_type_name(right);
+      }
+      else
+      {
+        g_read_entity_member(entity, key, right);
       }
     }
   }
@@ -428,8 +410,6 @@ file_print_v4 :: (file: *File, name: string, v: Vec4F32)
 {
   file_write(file, str_format(arena_temp, "%: [%, %, %, %]\n", name, v.x, v.y, v.z, v.w));
 }
-
-#scope_file
 
 parse_v2 :: (str: string) -> Vec2F32
 {

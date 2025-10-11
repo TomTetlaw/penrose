@@ -26,7 +26,8 @@ using,only
   parse_int,
   path_decomp,
   parse_enum,
-  parse_bool
+  parse_bool,
+  contains,
 ) String :: #import "String";
 using,only
 (

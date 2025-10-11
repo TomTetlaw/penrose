@@ -53,6 +53,13 @@ str_from_cstr :: (arena: *Arena, cstr: *u8) -> string
   return str;
 }
 
+str_copy :: (arena: *Arena, source: string) -> string
+{
+  str := arena_push_string(arena, xx source.count);
+  copy(str.data, source.data, xx source.count);
+  return str;
+}
+
 str_format :: (arena: *Arena, format: string, args: ..Any) -> string
 {
   builder: String_Builder;
