@@ -1,0 +1,4 @@
+name: shipping_crate
+tex_colour: textures/shipping_crate.tga
+tex_normal: textures/shipping_crate_norm.tga
+tex_specular: textures/shipping_crate_spec.tga

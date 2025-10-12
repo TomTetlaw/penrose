@@ -1,0 +1,4 @@
+name: test
+tex_colour: textures/test.png
+tex_normal: textures/test_norm.png
+tex_specular: textures/test_spec.png

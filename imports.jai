@@ -45,6 +45,7 @@ using,only
 using,only
 (
   read_entire_file,
+  write_entire_file,
   file_open,
   file_read,
   file_write,
@@ -53,7 +54,8 @@ using,only
 ) FileModule :: #import "File";
 using,only
 (
-  file_list
+  file_list,
+  file_exists
 ) FileUtils :: #import "File_Utilities";
 using,only
 (

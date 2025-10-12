@@ -3,19 +3,16 @@ Prop :: struct
 {
   using #as base: Entity;
   base.mesh_path = "dr_default_cube_mesh";
-  base.texture_paths[0] = "textures/test_col.png";
-  base.texture_paths[1] = "textures/test_norm.png";
-  base.texture_paths[2] = "textures/test_spec.png";
+  base.material_name = "test";
 }
 
 PlayerStart :: struct
 {
   using #as base: Entity;
   base.mesh_path = "dr_default_cube_mesh";
-  base.texture_paths[0] = "textures/info_player_start.png";
+  base.material_name = "info_player_start";
   base.name = "player_start";
   base.editor_only = true;
-  base.material.lighting_intensity = 0.0;
 }
 
 Player :: struct
@@ -34,13 +31,18 @@ UsableType :: enum
   TriggerDoor;
 }
 
+UsableCustomId :: enum
+{
+  Test;
+}
+
 UsableObject :: struct
 {
   using #as base: Entity;
   base.collision.enabled = false;
   pixel_size := Vec2F32.{64, 64};
   type: UsableType;
-  custom_id: s32;
+  custom_id: UsableCustomId;
   target_name: string;
 }
 
@@ -68,9 +70,7 @@ Door :: struct
 {
   using #as base: Entity;
   base.mesh_path = "dr_default_cube_mesh";
-  base.texture_paths[0] = "textures/shipping_crates3.tga";
-  base.texture_paths[1] = "textures/shipping_crates3_local.tga";
-  base.texture_paths[2] = "textures/shipping_crates3_s.tga";
+  base.material_name = "shipping_crate";
   base.scale = Vec3F32.{0.5, 3.0, 7.0};
   open: bool;
 }

@@ -138,15 +138,15 @@ Entity :: struct
   editor_only: bool; @no_serialize @no_imgui
   removed: bool; @no_serialize @no_imgui
   mesh_path := ""; @no_serialize @no_imgui
-  texture_paths: [3] string; @no_serialize @no_imgui
+  material_name: string; @no_serialize @no_imgui
   name: string;
   mesh: *DR_Mesh;  @no_imgui
   spawn_position: Vec3F32; @no_serialize @no_imgui
   position: Vec3F32;
   rotation: Vec3F32;
   scale := Vec3F32.{1, 1, 1};
-  material: DR_MeshMaterial;
-  colour := Vec4F32.{1, 1, 1, 1};
+  material: *DR_MeshMaterial;
+  colour := Vec4F32.{1, 1, 1, 1}; @colour
   collision: CollisionInfo;
   collision.type = .Box;
 }
@@ -178,20 +178,9 @@ g_create_entity :: ($T: Type) -> *T
   {
     entity.mesh = dr_get_mesh(entity.mesh_path);
   }
-  entity.material.tex_colour = dr_renderer.tex_white;
-  entity.material.tex_normal = dr_renderer.tex_normal;
-  entity.material.tex_specular = dr_renderer.tex_white;
-  if entity.texture_paths[0]
+  if entity.material_name
   {
-    entity.material.tex_colour = dr_get_texture(entity.texture_paths[0]);
-  }
-  if entity.texture_paths[1]
-  {
-    entity.material.tex_normal = dr_get_texture(entity.texture_paths[1]);
-  }
-  if entity.texture_paths[2]
-  {
-    entity.material.tex_specular = dr_get_texture(entity.texture_paths[2]);
+    entity.material = dr_get_material(entity.material_name);
   }
   return g_downcast(entity, T);
 }
@@ -335,7 +324,7 @@ g_draw :: (filter := EntityFilter.{})
       instance: DR_MeshInstance;
       instance.transform = mat4x4f32_transform(it.position, it.rotation, it.scale);
       instance.colour = it.colour;
-      dr_draw_mesh(it.mesh, .[instance], *it.material);
+      dr_draw_mesh(it.mesh, .[instance], it.material);
     }
   }
   for each_entity(.{include_types = .[UsableObject]})

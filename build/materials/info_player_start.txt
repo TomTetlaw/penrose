@@ -1,0 +1,4 @@
+name: info_player_start
+tex_colour: textures/info_player_start.png
+tex_normal: dr_default_normal_texture
+tex_specular: dr_default_white_texture

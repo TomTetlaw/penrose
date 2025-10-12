@@ -19,6 +19,7 @@ ED_EditorState :: struct
   drag_start_object_scale: Vec3F32;
   drag_start_object_rotation: Vec3F32;
   transform_mode: ED_TransformMode;
+  editing_material: *DR_MeshMaterial;
 }
 
 ed_editor: *ED_EditorState;
@@ -41,9 +42,12 @@ ed_save :: ()
 
 ed_load :: (name: string)
 {
-  ed_editor.level_name = str_copy(ed_editor.arena, name);
   path := str_format(arena_temp, "levels/%.txt", name);
-  g_load_level(path);
+  if file_exists(path)
+  {
+    ed_editor.level_name = str_copy(ed_editor.arena, name);
+    g_load_level(path);
+  }
 }
 
 ed_init :: ()
@@ -52,6 +56,7 @@ ed_init :: ()
   ed_editor = arena_push_struct(arena, ED_EditorState);
   ed_editor.arena = arena;
   read_editor_config();
+  ed_editor.editing_material = dr_renderer.materials;
 }
 
 read_editor_config :: ()
@@ -250,13 +255,29 @@ texture_property :: (label: string, texture: **DR_Texture)
   ImGui.Image(.{_TexID = cast(ImTextureID) texture.*.ref}, .{32, 32});
 }
 
+material_property :: (label: string, dest: **DR_MeshMaterial)
+{
+  cstr := cstr_from_str(arena_temp, ifx dest.* then dest.*.name else "none");
+  if ImGui.BeginCombo(cstr_from_str(arena_temp, label), cstr)
+  {
+    for each_element(dr_renderer.materials)
+    {
+      if ImGui.Selectable(cstr_from_str(arena_temp, it.name))
+      {
+        dest.* = it;
+      }
+    }
+    ImGui.EndCombo();
+  }
+}
+
 enum_property :: (name: string, dest: *$T)
 {
   if ImGui.BeginCombo(cstr_from_str(arena_temp, name), cstr_from_str(arena_temp, enum_names(T)[dest.*]))
   {
     for enum_values_as_enum(T)
     {
-      if ImGui.Button(cstr_from_str(arena_temp, enum_names(T)[it]))
+      if ImGui.Selectable(cstr_from_str(arena_temp, enum_names(T)[it]))
       {
         dest.* = it;
       }
@@ -339,6 +360,20 @@ editor_imgui :: ()
     }
     ImGui.PopID();
   }
+  ImGui.End();
+  ImGui.Begin("Materials");
+  material_property("material", *ed_editor.editing_material);
+  mat := ed_editor.editing_material;
+  ImGui.DragFloat("lighting_intensity", *mat.lighting_intensity);
+  ImGui.DragFloat("specular_intensity", *mat.specular_intensity);
+  if ImGui.DragFloat("specular_power", *mat.specular_power)
+  {
+    mat.specular_shininess = cast(F32) (1 << mat.specular_power);
+  }
+  ImGui.DragFloat2("tex_coord_scale", *mat.tex_coord_scale.f);
+  texture_property("tex_colour", *mat.tex_colour);
+  texture_property("tex_normal", *mat.tex_normal);
+  texture_property("tex_specular", *mat.tex_specular);
   ImGui.End();
 }
 

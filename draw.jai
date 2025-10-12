@@ -71,9 +71,18 @@ DR_MeshFragConstants :: struct
   pad: Vec3F32;
 }
 
+DR_MaterialDef :: struct
+{
+  name: string;
+  col: string;
+  norm: string;
+  spec: string;
+}
+
 DR_MeshMaterial :: struct
 {
   next: *DR_MeshMaterial;
+  name: string;
   lighting_intensity := 1.0;
   specular_intensity := 1.0;
   specular_shininess := 32.0;
@@ -145,39 +154,32 @@ DR_RendererState :: struct
   pipelines: *DR_Pipeline;
   buffers: *DR_Buffer;
   meshes: *DR_Mesh;
-
+  materials: *DR_MeshMaterial;
   textures: *DR_Texture;
   tex_white: *DR_Texture;
   tex_black: *DR_Texture;
   tex_normal: *DR_Texture;
   depth_target: *DR_Texture;
-
   draw_meshes: *DR_DrawMesh;
   draw_lines: *DR_DrawLines;
   draw_quads: *DR_DrawQuads;
-
   mesh_cube: *DR_Mesh;
   mesh_line: *DR_Mesh;
   mesh_quad: *DR_Mesh;
-
   shader_mesh: *DR_Shader;
   shader_lines: *DR_Shader;
   shader_quads: *DR_Shader;
-
   mesh_instances: *DR_Buffer;
   quad_instances: *DR_Buffer;
   line_instances: *DR_Buffer;
-
   pipeline_mesh: *DR_Pipeline;
   pipeline_lines: *DR_Pipeline;
   pipeline_quads: *DR_Pipeline;
-
   upload_size: int;
   upload_queue: *DR_Upload;
   last_upload: *DR_Upload;
   transfer_buffer: *SDL_GPUTransferBuffer;
   transfer_buffer_size: int;
-
   sampler_set_size: Vec3U32;
   sampler_set: [] *SDL_GPUSampler;
 }
@@ -269,6 +271,18 @@ dr_get_texture :: (path: string) -> *DR_Texture
   }
   result := tex_load(path);
   return result;
+}
+
+dr_get_material :: (name: string) -> *DR_MeshMaterial
+{
+  for each_element(dr_renderer.materials)
+  {
+    if it.name == name
+    {
+      return it;
+    }
+  }
+  return null;
 }
 
 dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) -> *DR_Mesh
@@ -720,9 +734,40 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_create_builtin_meshes();
   dr_create_builtin_textures();
   dr_create_sampler_set();
-  for file_list("textures",, arena_allocator(arena_temp))
+  for file_list("materials")
   {
-    dr_get_texture(it);
+    file_data, ok := read_entire_file(it,, arena_allocator(arena_temp));
+    if ok
+    {
+      mat := arena_push_struct(dr_renderer.arena, DR_MeshMaterial);
+      stack_push(*dr_renderer.materials, mat);
+      _, lines := file_to_array("", true, true, false, true, file_data);
+      for lines
+      {
+        key, right := break_by_spaces(it);
+        key.count -= 1;
+        if key ==
+        {
+          case "name";
+            mat.name = str_copy(dr_renderer.arena, right);
+          case "lighting_intensity";
+            mat.lighting_intensity = parse_float(*right);
+          case "specular_intensity";
+            mat.specular_intensity = parse_float(*right);
+          case "specular_power";
+            mat.specular_power = xx parse_int(*right);
+            mat.specular_shininess = cast(F32) (1 << mat.specular_power);
+          case "tex_coord_scale";
+            mat.tex_coord_scale = parse_v2(right);
+          case "tex_colour";
+            mat.tex_colour = dr_get_texture(right);
+          case "tex_normal";
+            mat.tex_normal = dr_get_texture(right);
+          case "tex_specular";
+            mat.tex_specular = dr_get_texture(right);
+        }
+      }
+    }
   }
 }
 

@@ -40,6 +40,35 @@ build :: ()
       copy_file(tprint("%.hlsl", base), tprint("build/shaders/%.hlsl", base));
     }
   }
+  texture_files := file_list("build/textures");
+  for texture_files
+  {
+    if !contains(it, "_spec") && !contains(it, "_norm")
+    {
+      path, base, ext := path_decomp(it);
+      col := tprint("textures/%.%", base, ext);
+      norm := tprint("textures/%_norm.%", base, ext);
+      spec := tprint("textures/%_spec.%", base, ext);
+      if !file_exists(tprint("build/%", norm))
+      {
+        norm = "dr_default_normal_texture";
+      }
+      if !file_exists(tprint("build/%", spec))
+      {
+        spec = "dr_default_white_texture";
+      }
+      if !file_exists(tprint("build/materials/%.txt", base))
+      {
+        builder: String_Builder;
+        print_to_builder(*builder, "name: %\n", base);
+        print_to_builder(*builder, "tex_colour: %\n", col);
+        print_to_builder(*builder, "tex_normal: %\n", norm);
+        print_to_builder(*builder, "tex_specular: %\n", spec);
+        mat := builder_to_string(*builder);
+        write_entire_file(tprint("build/materials/%.txt", base), mat);
+      }
+    }
+  }
   entity_types: [..] *Type_Info_Struct;
   generated_code := false;
   while true
@@ -157,8 +186,8 @@ generate_imgui_member_code :: (info: *Type_Info, name: string, base_name: string
           {
             return tprint("vec4_property(\"%\", *%);\n", name, name);
           }
-        case "DR_Texture";
-          return tprint("texture_property(\"%\", *%);\n", name, name);
+        case "DR_MeshMaterial";
+          return tprint("material_property(\"%\", *%);\n", name, name);
       }
     }
     case .INTEGER;
@@ -198,8 +227,8 @@ generate_deserialize_member_code :: (info: *Type_Info, name: string, base_name: 
           return tprint("if key == \"%1\" %1 = parse_v4(value);\n", name);
         case "DR_Mesh";
           return tprint("if key == \"%1\" %1 = dr_get_mesh(value);\n", name);
-        case "DR_Texture";
-          return tprint("if key == \"%1\" %1 = dr_get_texture(value);\n", name);
+        case "DR_MeshMaterial";
+          return tprint("if key == \"%1\" %1 = dr_get_material(value);\n", name);
       }
     }
     case .INTEGER;
@@ -237,9 +266,10 @@ generate_serialize_member_code :: (info: *Type_Info, name: string, base_name: st
           return tprint("file_print_v3(file, \"%1\", %1);\n", name);
         case "V4";
           return tprint("file_print_v4(file, \"%1\", %1);\n", name);
-        case "DR_Mesh"; #through;
-        case "DR_Texture";
+        case "DR_Mesh";
           return tprint("if %1 file_print_line(file, \"%1: \%\", %1.path);\n", name);
+        case "DR_MeshMaterial";
+          return tprint("if %1 file_print_line(file, \"%1: \%\", %1.name);\n", name);
       }
     }
     case;
@@ -251,7 +281,7 @@ generate_serialize_member_code :: (info: *Type_Info, name: string, base_name: st
 generate_per_member_code :: (info: *Type_Info_Struct, base: string, callback: PerMemberCallback, note_filter: string) -> string
 {
   filtered_members :: string.["next", "prev"];
-  handled_types :: string.["DR_Mesh", "DR_Texture", "V2", "V3", "V4"];
+  handled_types :: string.["DR_Mesh", "DR_Material", "V2", "V3", "V4"];
   builder: String_Builder;
   for info.members
   {
