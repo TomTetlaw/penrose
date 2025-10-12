@@ -20,6 +20,7 @@ ED_EditorState :: struct
   drag_start_object_rotation: Vec3F32;
   transform_mode: ED_TransformMode;
   editing_material: *DR_MeshMaterial;
+  sun_dir: Vec3F32;
 }
 
 ed_editor: *ED_EditorState;
@@ -59,6 +60,11 @@ ed_init :: ()
   ed_editor.editing_material = dr_renderer.materials;
 }
 
+ed_quit :: ()
+{
+  write_editor_config();
+}
+
 read_editor_config :: ()
 {
   file_data, ok := read_entire_file("editor_config.txt",, arena_allocator(arena_temp));
@@ -79,6 +85,8 @@ read_editor_config :: ()
           ed_editor.camera.yaw = parse_float(*right);
         case "camera_pitch";
           ed_editor.camera.pitch = parse_float(*right);
+        case "sun_dir";
+          ed_editor.sun_dir = parse_v3(right);
       }
     }
   }
@@ -94,6 +102,7 @@ write_editor_config :: ()
     file_print_v3(*file, "camera_position", ed_editor.camera.position);
     file_print_line(*file, "camera_yaw: %", ed_editor.camera.yaw);
     file_print_line(*file, "camera_pitch: %", ed_editor.camera.pitch);
+    file_print_v3(*file, "sun_dir", ed_editor.sun_dir);
   }
 }
 
@@ -332,8 +341,7 @@ editor_imgui :: ()
   level_picker_modal();
   if ImGui.Button("Quit")
   {
-    write_editor_config();
-    exit(0);
+    penrose_quit();
   }
   ImGui.SeparatorText("spawn");
   not_spawnable := string.["Player"];
@@ -362,11 +370,28 @@ editor_imgui :: ()
   }
   ImGui.End();
   ImGui.Begin("Materials");
-  material_property("material", *ed_editor.editing_material);
-  mat := ed_editor.editing_material;
+  draw_list := ImGui.GetWindowDrawList();
+  draw_list.AddCallback(draw_list, set_sampler_callback, null);
+  texture_picker_modal();
+  mat: *DR_MeshMaterial;
+  if ed_editor.selected_entity
+  {
+    mat = ed_editor.selected_entity.material;
+  }
+  else
+  {
+    material_property("material", *ed_editor.editing_material);
+    ImGui.SameLine();
+    if ImGui.Button("+")
+    {
+      ed_editor.editing_material = dr_create_material();
+    }
+    mat = ed_editor.editing_material;
+  }
+  string_property("name", *mat.name);
   ImGui.DragFloat("lighting_intensity", *mat.lighting_intensity);
   ImGui.DragFloat("specular_intensity", *mat.specular_intensity);
-  if ImGui.DragFloat("specular_power", *mat.specular_power)
+  if ImGui.DragInt("specular_power", *mat.specular_power)
   {
     mat.specular_shininess = cast(F32) (1 << mat.specular_power);
   }
@@ -374,6 +399,13 @@ editor_imgui :: ()
   texture_property("tex_colour", *mat.tex_colour);
   texture_property("tex_normal", *mat.tex_normal);
   texture_property("tex_specular", *mat.tex_specular);
+  ImGui.End();
+  ImGui.Begin("World");
+  if ImGui.DragFloat3("sun_dir", *ed_editor.sun_dir.f, v_min=0.0, v_max=1.0, v_speed=.01)
+  {
+    ed_editor.sun_dir = normalize_v3(ed_editor.sun_dir);
+    dr_renderer.sun_dir = normalize_v3(ed_editor.sun_dir);
+  }
   ImGui.End();
 }
 
@@ -628,10 +660,7 @@ texture_picker_modal :: ()
 entity_imgui :: (entity: *Entity)
 {
   ImGui.Begin("Entity");
-  draw_list := ImGui.GetWindowDrawList();
-  draw_list.AddCallback(draw_list, set_sampler_callback, null);
   g_entity_imgui(entity);
-  texture_picker_modal();
   ImGui.End();
 }
 

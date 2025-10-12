@@ -178,6 +178,7 @@ g_create_entity :: ($T: Type) -> *T
   {
     entity.mesh = dr_get_mesh(entity.mesh_path);
   }
+  entity.material = dr_get_material("dr_default_material");
   if entity.material_name
   {
     entity.material = dr_get_material(entity.material_name);

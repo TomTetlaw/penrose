@@ -1,0 +1,8 @@
+name: floor_grate
+lighting_intensity: 1
+specular_intensity: 1
+specular_power: 9
+tex_coord_scale: [5, 19]
+tex_colour: textures/floor_grate.png
+tex_normal: textures/floor_grate_norm.png
+tex_specular: textures/floor_grate_spec.png

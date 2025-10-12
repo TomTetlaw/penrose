@@ -60,6 +60,8 @@ DR_MeshVertConstants :: struct
   camera_pos: Vec3F32;
   pad0: F32;
   viewport: Vec4F32;
+  sun_dir: Vec3F32;
+  pad1: F32;
 }
 
 DR_MeshFragConstants :: struct
@@ -68,7 +70,7 @@ DR_MeshFragConstants :: struct
   specular_intensity: F32;
   tex_coord_scale: Vec2F32;
   lighting_intensity: F32;
-  pad: Vec3F32;
+  pad0: Vec3F32;
 }
 
 DR_MaterialDef :: struct
@@ -156,6 +158,7 @@ DR_RendererState :: struct
   meshes: *DR_Mesh;
   materials: *DR_MeshMaterial;
   textures: *DR_Texture;
+  mat_default: *DR_MeshMaterial;
   tex_white: *DR_Texture;
   tex_black: *DR_Texture;
   tex_normal: *DR_Texture;
@@ -182,6 +185,7 @@ DR_RendererState :: struct
   transfer_buffer_size: int;
   sampler_set_size: Vec3U32;
   sampler_set: [] *SDL_GPUSampler;
+  sun_dir: Vec3F32;
 }
 
 DR_PipelineFlags :: enum_flags
@@ -734,6 +738,32 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_create_builtin_meshes();
   dr_create_builtin_textures();
   dr_create_sampler_set();
+  dr_renderer.mat_default = dr_create_material();
+  dr_renderer.mat_default.name = "dr_default_material";
+  for file_list("textures")
+  {
+    dr_get_texture(it);
+  }
+  read_materials();
+}
+
+dr_quit :: ()
+{
+  write_materials();
+}
+
+dr_create_material :: () -> *DR_MeshMaterial
+{
+  mat := arena_push_struct(dr_renderer.arena, DR_MeshMaterial);
+  stack_push(*dr_renderer.materials, mat);
+  mat.tex_colour = dr_renderer.tex_white;
+  mat.tex_normal = dr_renderer.tex_normal;
+  mat.tex_specular = dr_renderer.tex_white;
+  return mat;
+}
+
+read_materials :: ()
+{
   for file_list("materials")
   {
     file_data, ok := read_entire_file(it,, arena_allocator(arena_temp));
@@ -767,6 +797,27 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
             mat.tex_specular = dr_get_texture(right);
         }
       }
+    }
+  }
+}
+
+write_materials :: ()
+{
+  for each_element(dr_renderer.materials)
+  {
+    if it.name != "dr_default_material"
+    {
+      path := str_format(arena_temp, "materials/%.txt", it.name);
+      file := file_open(path, for_writing = true);
+      defer file_close(*file);
+      file_print_line(*file, "name: %", it.name);
+      file_print_line(*file, "lighting_intensity: %", it.lighting_intensity);
+      file_print_line(*file, "specular_intensity: %", it.specular_intensity);
+      file_print_line(*file, "specular_power: %", it.specular_power);
+      file_print_v2(*file, "tex_coord_scale", it.tex_coord_scale);
+      file_print_line(*file, "tex_colour: %", it.tex_colour.path);
+      file_print_line(*file, "tex_normal: %", it.tex_normal.path);
+      file_print_line(*file, "tex_specular: %", it.tex_specular.path);
     }
   }
 }
@@ -897,6 +948,7 @@ dr_draw_frame :: (camera: *CAM_Base)
     vert_constants.camera_pos = camera.position;
     vert_constants.viewport.xy = dr_renderer.resolution;
     vert_constants.viewport.zw = v2f32(0.1, 1000.0);
+    vert_constants.sun_dir = dr_renderer.sun_dir;
     sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
     main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
     SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);

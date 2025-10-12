@@ -17,8 +17,8 @@ generate :: ()
     "-Iinclude/backends",
     "-I../sdl3/include"
   ];
-  build_cpp_static_lib("lib/imgui", ..source_files, extra = extra);
-  build_cpp_dynamic_lib("bin/imgui", ..source_files, extra = extra, library_files = .["../sdl3/lib/sdl3.lib", "user32.lib", "imm32.lib"]);
+  build_cpp_static_lib("lib/imgui", ..source_files, extra = extra, debug = true);
+  build_cpp_dynamic_lib("bin/imgui", ..source_files, extra = extra, debug = true, library_files = .["../sdl3/lib/sdl3.lib", "user32.lib", "imm32.lib"]);
 
   options: Generate_Bindings_Options;
   array_add(*options.library_search_paths, "lib");

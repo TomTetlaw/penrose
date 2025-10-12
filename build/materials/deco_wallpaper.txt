@@ -1,0 +1,8 @@
+name: deco_wallpaper
+lighting_intensity: 1
+specular_intensity: 1
+specular_power: 8
+tex_coord_scale: [12, 1]
+tex_colour: textures/deco_wallpaper.png
+tex_normal: textures/deco_wallpaper_norm.png
+tex_specular: textures/deco_wallpaper_spec.png

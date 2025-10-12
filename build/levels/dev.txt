@@ -1,0 +1,134 @@
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-101.405884, -18.629627, 73.298828]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [10, 25, 1]
+entity.base.material: floor_grate
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: PlayerStart
+entity.base.name: player_start
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-102.236229, -29.481098, 74.45784]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: info_player_start
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-105.071617, -30.527987, 77.12355]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [0.25, 0.25, 7]
+entity.base.material: deco_wallpaper
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-97.66478, -30.527987, 77.12355]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [0.25, 0.25, 7]
+entity.base.material: deco_wallpaper
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-96.630493, -22.761843, 77.12355]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [0.25, 0.25, 7]
+entity.base.material: deco_wallpaper
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-106.232231, -22.761843, 77.12355]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [0.25, 0.25, 7]
+entity.base.material: deco_wallpaper
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-104.450417, -22.656536, 74.421822]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [2.637069, 1, 1.515457]
+entity.base.material: hex_stone
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-98.230469, -22.656536, 74.592247]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [2.70697, 1, 1.752151]
+entity.base.material: hex_stone
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: Door
+entity.base.name: test_door
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-101.374413, -22.560196, 76.655479]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [3, 0.5, 6]
+entity.base.material: alien_metal
+entity.base.colour: [1, 0.7, 0, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.open: false
+entity: UsableObject
+entity.base.name: 
+entity.base.position: [-104.006302, -22.648785, 75.283142]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.pixel_size: [64, 64]
+entity.type: TriggerDoor
+entity.custom_id: Test
+entity.target_name: test_door

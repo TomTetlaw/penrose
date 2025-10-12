@@ -3,7 +3,7 @@ Prop :: struct
 {
   using #as base: Entity;
   base.mesh_path = "dr_default_cube_mesh";
-  base.material_name = "test";
+  base.material_name = "dr_default_material";
 }
 
 PlayerStart :: struct
@@ -70,7 +70,7 @@ Door :: struct
 {
   using #as base: Entity;
   base.mesh_path = "dr_default_cube_mesh";
-  base.material_name = "shipping_crate";
+  base.material_name = "dr_default_material";
   base.scale = Vec3F32.{0.5, 3.0, 7.0};
   open: bool;
 }

@@ -49,7 +49,7 @@ main :: ()
       in_init();
       g_init();
       ed_init();
-      while main_loop := true
+      while main_loop
       {
         update_time();
         ImGui_ImplSDLGPU3_NewFrame();
@@ -68,7 +68,10 @@ main :: ()
           type := cast(SDL_EventType) it.type;
           if type ==
           {
-            case .SDL_EVENT_QUIT; break main_loop;
+            case .SDL_EVENT_QUIT;
+            {
+              penrose_quit();
+            }
           }
         }
         // NOTE(tt): collect input
@@ -99,15 +102,20 @@ main :: ()
       }
     }
   }
-  write_editor_config();
+  ed_quit();
+  dr_quit();
+}
+
+penrose_quit :: ()
+{
+  main_loop = false;
 }
 
 #scope_file
 
+main_loop := true;
 imgui_io: *ImGuiIO;
-
 window: *SDL_Window;
-
 old_time: Apollo_Time;
 update_time :: ()
 {

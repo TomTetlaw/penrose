@@ -24,6 +24,9 @@ cbuffer VertConstantBuffer : register(b0, space1)
   row_major float4x4 view_to_clip;
   float3 camera_pos;
   float pad0;
+  float4 viewport;
+  float3 sun_dir;
+  float pad1;
 }
 
 struct InstanceData
@@ -58,16 +61,17 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId)
   float3 tangent = normalize(mul(adj, input.tangent));
   float3 bitangent = normalize(cross(normal, tangent));
   tangent = normalize(tangent - dot(tangent, normal) * normal);
-  bitangent = cross(normal, tangent);
+  bitangent = normalize(cross(normal, tangent));
   float3x3 tbn = float3x3(tangent, bitangent, normal);
-  float3 view_dir = mul(tbn, normalize(camera_pos - world_position.xyz));
+  float3 view_dir = normalize(mul(tbn, normalize(camera_pos - world_position.xyz)));
+  float3 light_dir = normalize(mul(tbn, sun_dir));
   FragInput output;
   output.clip_position = clip_position;
   output.tex_coord = tex_coord;
   output.colour = colour;
   output.tangent = tangent;
   output.view_dir = view_dir;
-  output.light_dir = mul(tbn, normalize(float3(0.5, 0.5, 1.0)));
+  output.light_dir = light_dir;
   return output;
 }
 
@@ -90,18 +94,18 @@ cbuffer FragConstantBuffer : register(b0, space3)
 float4 frag_main(FragInput input) : SV_Target
 {
   float2 tex_coord = input.tex_coord * tex_coord_scale;
-  float3 colour = input.colour.rgb * texture0.Sample(sampler0, tex_coord).rgb;
-  if (lighting_intensity > 0)
-  {
-    float3 v = normalize(input.view_dir);
-    float3 n = normalize((texture1.Sample(sampler1, tex_coord).xyz * 2.0 - 1.0) * float3(1, -1, 1));
-    float3 l = normalize(input.light_dir);
-    float diffuse = max(dot(n, l), 0);
-    float3 h = normalize(l + v);
-    float specular = pow(max(dot(n, h), 0.0), specular_shininess);
-    float3 spec_colour = specular*specular_intensity*texture2.Sample(sampler2, tex_coord).rgb;
-    colour *= lighting_intensity * diffuse;
-    colour += lighting_intensity * spec_colour;
-  }
-  return float4(colour * input.colour.a, input.colour.a);
+  float3 map_colour = texture0.Sample(sampler0, tex_coord).rgb;
+  float3 colour = input.colour.rgb * map_colour;
+  float3 v = normalize(input.view_dir);
+  float3 n = normalize((texture1.Sample(sampler1, tex_coord).rgb * 2.0 - 1.0) * float3(1, 1, 1));
+  float3 l = normalize(-input.light_dir);
+  float diffuse = max(dot(n, l), 0);
+  float3 h = normalize(l + v);
+  float specular = pow(max(dot(n, h), 0.0), specular_shininess);
+  float3 spec_map = texture2.Sample(sampler2, tex_coord).rgb;
+  float3 spec_colour = specular * specular_intensity * spec_map;
+  colour *= lighting_intensity * diffuse;
+  colour += lighting_intensity * spec_colour;
+  float4 result = float4(colour * input.colour.a, input.colour.a);
+  return result;
 }
