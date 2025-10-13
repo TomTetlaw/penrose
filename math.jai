@@ -302,6 +302,17 @@ rotate_v3 :: (m: Mat4x4F32, v: Vec3F32) -> Vec3F32
   return result.xyz;
 }
 
+forward_from_rotation :: (angles: Vec3F32) -> Vec3F32
+{
+  pitch := angles.x;
+  yaw := angles.y;
+  result: Vec3F32;
+  result.x = cos(pitch) * sin(yaw);
+  result.y = sin(pitch);
+  result.z = cos(pitch) * cos(yaw);
+  return result;
+}
+
 lerp_v2 :: (a: V2($T), b: V2(T), t: T) -> V2(T)
 {
   return v2f32(lerp(a.x, b.x, t), lerp(a.y, b.y, t));

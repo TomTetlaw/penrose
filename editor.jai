@@ -401,11 +401,8 @@ editor_imgui :: ()
   texture_property("tex_specular", *mat.tex_specular);
   ImGui.End();
   ImGui.Begin("World");
-  if ImGui.DragFloat3("sun_dir", *ed_editor.sun_dir.f, v_min=0.0, v_max=1.0, v_speed=.01)
-  {
-    ed_editor.sun_dir = normalize_v3(ed_editor.sun_dir);
-    dr_renderer.sun_dir = normalize_v3(ed_editor.sun_dir);
-  }
+  if ImGui.DragFloat3("sun_rotation", *ed_editor.sun_dir.f, v_min=0.0, v_max=360.0)
+  dr_renderer.sun_dir = forward_from_rotation(ed_editor.sun_dir);
   ImGui.End();
 }
 

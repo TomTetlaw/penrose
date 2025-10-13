@@ -11,11 +11,12 @@ struct VertInput
 struct FragInput
 {
   float4 clip_position: SV_Position;
-  float2 tex_coord: TEXCOORD0;
-  float4 colour: TEXCOORD1;
-  float3 tangent: TEXCOORD2;
-  float3 view_dir: TEXCOORD3;
-  float3 light_dir: TEXCOORD4;
+  float3 world_pos: TEXCOORD0;
+  float2 tex_coord: TEXCOORD1;
+  float4 colour: TEXCOORD2;
+  float3 tangent: TEXCOORD3;
+  float3 view_dir: TEXCOORD4;
+  float3 light_dir: TEXCOORD5;
 };
 
 cbuffer VertConstantBuffer : register(b0, space1)
@@ -67,6 +68,7 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId)
   float3 light_dir = normalize(mul(tbn, sun_dir));
   FragInput output;
   output.clip_position = clip_position;
+  output.world_pos = world_position.xyz;
   output.tex_coord = tex_coord;
   output.colour = colour;
   output.tangent = tangent;
@@ -91,6 +93,63 @@ cbuffer FragConstantBuffer : register(b0, space3)
   float3 pad;
 }
 
+struct DirectionalLight
+{
+  float3 dir;
+  float brightness;
+  float3 colour;
+};
+
+struct PointLight
+{
+  float3 position;
+  float radius;
+  float brightness;
+  float3 colour;
+};
+
+struct SpotLight
+{
+  float3 position;
+  float3 dir;
+  float inner_radius;
+  float outer_radius;
+  float brightness;
+  float3 colour;
+};
+
+float2 lighting_directional(DirectionalLight light, float3 n)
+{
+    float diffuse = max(dot(n, light.dir), 0.0) * light.brightness;
+    return float2(diffuse, spec);
+}
+
+void lighting_point(PointLight light, float3 world_pos, float3 v, float3 n, out float diffuse)
+{
+  float3 L = light.position - world_pos;
+  float dist = length(L);
+  L /= dist;
+  float atten = saturate(1.0 - (dist / light.radius));
+  atten = atten * atten;
+  diffuse = max(dot(n, L), 0.0);
+  float3 h = normalize(L + v);
+  diffuse *= light.brightness * atten;
+}
+
+void lighting_spot(SpotLight light, float3 world_pos, float3 v, float3 n, out float diffuse)
+{
+  float3 L = light.position - world_pos;
+  float dist = length(L);
+  L /= dist;
+  float dist_atten = saturate(1.0 - (dist / light.outer_radius));
+  dist_atten = dist_atten * dist_atten;
+  float cone_dot = dot(-L, normalize(light.dir));
+  float cone_atten = pow(saturate(cone_dot), 3);
+  float total_atten = dist_atten * cone_atten;
+  diffuse = max(dot(n, L), 0.0);
+  diffuse *= light.brightness * total_atten;
+}
+
 float4 frag_main(FragInput input) : SV_Target
 {
   float2 tex_coord = input.tex_coord * tex_coord_scale;
@@ -99,13 +158,37 @@ float4 frag_main(FragInput input) : SV_Target
   float3 v = normalize(input.view_dir);
   float3 n = normalize((texture1.Sample(sampler1, tex_coord).rgb * 2.0 - 1.0) * float3(1, 1, 1));
   float3 l = normalize(-input.light_dir);
-  float diffuse = max(dot(n, l), 0);
-  float3 h = normalize(l + v);
-  float specular = pow(max(dot(n, h), 0.0), specular_shininess);
+
+  DirectionalLight directional_light;
+  directional_light.dir = l;
+  directional_light.brightness = 1.0;
+  directional_light.colour = float3(1, 1, 1);
+  float diffuse;
+  lighting_directional(directional_light, n, diffuse);
+
+  PointLight point_light;
+  point_light.position = float3(-101, -16, 74);
+  point_light.radius = 15;
+  point_light.brightness = 1;
+  point_light.colour = float3(1, 0, 0);
+  float point_diffuse;
+  lighting_point(point_light, input.world_pos, v, n, point_diffuse);
+
+  SpotLight spot_light;
+  spot_light.position = float3(-101, -16, 75);
+  spot_light.dir = float3(0, -1, 0);
+  spot_light.inner_radius = 5;
+  spot_light.outer_radius = 10.0;
+  spot_light.brightness = 5.0;
+  spot_light.colour = float3(0, 0, 1);
+  float spot_diffuse;
+  lighting_spot(spot_light, input.world_pos, v, n, spot_diffuse);
+
   float3 spec_map = texture2.Sample(sampler2, tex_coord).rgb;
-  float3 spec_colour = specular * specular_intensity * spec_map;
   colour *= lighting_intensity * diffuse;
-  colour += lighting_intensity * spec_colour;
+  colour += point_diffuse * point_light.colour;
+  colour += spot_diffuse * spot_light.colour;
+  colour += lighting_intensity * spec * specular_intensity * spec_map;
   float4 result = float4(colour * input.colour.a, input.colour.a);
   return result;
 }
