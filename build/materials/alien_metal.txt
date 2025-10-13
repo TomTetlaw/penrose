@@ -1,6 +1,4 @@
 name: alien_metal
-lighting_intensity: 1
-specular_intensity: 1
 specular_power: 9
 tex_coord_scale: [3, 6]
 tex_colour: textures/alien_metal.png

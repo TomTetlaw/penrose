@@ -20,7 +20,6 @@ ED_EditorState :: struct
   drag_start_object_rotation: Vec3F32;
   transform_mode: ED_TransformMode;
   editing_material: *DR_MeshMaterial;
-  sun_dir: Vec3F32;
 }
 
 ed_editor: *ED_EditorState;
@@ -85,8 +84,6 @@ read_editor_config :: ()
           ed_editor.camera.yaw = parse_float(*right);
         case "camera_pitch";
           ed_editor.camera.pitch = parse_float(*right);
-        case "sun_dir";
-          ed_editor.sun_dir = parse_v3(right);
       }
     }
   }
@@ -102,7 +99,6 @@ write_editor_config :: ()
     file_print_v3(*file, "camera_position", ed_editor.camera.position);
     file_print_line(*file, "camera_yaw: %", ed_editor.camera.yaw);
     file_print_line(*file, "camera_pitch: %", ed_editor.camera.pitch);
-    file_print_v3(*file, "sun_dir", ed_editor.sun_dir);
   }
 }
 
@@ -389,8 +385,6 @@ editor_imgui :: ()
     mat = ed_editor.editing_material;
   }
   string_property("name", *mat.name);
-  ImGui.DragFloat("lighting_intensity", *mat.lighting_intensity);
-  ImGui.DragFloat("specular_intensity", *mat.specular_intensity);
   if ImGui.DragInt("specular_power", *mat.specular_power)
   {
     mat.specular_shininess = cast(F32) (1 << mat.specular_power);
@@ -399,10 +393,6 @@ editor_imgui :: ()
   texture_property("tex_colour", *mat.tex_colour);
   texture_property("tex_normal", *mat.tex_normal);
   texture_property("tex_specular", *mat.tex_specular);
-  ImGui.End();
-  ImGui.Begin("World");
-  if ImGui.DragFloat3("sun_rotation", *ed_editor.sun_dir.f, v_min=0.0, v_max=360.0)
-  dr_renderer.sun_dir = forward_from_rotation(ed_editor.sun_dir);
   ImGui.End();
 }
 

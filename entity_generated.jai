@@ -77,6 +77,29 @@ file_print_line(file, "entity.type: %", entity.type);
 file_print_line(file, "entity.custom_id: %", entity.custom_id);
 file_print_line(file, "entity.target_name: %", entity.target_name);
 
+case DynamicLight; entity := g_downcast(base_entity, DynamicLight);
+file_print_line(file, "entity.base.name: %", entity.base.name);
+if entity.base.mesh file_print_line(file, "entity.base.mesh: %", entity.base.mesh.path);
+file_print_v3(file, "entity.base.position", entity.base.position);
+file_print_v3(file, "entity.base.rotation", entity.base.rotation);
+file_print_v3(file, "entity.base.scale", entity.base.scale);
+if entity.base.material file_print_line(file, "entity.base.material: %", entity.base.material.name);
+file_print_v4(file, "entity.base.colour", entity.base.colour);
+file_print_line(file, "entity.base.collision.type: %", entity.base.collision.type);
+file_print_line(file, "entity.base.collision.enabled: %", entity.base.collision.enabled);
+file_print_v3(file, "entity.base.collision.box_scale", entity.base.collision.box_scale);
+file_print_line(file, "entity.base.collision.capsule_radius: %", entity.base.collision.capsule_radius);
+file_print_line(file, "entity.base.collision.capsule_height: %", entity.base.collision.capsule_height);
+file_print_v3(file, "entity.light_info.position", entity.light_info.position);
+file_print_line(file, "entity.light_info.type: %", entity.light_info.type);
+file_print_v3(file, "entity.light_info.colour", entity.light_info.colour);
+file_print_line(file, "entity.light_info.brightness: %", entity.light_info.brightness);
+file_print_v3(file, "entity.light_info.dir", entity.light_info.dir);
+file_print_line(file, "entity.light_info.radius: %", entity.light_info.radius);
+file_print_line(file, "entity.light_info.inner_radius: %", entity.light_info.inner_radius);
+file_print_line(file, "entity.light_info.outer_radius: %", entity.light_info.outer_radius);
+file_print_v2(file, "entity.light_info.pad", entity.light_info.pad);
+
 case Door; entity := g_downcast(base_entity, Door);
 file_print_line(file, "entity.base.name: %", entity.base.name);
 if entity.base.mesh file_print_line(file, "entity.base.mesh: %", entity.base.mesh.path);
@@ -174,6 +197,29 @@ if key == "entity.type" entity.type = parse_enum(*value, type_of(entity.type));
 if key == "entity.custom_id" entity.custom_id = parse_enum(*value, type_of(entity.custom_id));
 if key == "entity.target_name" entity.target_name = value;
 
+case DynamicLight; entity := g_downcast(base_entity, DynamicLight);
+if key == "entity.base.name" entity.base.name = value;
+if key == "entity.base.mesh" entity.base.mesh = dr_get_mesh(value);
+if key == "entity.base.position" entity.base.position = parse_v3(value);
+if key == "entity.base.rotation" entity.base.rotation = parse_v3(value);
+if key == "entity.base.scale" entity.base.scale = parse_v3(value);
+if key == "entity.base.material" entity.base.material = dr_get_material(value);
+if key == "entity.base.colour" entity.base.colour = parse_v4(value);
+if key == "entity.base.collision.type" entity.base.collision.type = parse_enum(*value, type_of(entity.base.collision.type));
+if key == "entity.base.collision.enabled" entity.base.collision.enabled = parse_bool(*value);
+if key == "entity.base.collision.box_scale" entity.base.collision.box_scale = parse_v3(value);
+if key == "entity.base.collision.capsule_radius" entity.base.collision.capsule_radius = parse_float(*value);
+if key == "entity.base.collision.capsule_height" entity.base.collision.capsule_height = parse_float(*value);
+if key == "entity.light_info.position" entity.light_info.position = parse_v3(value);
+if key == "entity.light_info.type" entity.light_info.type = parse_enum(*value, type_of(entity.light_info.type));
+if key == "entity.light_info.colour" entity.light_info.colour = parse_v3(value);
+if key == "entity.light_info.brightness" entity.light_info.brightness = parse_float(*value);
+if key == "entity.light_info.dir" entity.light_info.dir = parse_v3(value);
+if key == "entity.light_info.radius" entity.light_info.radius = parse_float(*value);
+if key == "entity.light_info.inner_radius" entity.light_info.inner_radius = parse_float(*value);
+if key == "entity.light_info.outer_radius" entity.light_info.outer_radius = parse_float(*value);
+if key == "entity.light_info.pad" entity.light_info.pad = parse_v2(value);
+
 case Door; entity := g_downcast(base_entity, Door);
 if key == "entity.base.name" entity.base.name = value;
 if key == "entity.base.mesh" entity.base.mesh = dr_get_mesh(value);
@@ -266,6 +312,28 @@ enum_property("entity.type", *entity.type);
 enum_property("entity.custom_id", *entity.custom_id);
 string_property("entity.target_name", *entity.target_name);
 
+case DynamicLight; entity := g_downcast(base_entity, DynamicLight);
+string_property("entity.base.name", *entity.base.name);
+vec3_property("entity.base.position", *entity.base.position);
+vec3_property("entity.base.rotation", *entity.base.rotation);
+vec3_property("entity.base.scale", *entity.base.scale);
+material_property("entity.base.material", *entity.base.material);
+vec4_property("entity.base.colour", *entity.base.colour);
+enum_property("entity.base.collision.type", *entity.base.collision.type);
+ImGui.Checkbox("entity.base.collision.enabled", *entity.base.collision.enabled);
+vec3_property("entity.base.collision.box_scale", *entity.base.collision.box_scale);
+ImGui.DragFloat("entity.base.collision.capsule_radius", *entity.base.collision.capsule_radius);
+ImGui.DragFloat("entity.base.collision.capsule_height", *entity.base.collision.capsule_height);
+vec3_property("entity.light_info.position", *entity.light_info.position);
+enum_property("entity.light_info.type", *entity.light_info.type);
+vec3_property("entity.light_info.colour", *entity.light_info.colour);
+ImGui.DragFloat("entity.light_info.brightness", *entity.light_info.brightness);
+vec3_property("entity.light_info.dir", *entity.light_info.dir);
+ImGui.DragFloat("entity.light_info.radius", *entity.light_info.radius);
+ImGui.DragFloat("entity.light_info.inner_radius", *entity.light_info.inner_radius);
+ImGui.DragFloat("entity.light_info.outer_radius", *entity.light_info.outer_radius);
+vec2_property("entity.light_info.pad", *entity.light_info.pad);
+
 case Door; entity := g_downcast(base_entity, Door);
 string_property("entity.base.name", *entity.base.name);
 vec3_property("entity.base.position", *entity.base.position);
@@ -292,6 +360,7 @@ g_create_entity_from_type_name :: (str: string) -> *Entity #expand
     case "PlayerStart"; return g_create_entity(PlayerStart);
     case "Player"; return g_create_entity(Player);
     case "UsableObject"; return g_create_entity(UsableObject);
+    case "DynamicLight"; return g_create_entity(DynamicLight);
     case "Door"; return g_create_entity(Door);
 
 case; return g_create_entity(Entity);
@@ -303,6 +372,7 @@ g_entity_type_info := EntityTypeInfo.[
   .{"PlayerStart", PlayerStart, size_of(PlayerStart)},
   .{"Player", Player, size_of(Player)},
   .{"UsableObject", UsableObject, size_of(UsableObject)},
+  .{"DynamicLight", DynamicLight, size_of(DynamicLight)},
   .{"Door", Door, size_of(Door)},
 
 ];

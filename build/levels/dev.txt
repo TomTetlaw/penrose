@@ -132,3 +132,276 @@ entity.pixel_size: [64, 64]
 entity.type: TriggerDoor
 entity.custom_id: Test
 entity.target_name: test_door
+entity: DynamicLight
+entity.base.name: asdf
+entity.base.position: [-100.786209, -15.234874, 77.93499]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-100.786209, -15.234874, 77.93499]
+entity.light_info.type: Point
+entity.light_info.colour: [1, 0.75, 0.75]
+entity.light_info.brightness: 10
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.radius: 10
+entity.light_info.inner_radius: 0
+entity.light_info.outer_radius: 0
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: asdf
+entity.base.position: [-100.786209, -27.207939, 79.905464]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-100.786209, -27.207939, 79.905464]
+entity.light_info.type: Point
+entity.light_info.colour: [1, 0.75, 0.75]
+entity.light_info.brightness: 10
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.radius: 10
+entity.light_info.inner_radius: 0
+entity.light_info.outer_radius: 0
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-104.754082, -29.344101, 74.365814]
+entity.base.rotation: [0, 0, 0.25]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-104.754082, -29.344101, 74.365814]
+entity.light_info.type: Spot
+entity.light_info.colour: [1, 0.75, 0.75]
+entity.light_info.brightness: 11
+entity.light_info.dir: [0, -1, 0]
+entity.light_info.radius: 5
+entity.light_info.inner_radius: 30
+entity.light_info.outer_radius: 40
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-97.282829, -25.185396, 88.19072]
+entity.base.rotation: [0, 0.75, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-97.282829, -25.185396, 88.19072]
+entity.light_info.type: Directional
+entity.light_info.colour: [1, 0.5, 0.5]
+entity.light_info.brightness: 1.5
+entity.light_info.dir: [0, 0, -1]
+entity.light_info.radius: 5
+entity.light_info.inner_radius: 0
+entity.light_info.outer_radius: 0
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-99.276741, -7.633525, 73.969955]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-99.276741, -7.633525, 73.969955]
+entity.light_info.type: Point
+entity.light_info.colour: [1, 0, 0]
+entity.light_info.brightness: 50
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.radius: 5
+entity.light_info.inner_radius: 0
+entity.light_info.outer_radius: 0
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-101.60215, -7.74408, 74.015007]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-101.60215, -7.74408, 74.015007]
+entity.light_info.type: Point
+entity.light_info.colour: [0, 1, 0]
+entity.light_info.brightness: 50
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.radius: 5
+entity.light_info.inner_radius: 0
+entity.light_info.outer_radius: 0
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-103.070282, -7.610356, 74.089386]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-103.070282, -7.610356, 74.089386]
+entity.light_info.type: Point
+entity.light_info.colour: [0, 0, 1]
+entity.light_info.brightness: 50
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.radius: 5
+entity.light_info.inner_radius: 0
+entity.light_info.outer_radius: 0
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: yellow_spot
+entity.base.position: [-99.941895, -17.467396, 73.867386]
+entity.base.rotation: [0, 0, 0.75]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-99.941895, -17.467396, 73.867386]
+entity.light_info.type: Spot
+entity.light_info.colour: [1, 1, 0]
+entity.light_info.brightness: 70
+entity.light_info.dir: [0, 1, 0]
+entity.light_info.radius: 9
+entity.light_info.inner_radius: 10
+entity.light_info.outer_radius: 11
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: yellow_spot
+entity.base.position: [-102.879501, -17.467396, 73.921669]
+entity.base.rotation: [0, 0, 0.75]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-102.879501, -17.467396, 73.921669]
+entity.light_info.type: Spot
+entity.light_info.colour: [1, 1, 0]
+entity.light_info.brightness: 70
+entity.light_info.dir: [0, 1, 0]
+entity.light_info.radius: 9
+entity.light_info.inner_radius: 10
+entity.light_info.outer_radius: 11
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: yellow_spot
+entity.base.position: [-98.516579, -17.467396, 73.907608]
+entity.base.rotation: [0, 0, 0.75]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-98.516579, -17.467396, 73.907608]
+entity.light_info.type: Spot
+entity.light_info.colour: [1, 0, 0]
+entity.light_info.brightness: 70
+entity.light_info.dir: [0, 1, 0]
+entity.light_info.radius: 9
+entity.light_info.inner_radius: 10
+entity.light_info.outer_radius: 11
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: yellow_spot
+entity.base.position: [-104.391396, -17.467396, 73.904762]
+entity.base.rotation: [0, 0, 0.75]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-104.391396, -17.467396, 73.904762]
+entity.light_info.type: Spot
+entity.light_info.colour: [0, 0, 1]
+entity.light_info.brightness: 70
+entity.light_info.dir: [0, 1, 0]
+entity.light_info.radius: 9
+entity.light_info.inner_radius: 10
+entity.light_info.outer_radius: 11
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: yellow_spot
+entity.base.position: [-101.313545, -17.467396, 73.941574]
+entity.base.rotation: [0, 0, 0.75]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-101.313545, -17.467396, 73.941574]
+entity.light_info.type: Spot
+entity.light_info.colour: [0, 1, 0]
+entity.light_info.brightness: 70
+entity.light_info.dir: [0, 1, 0]
+entity.light_info.radius: 9
+entity.light_info.inner_radius: 10
+entity.light_info.outer_radius: 11
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-98.308487, -29.344101, 74.365814]
+entity.base.rotation: [0, 0, 0.25]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-98.308487, -29.344101, 74.365814]
+entity.light_info.type: Spot
+entity.light_info.colour: [1, 0.75, 0.75]
+entity.light_info.brightness: 11
+entity.light_info.dir: [0, -1, 0]
+entity.light_info.radius: 5
+entity.light_info.inner_radius: 30
+entity.light_info.outer_radius: 40
+entity.light_info.pad: [0, 0]

@@ -46,6 +46,13 @@ UsableObject :: struct
   target_name: string;
 }
 
+DynamicLight :: struct
+{
+  using #as base: Entity;
+  base.collision.enabled = false;
+  light_info: DR_LightInfo;
+}
+
 usable_in_focus :: (usable: *UsableObject) -> bool
 {
   if g_game_state.mode == .Game

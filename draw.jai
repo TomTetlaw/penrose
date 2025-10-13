@@ -60,17 +60,17 @@ DR_MeshVertConstants :: struct
   camera_pos: Vec3F32;
   pad0: F32;
   viewport: Vec4F32;
-  sun_dir: Vec3F32;
+  light_pos: Vec3F32;
   pad1: F32;
 }
 
 DR_MeshFragConstants :: struct
 {
   specular_shininess: F32;
-  specular_intensity: F32;
+  pad1: Vec3F32;
   tex_coord_scale: Vec2F32;
-  lighting_intensity: F32;
-  pad0: Vec3F32;
+  pad0: Vec2F32;
+  light: DR_LightInfo;
 }
 
 DR_MaterialDef :: struct
@@ -85,8 +85,6 @@ DR_MeshMaterial :: struct
 {
   next: *DR_MeshMaterial;
   name: string;
-  lighting_intensity := 1.0;
-  specular_intensity := 1.0;
   specular_shininess := 32.0;
   specular_power: s32 = 9;
   tex_coord_scale := Vec2F32.{1, 1};
@@ -169,12 +167,14 @@ DR_RendererState :: struct
   mesh_cube: *DR_Mesh;
   mesh_line: *DR_Mesh;
   mesh_quad: *DR_Mesh;
+  shader_depth: *DR_Shader;
   shader_mesh: *DR_Shader;
   shader_lines: *DR_Shader;
   shader_quads: *DR_Shader;
   mesh_instances: *DR_Buffer;
   quad_instances: *DR_Buffer;
   line_instances: *DR_Buffer;
+  pipeline_depth: *DR_Pipeline;
   pipeline_mesh: *DR_Pipeline;
   pipeline_lines: *DR_Pipeline;
   pipeline_quads: *DR_Pipeline;
@@ -185,7 +185,7 @@ DR_RendererState :: struct
   transfer_buffer_size: int;
   sampler_set_size: Vec3U32;
   sampler_set: [] *SDL_GPUSampler;
-  sun_dir: Vec3F32;
+  lights: [..] DR_LightInfo;
 }
 
 DR_PipelineFlags :: enum_flags
@@ -196,6 +196,8 @@ DR_PipelineFlags :: enum_flags
   DepthWrite;
   Indexed;
   HasWireframeVariant;
+  PositionOnly;
+  NoColour;
 }
 
 DR_PipelineTopology :: enum
@@ -248,6 +250,26 @@ DR_MeshVertex :: struct
   colour: Vec4F32;
   normal: Vec3F32;
   tangent: Vec3F32;
+}
+
+LightType :: enum u32
+{
+  Directional :: 0;
+  Point :: 1;
+  Spot :: 2;
+}
+
+DR_LightInfo :: struct
+{
+  position: Vec3F32;
+  type := LightType.Point;
+  colour := Vec3F32.{1, 1, 1};
+  brightness := 1.0;
+  dir: Vec3F32;
+  radius := 5.0;
+  inner_radius: F32;
+  outer_radius: F32;
+  pad: Vec2F32;
 }
 
 dr_renderer: *DR_RendererState;
@@ -532,10 +554,10 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   {
     colour_target_desc.blend_state.enable_blend = true;
     colour_target_desc.blend_state.src_color_blendfactor = .ONE;
-    colour_target_desc.blend_state.dst_color_blendfactor = .ONE_MINUS_SRC_ALPHA;
+    colour_target_desc.blend_state.dst_color_blendfactor = .ONE;
     colour_target_desc.blend_state.color_blend_op = .ADD;
     colour_target_desc.blend_state.src_alpha_blendfactor = .ONE;
-    colour_target_desc.blend_state.dst_alpha_blendfactor = .ONE_MINUS_SRC_ALPHA;
+    colour_target_desc.blend_state.dst_alpha_blendfactor = .ONE;
     colour_target_desc.blend_state.alpha_blend_op = .ADD;
   }
   VertAttributeDesc :: struct
@@ -551,12 +573,22 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
     .{#run offset_of(DR_MeshVertex, "tangent"),   .FLOAT3},
   ];
   attributes: [vert_attribute_desc.count] SDL_GPUVertexAttribute;
-  for * vert_attribute_desc
+  if flags & .PositionOnly
   {
-    attributes[it_index].location = xx it_index;
-    attributes[it_index].buffer_slot = 0;
-    attributes[it_index].offset = it.offset;
-    attributes[it_index].format = it.format;
+    attributes[0].location = 0;
+    attributes[0].buffer_slot = 0;
+    attributes[0].offset = vert_attribute_desc[0].offset;
+    attributes[0].format = vert_attribute_desc[0].format;
+  }
+  else
+  {
+    for * vert_attribute_desc
+    {
+      attributes[it_index].location = xx it_index;
+      attributes[it_index].buffer_slot = 0;
+      attributes[it_index].offset = it.offset;
+      attributes[it_index].format = it.format;
+    }
   }
   vertex_buffer_desc: SDL_GPUVertexBufferDescription;
   vertex_buffer_desc.slot = 0;
@@ -566,9 +598,12 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   info_base.vertex_input_state.vertex_buffer_descriptions = *vertex_buffer_desc;
   info_base.vertex_input_state.num_vertex_buffers = 1;
   info_base.vertex_input_state.vertex_attributes = attributes.data;
-  info_base.vertex_input_state.num_vertex_attributes = vert_attribute_desc.count;
-  info_base.target_info.color_target_descriptions = *colour_target_desc;
-  info_base.target_info.num_color_targets = 1;
+  info_base.vertex_input_state.num_vertex_attributes = xx ifx flags & .PositionOnly then 1 else vert_attribute_desc.count;
+  if !cast(bool) flags & .NoColour
+  {
+    info_base.target_info.color_target_descriptions = *colour_target_desc;
+    info_base.target_info.num_color_targets = 1;
+  }
   info_base.rasterizer_state.cull_mode = .BACK;
   info_base.rasterizer_state.fill_mode = .FILL;
   if topology ==
@@ -717,6 +752,11 @@ dr_create_sampler_set :: ()
   }
 }
 
+dr_add_light :: (info: DR_LightInfo)
+{
+  array_add(*dr_renderer.lights, info);
+}
+
 dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
 {
   arena := mem_create_arena();
@@ -725,16 +765,19 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.window = window;
   dr_renderer.device = device;
   dr_renderer.resolution = resolution;
+  dr_renderer.shader_depth = dr_get_shader("depth");
   dr_renderer.shader_mesh = dr_get_shader("mesh");
   dr_renderer.shader_lines = dr_get_shader("lines");
   dr_renderer.shader_quads = dr_get_shader("quads");
   dr_renderer.mesh_instances = dr_create_storage_buffer("mesh_instances", size_of(DR_MeshInstance) * dr_max_mesh_instances, null, 0, 0);
   dr_renderer.line_instances = dr_create_storage_buffer("line_instances", size_of(DR_LineInstance) * dr_max_line_instances, null, 0, 0);
   dr_renderer.quad_instances = dr_create_storage_buffer("quad_instances", size_of(DR_QuadInstance) * dr_max_quad_instances, null, 0, 0);
-  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest | .DepthWrite, .Triangles);
+  dr_renderer.pipeline_depth = dr_create_pipeline(dr_renderer.shader_depth, dr_renderer.mesh_instances, .DepthTest | .DepthWrite | .PositionOnly | .NoColour, .Triangles);
+  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest, .Triangles);
   dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .None, .Triangles);
   dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .None, .Triangles);
   dr_renderer.depth_target = dr_create_target_texture("depth_target", xx resolution.x, xx resolution.y, dr_depth_format, SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+  dr_renderer.lights.allocator = arena_allocator(arena_temp);
   dr_create_builtin_meshes();
   dr_create_builtin_textures();
   dr_create_sampler_set();
@@ -780,10 +823,6 @@ read_materials :: ()
         {
           case "name";
             mat.name = str_copy(dr_renderer.arena, right);
-          case "lighting_intensity";
-            mat.lighting_intensity = parse_float(*right);
-          case "specular_intensity";
-            mat.specular_intensity = parse_float(*right);
           case "specular_power";
             mat.specular_power = xx parse_int(*right);
             mat.specular_shininess = cast(F32) (1 << mat.specular_power);
@@ -811,8 +850,6 @@ write_materials :: ()
       file := file_open(path, for_writing = true);
       defer file_close(*file);
       file_print_line(*file, "name: %", it.name);
-      file_print_line(*file, "lighting_intensity: %", it.lighting_intensity);
-      file_print_line(*file, "specular_intensity: %", it.specular_intensity);
       file_print_line(*file, "specular_power: %", it.specular_power);
       file_print_v2(*file, "tex_coord_scale", it.tex_coord_scale);
       file_print_line(*file, "tex_colour: %", it.tex_colour.path);
@@ -922,6 +959,53 @@ dr_process_upload_queue :: (command_buffer: *SDL_GPUCommandBuffer)
   queue_reset(*dr_renderer.upload_queue, *dr_renderer.last_upload);
 }
 
+dr_run_clear_pass :: (swap_texture: *SDL_GPUTexture, command_buffer: *SDL_GPUCommandBuffer)
+{
+  colour_target := SDL_GPUColorTargetInfo.{
+    texture = swap_texture,
+    clear_color = .{0, 0, 0, 0},
+    load_op = .CLEAR,
+    store_op = .STORE
+  };
+  depth_target := SDL_GPUDepthStencilTargetInfo.{
+    texture = dr_renderer.depth_target.ref,
+    clear_depth = dr_depth_clear_value,
+    load_op = .CLEAR,
+    store_op = .STORE
+  };
+  pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
+  SDL_EndGPURenderPass(pass);
+}
+
+dr_run_depth_prepass :: (swap_texture: *SDL_GPUTexture, command_buffer: *SDL_GPUCommandBuffer, vert_constants: DR_MeshVertConstants)
+{
+  depth_target := SDL_GPUDepthStencilTargetInfo.{
+    texture = dr_renderer.depth_target.ref,
+    clear_depth = dr_depth_clear_value,
+    load_op = .LOAD,
+    store_op = .STORE
+  };
+  pass := SDL_BeginGPURenderPass(command_buffer, null, 0, *depth_target);
+  SDL_BindGPUGraphicsPipeline(pass, dr_renderer.pipeline_depth.ref_base);
+  SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+  SDL_BindGPUVertexStorageBuffers(pass, 0, *dr_renderer.mesh_instances.ref, 1);
+  for each_element(dr_renderer.draw_meshes)
+  {
+    binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
+    binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
+    SDL_BindGPUVertexBuffers(pass, 0, *binding_vertex, 1);
+    SDL_BindGPUIndexBuffer(pass, *binding_index, ._32BIT);
+    SDL_DrawGPUIndexedPrimitives(pass,
+      xx it.index_count,
+      xx it.instance_count,
+      xx it.base_index,
+      xx it.base_vertex,
+      xx it.base_instance
+    );
+  }
+  SDL_EndGPURenderPass(pass);
+}
+
 dr_draw_frame :: (camera: *CAM_Base)
 {
   command_buffer := SDL_AcquireGPUCommandBuffer(dr_renderer.device);
@@ -930,58 +1014,62 @@ dr_draw_frame :: (camera: *CAM_Base)
   if (swap_texture)
   {
     dr_process_upload_queue(command_buffer);
-    colour_target := SDL_GPUColorTargetInfo.{
-      texture = swap_texture,
-      clear_color = .{.125, .125, .125, 1.0},
-      load_op = .CLEAR,
-      store_op = .STORE
-    };
-    depth_target := SDL_GPUDepthStencilTargetInfo.{
-      texture = dr_renderer.depth_target.ref,
-      clear_depth = dr_depth_clear_value,
-      load_op = .CLEAR,
-      store_op = .STORE
-    };
     vert_constants: DR_MeshVertConstants;
     vert_constants.world_to_view = camera.view;
     vert_constants.view_to_clip = camera.projection;
     vert_constants.camera_pos = camera.position;
     vert_constants.viewport.xy = dr_renderer.resolution;
     vert_constants.viewport.zw = v2f32(0.1, 1000.0);
-    vert_constants.sun_dir = dr_renderer.sun_dir;
-    sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
-    main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
-    SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
-    SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
-    SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
-    for each_element(dr_renderer.draw_meshes)
+    dr_run_clear_pass(swap_texture, command_buffer);
+    dr_run_depth_prepass(swap_texture, command_buffer, vert_constants);
+    for light, light_index: dr_renderer.lights
     {
-      binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
-      binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
-      binding_textures := SDL_GPUTextureSamplerBinding.[
-        .{it.material.tex_colour.ref, sampler},
-        .{it.material.tex_normal.ref, sampler},
-        .{it.material.tex_specular.ref, sampler}
-      ];
-      frag_constants: DR_MeshFragConstants;
-      frag_constants.specular_intensity = it.material.specular_intensity;
-      frag_constants.specular_shininess = it.material.specular_shininess;
-      frag_constants.tex_coord_scale = it.material.tex_coord_scale;
-      frag_constants.lighting_intensity = it.material.lighting_intensity;
-      SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
-      SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
-      SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
-      SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
-      SDL_DrawGPUIndexedPrimitives(main_pass,
-        xx it.index_count,
-        xx it.instance_count,
-        xx it.base_index,
-        xx it.base_vertex,
-        xx it.base_instance
-      );
+      colour_target := SDL_GPUColorTargetInfo.{
+        texture = swap_texture,
+        clear_color = .{.125, .125, .125, 1.0},
+        load_op = .LOAD,
+        store_op = .STORE
+      };
+      depth_target := SDL_GPUDepthStencilTargetInfo.{
+        texture = dr_renderer.depth_target.ref,
+        clear_depth = dr_depth_clear_value,
+        load_op = .LOAD,
+        store_op = .STORE
+      };
+      vert_constants.light_pos = light.position;
+      sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
+      main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
+      SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
+      SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+      SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
+      for each_element(dr_renderer.draw_meshes)
+      {
+        binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
+        binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
+        binding_textures := SDL_GPUTextureSamplerBinding.[
+          .{it.material.tex_colour.ref, sampler},
+          .{it.material.tex_normal.ref, sampler},
+          .{it.material.tex_specular.ref, sampler}
+        ];
+        frag_constants: DR_MeshFragConstants;
+        frag_constants.specular_shininess = it.material.specular_shininess;
+        frag_constants.tex_coord_scale = it.material.tex_coord_scale;
+        frag_constants.light = light;
+        SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
+        SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
+        SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
+        SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+        SDL_DrawGPUIndexedPrimitives(main_pass,
+          xx it.index_count,
+          xx it.instance_count,
+          xx it.base_index,
+          xx it.base_vertex,
+          xx it.base_instance
+        );
+      }
+      SDL_EndGPURenderPass(main_pass);
     }
-    SDL_EndGPURenderPass(main_pass);
-    colour_target = .{
+    colour_target := SDL_GPUColorTargetInfo.{
       texture = swap_texture,
       load_op = .LOAD,
       store_op = .STORE
@@ -995,21 +1083,16 @@ dr_draw_frame :: (camera: *CAM_Base)
       binding_vertex := SDL_GPUBufferBinding.{dr_renderer.mesh_line.vertices.ref, 0};
       binding_index := SDL_GPUBufferBinding.{dr_renderer.mesh_line.indices.ref, 0};
       SDL_BindGPUVertexBuffers(lines_pass, 0, *binding_vertex, 1);
-      SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+      SDL_BindGPUIndexBuffer(lines_pass, *binding_index, ._32BIT);
       SDL_DrawGPUIndexedPrimitives(lines_pass, xx dr_renderer.mesh_line.index_count, xx it.instance_count, 0, 0, xx it.base_instance);
     }
     SDL_EndGPURenderPass(lines_pass);
-    colour_target = .{
+    colour_target = SDL_GPUColorTargetInfo.{
       texture = swap_texture,
       load_op = .LOAD,
       store_op = .STORE
     };
-    depth_target = SDL_GPUDepthStencilTargetInfo.{
-      texture = dr_renderer.depth_target.ref,
-      load_op = .LOAD,
-      store_op = .STORE
-    };
-    quads_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
+    quads_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, null);
     SDL_BindGPUGraphicsPipeline(quads_pass, dr_renderer.pipeline_quads.ref_base);
     SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
     SDL_BindGPUVertexStorageBuffers(quads_pass, 0, *dr_renderer.quad_instances.ref, 1);
@@ -1018,7 +1101,7 @@ dr_draw_frame :: (camera: *CAM_Base)
       binding_vertex := SDL_GPUBufferBinding.{dr_renderer.mesh_quad.vertices.ref, 0};
       binding_index := SDL_GPUBufferBinding.{dr_renderer.mesh_quad.indices.ref, 0};
       SDL_BindGPUVertexBuffers(quads_pass, 0, *binding_vertex, 1);
-      SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+      SDL_BindGPUIndexBuffer(quads_pass, *binding_index, ._32BIT);
       SDL_DrawGPUIndexedPrimitives(quads_pass, xx dr_renderer.mesh_quad.index_count, xx it.instance_count, 0, 0, xx it.base_instance);
     }
     SDL_EndGPURenderPass(quads_pass);
@@ -1039,6 +1122,7 @@ dr_draw_frame :: (camera: *CAM_Base)
     dr_reset_buffer(dr_renderer.mesh_instances);
     dr_reset_buffer(dr_renderer.line_instances);
     dr_reset_buffer(dr_renderer.quad_instances);
+    array_reset(*dr_renderer.lights);
   }
   else
   {

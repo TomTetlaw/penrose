@@ -344,6 +344,13 @@ g_draw :: (filter := EntityFilter.{})
     quad.props = quad_props(usable.pixel_size, 1.0);
     dr_draw_quads(.[quad]);
   }
+  for each_entity(.{include_types = .[DynamicLight]})
+  {
+    light := g_downcast(it, DynamicLight);
+    light.light_info.position = it.position;
+    light.light_info.dir = dir_from_rotation(it.rotation);
+    dr_add_light(light.light_info);
+  }
 }
 
 EntityFilter :: struct
