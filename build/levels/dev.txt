@@ -266,3 +266,59 @@ entity.light_info.radius: 70
 entity.light_info.inner_radius: 35
 entity.light_info.outer_radius: 40
 entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-100.653763, -13.686966, 74.140831]
+entity.base.rotation: [0.25, 0.25, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.material_overrides.name: dr_default_material
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour: dr_default_white_texture
+entity.base.material_overrides.tex_normal: dr_default_normal_texture
+entity.base.material_overrides.tex_specular: dr_default_white_texture
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-100.653763, -13.686966, 74.140831]
+entity.light_info.type: Spot
+entity.light_info.colour: [0, 1, 0]
+entity.light_info.brightness: 142
+entity.light_info.dir: [0, 1, 0]
+entity.light_info.radius: 70
+entity.light_info.inner_radius: 35
+entity.light_info.outer_radius: 40
+entity.light_info.pad: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-100.653763, -10.9485, 75.606865]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.material_overrides.name: dr_default_material
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour: dr_default_white_texture
+entity.base.material_overrides.tex_normal: dr_default_normal_texture
+entity.base.material_overrides.tex_specular: dr_default_white_texture
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-100.653763, -10.9485, 75.606865]
+entity.light_info.type: Spot
+entity.light_info.colour: [0, 0, 1]
+entity.light_info.brightness: 142
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.radius: 70
+entity.light_info.inner_radius: 35
+entity.light_info.outer_radius: 40
+entity.light_info.pad: [0, 0]

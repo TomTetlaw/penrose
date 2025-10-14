@@ -24,6 +24,7 @@ struct InstanceData
 {
   row_major float4x4 transform;
   float4 colour;
+  float4 material_params;
 };
 
 StructuredBuffer<InstanceData> instance_buffer: register(t0, space0);

@@ -26,6 +26,12 @@ DR_MeshInstance :: struct
 {
   transform: Mat4x4F32;
   colour: Vec4F32;
+  material_params: Vec4F32;
+}
+
+mesh_material_params :: (spec_shininess: F32, tex_coord_scale: Vec2F32) -> Vec4F32
+{
+  return v4f32(tex_coord_scale, spec_shininess, 0);
 }
 
 DR_LineInstance :: struct
@@ -66,10 +72,6 @@ DR_MeshVertConstants :: struct
 
 DR_MeshFragConstants :: struct
 {
-  specular_shininess: F32;
-  pad1: Vec3F32;
-  tex_coord_scale: Vec2F32;
-  pad0: Vec2F32;
   light: DR_LightInfo;
 }
 
@@ -433,6 +435,10 @@ dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_Me
 {
   if instances.count > 0
   {
+    for * instances
+    {
+      it.material_params = mesh_material_params(material.specular_shininess, material.tex_coord_scale);
+    }
     draw_mesh := arena_push_struct(arena_temp, DR_DrawMesh);
     stack_push(*dr_renderer.draw_meshes, draw_mesh);
     draw_mesh.instances = dr_write_buffer(dr_renderer.mesh_instances, instances.data, size_of(DR_MeshInstance) * instances.count);
@@ -1036,11 +1042,15 @@ dr_draw_frame :: (camera: *CAM_Base)
         load_op = .LOAD,
         store_op = .STORE
       };
+      // NOTE(tt): push uniform data
       vert_constants.light_pos = light.position;
+      frag_constants: DR_MeshFragConstants;
+      frag_constants.light = light;
+      SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+      SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
       sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
       main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
       SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
-      SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
       SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
       for each_element(dr_renderer.draw_meshes)
       {
@@ -1051,11 +1061,6 @@ dr_draw_frame :: (camera: *CAM_Base)
           .{it.material.tex_normal.ref, sampler},
           .{it.material.tex_specular.ref, sampler}
         ];
-        frag_constants: DR_MeshFragConstants;
-        frag_constants.specular_shininess = it.material.specular_shininess;
-        frag_constants.tex_coord_scale = it.material.tex_coord_scale;
-        frag_constants.light = light;
-        SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
         SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
         SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
         SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);

@@ -16,6 +16,7 @@ struct FragInput
   float4 colour: TEXCOORD2;
   float3 view_dir: TEXCOORD3;
   float3 light_pos: TEXCOORD4;
+  float4 material_params: TEXCOORD5;
 };
 
 cbuffer VertConstantBuffer : register(b0, space1)
@@ -33,6 +34,7 @@ struct InstanceData
 {
   row_major float4x4 transform;
   float4 colour;
+  float4 material_params;
 };
 
 StructuredBuffer<InstanceData> instance_buffer: register(t0, space0);
@@ -71,6 +73,7 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId)
   output.frag_pos = mul(tbn, world_position.xyz);
   output.view_dir = view_dir;
   output.light_pos =  mul(tbn, light_pos);
+  output.material_params = instance.material_params;
   return output;
 }
 
@@ -103,30 +106,26 @@ struct LightInfo
 
 cbuffer FragConstantBuffer : register(b0, space3)
 {
-  float specular_shininess;
-  float3 pad2;
-  float2 tex_coord_scale;
-  float2 pad3;
   LightInfo light;
 }
 
-void lighting_directional(LightInfo light, float3 L, float dist, float3 v, float3 n, out float diffuse, out float spec)
+void lighting_directional(LightInfo light, float3 L, float dist, float3 v, float3 n, out float diffuse, out float spec, float4 material_params)
 {
     diffuse = max(dot(n, -light.dir), 0.0) * light.brightness;
     float3 h = normalize(-light.dir + v);
-    spec = pow(max(0, dot(n, h)), specular_shininess);
+    spec = pow(max(0, dot(n, h)), material_params.z);
 }
 
-void lighting_point(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, out float diffuse, out float spec)
+void lighting_point(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, out float diffuse, out float spec, float4 material_params)
 {
   float atten = saturate(1.0 - (dist / light.radius));
   atten *= atten;
   diffuse = max(dot(n, L), 0.0) * light.brightness * atten;
   float3 h = normalize(L + v);
-  spec = pow(max(0, dot(n, h)), specular_shininess) * light.brightness * atten;
+  spec = pow(max(0, dot(n, h)), material_params.z) * light.brightness * atten;
 }
 
-void lighting_spot(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, out float diffuse, out float spec)
+void lighting_spot(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, out float diffuse, out float spec, float4 material_params)
 {
   float dist_atten = saturate(1.0 - (dist / light.outer_radius));
   dist_atten *= dist_atten;
@@ -138,25 +137,25 @@ void lighting_spot(LightInfo light, float3 frag_pos, float3 L, float dist, float
   float total_atten = dist_atten * cone_atten;
   diffuse = max(dot(n, L), 0.0) * light.brightness * total_atten;
   float3 h = normalize(L + v);
-  spec = pow(max(0, dot(n, h)), specular_shininess) * light.brightness * total_atten;
+  spec = pow(max(0, dot(n, h)), material_params.z) * light.brightness * total_atten;
 }
 
-void lighting(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, float spec_map, float3 object_colour, inout float3 colour)
+void lighting(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, float spec_map, float3 object_colour, inout float3 colour, float4 material_params)
 {
   float diffuse, spec;
   if (light.type == LightType_Directional)
   {
-    lighting_directional(light, L, dist, v, n, diffuse, spec);
+    lighting_directional(light, L, dist, v, n, diffuse, spec, material_params);
     colour += object_colour * light.colour * diffuse;
   }
   else if (light.type == LightType_Point)
   {
-    lighting_point(light, frag_pos, L, dist, v, n, diffuse, spec);
+    lighting_point(light, frag_pos, L, dist, v, n, diffuse, spec, material_params);
     colour += object_colour * light.colour * diffuse;
   }
   else if (light.type == LightType_Spot)
   {
-    lighting_spot(light, frag_pos, L, dist, v, n, diffuse, spec);
+    lighting_spot(light, frag_pos, L, dist, v, n, diffuse, spec, material_params);
     colour += object_colour * light.colour * diffuse;
   }
   colour += light.colour * spec * spec_map * 2;
@@ -164,7 +163,7 @@ void lighting(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, 
 
 float4 frag_main(FragInput input) : SV_Target
 {
-  float2 tex_coord = input.tex_coord * tex_coord_scale;
+  float2 tex_coord = input.tex_coord * input.material_params.xy;
 
   float3 v = normalize(input.view_dir);
   float3 n = normalize((texture1.Sample(sampler1, tex_coord).rgb * 2.0 - 1.0) * float3(1, 1, 1));
@@ -175,7 +174,7 @@ float4 frag_main(FragInput input) : SV_Target
   float3 light_dir = input.light_pos - input.frag_pos;
   float3 L = normalize(light_dir);
   float dist = length(light_dir);
-  lighting(light, input.frag_pos, L, dist, v, n, spec_map, object_colour, colour);
+  lighting(light, input.frag_pos, L, dist, v, n, spec_map, object_colour, colour, input.material_params);
 
   float4 result = float4(colour * input.colour.a, input.colour.a);
   return result;
