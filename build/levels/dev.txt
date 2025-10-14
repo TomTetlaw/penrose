@@ -322,3 +322,23 @@ entity.light_info.radius: 70
 entity.light_info.inner_radius: 35
 entity.light_info.outer_radius: 40
 entity.light_info.pad: [0, 0]
+entity: PlayerStart
+entity.base.name: player_start
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-100.452972, -16.880318, 74.453758]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: info_player_start
+entity.base.material_overrides.name: info_player_start
+entity.base.material_overrides.specular_shininess: 256
+entity.base.material_overrides.specular_power: 8
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour: textures/info_player_start.png
+entity.base.material_overrides.tex_normal: dr_default_normal_texture
+entity.base.material_overrides.tex_specular: dr_default_white_texture
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0

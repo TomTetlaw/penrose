@@ -164,6 +164,7 @@ DR_RendererState :: struct
   tex_normal: *DR_Texture;
   depth_target: *DR_Texture;
   draw_meshes: *DR_DrawMesh;
+  draw_mesh_count: int;
   draw_lines: *DR_DrawLines;
   draw_quads: *DR_DrawQuads;
   mesh_cube: *DR_Mesh;
@@ -183,6 +184,7 @@ DR_RendererState :: struct
   upload_size: int;
   upload_queue: *DR_Upload;
   last_upload: *DR_Upload;
+  transfer_arena: *Arena;
   transfer_buffer: *SDL_GPUTransferBuffer;
   transfer_buffer_size: int;
   sampler_set_size: Vec3U32;
@@ -441,6 +443,7 @@ dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_Me
     }
     draw_mesh := arena_push_struct(arena_temp, DR_DrawMesh);
     stack_push(*dr_renderer.draw_meshes, draw_mesh);
+    dr_renderer.draw_mesh_count += instances.count;
     draw_mesh.instances = dr_write_buffer(dr_renderer.mesh_instances, instances.data, size_of(DR_MeshInstance) * instances.count);
     draw_mesh.vertices = mesh.vertices;
     draw_mesh.indices = mesh.indices;
@@ -771,6 +774,7 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.window = window;
   dr_renderer.device = device;
   dr_renderer.resolution = resolution;
+  dr_renderer.transfer_arena = mem_create_arena();
   dr_renderer.shader_depth = dr_get_shader("depth");
   dr_renderer.shader_mesh = dr_get_shader("mesh");
   dr_renderer.shader_lines = dr_get_shader("lines");
@@ -875,10 +879,10 @@ dr_get_sampler :: (filter: SDL_GPUFilter, mip_filter: SDL_GPUSamplerMipmapMode, 
 
 dr_queue_buffer_upload :: (dest: *DR_Buffer, data: *void, size: int, offset: int)
 {
-  upload := arena_push_struct(arena_temp, DR_Upload);
+  upload := arena_push_struct(dr_renderer.transfer_arena, DR_Upload);
   queue_push(*dr_renderer.upload_queue, *dr_renderer.last_upload, upload);
   upload.size = size;
-  upload.data = arena_push_copy(arena_temp, data, xx size);
+  upload.data = arena_push_copy(dr_renderer.transfer_arena, data, xx size);
   upload.offset = offset;
   upload.buffer = dest.ref;
   dr_renderer.upload_size += size;
@@ -886,12 +890,12 @@ dr_queue_buffer_upload :: (dest: *DR_Buffer, data: *void, size: int, offset: int
 
 dr_queue_texture_upload :: (dest: *SDL_GPUTexture, data: *void, width: int, height: int, stride: int, generate_mipmaps: bool, x := 0, y := 0)
 {
-  upload := arena_push_struct(arena_temp, DR_Upload);
+  upload := arena_push_struct(dr_renderer.transfer_arena, DR_Upload);
   queue_push(*dr_renderer.upload_queue, *dr_renderer.last_upload, upload);
   upload.size = width * height * stride;
   upload.width = width;
   upload.height = height;
-  upload.data = arena_push_copy(arena_temp, data, xx upload.size);
+  upload.data = arena_push_copy(dr_renderer.transfer_arena, data, xx upload.size);
   upload.x = x;
   upload.y = y;
   upload.texture = dest;
@@ -963,6 +967,7 @@ dr_process_upload_queue :: (command_buffer: *SDL_GPUCommandBuffer)
   }
   dr_renderer.upload_size = 0;
   queue_reset(*dr_renderer.upload_queue, *dr_renderer.last_upload);
+  arena_reset(dr_renderer.transfer_arena);
 }
 
 dr_run_clear_pass :: (swap_texture: *SDL_GPUTexture, command_buffer: *SDL_GPUCommandBuffer)
@@ -971,13 +976,17 @@ dr_run_clear_pass :: (swap_texture: *SDL_GPUTexture, command_buffer: *SDL_GPUCom
     texture = swap_texture,
     clear_color = .{0, 0, 0, 0},
     load_op = .CLEAR,
-    store_op = .STORE
+    store_op = .STORE,
+    cycle = true
   };
   depth_target := SDL_GPUDepthStencilTargetInfo.{
     texture = dr_renderer.depth_target.ref,
     clear_depth = dr_depth_clear_value,
     load_op = .CLEAR,
-    store_op = .STORE
+    store_op = .STORE,
+    stencil_load_op = .DONT_CARE,
+    stencil_store_op = .DONT_CARE,
+    cycle = true
   };
   pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
   SDL_EndGPURenderPass(pass);
@@ -1016,7 +1025,7 @@ dr_draw_frame :: (camera: *CAM_Base)
 {
   command_buffer := SDL_AcquireGPUCommandBuffer(dr_renderer.device);
   swap_texture: *SDL_GPUTexture;
-  SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
+  SDL_AcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
   if (swap_texture)
   {
     dr_process_upload_queue(command_buffer);
@@ -1121,18 +1130,20 @@ dr_draw_frame :: (camera: *CAM_Base)
     ImGui_ImplSDLGPU3_RenderDrawData(draw_data, command_buffer, render_pass);
     SDL_EndGPURenderPass(render_pass);
     SDL_SubmitGPUCommandBuffer(command_buffer);
-    dr_renderer.draw_meshes = null;
-    dr_renderer.draw_lines = null;
-    dr_renderer.draw_quads = null;
-    dr_reset_buffer(dr_renderer.mesh_instances);
-    dr_reset_buffer(dr_renderer.line_instances);
-    dr_reset_buffer(dr_renderer.quad_instances);
-    array_reset(*dr_renderer.lights);
   }
   else
   {
+    ImGui.EndFrame();
     SDL_CancelGPUCommandBuffer(command_buffer);
   }
+  dr_renderer.draw_meshes = null;
+  dr_renderer.draw_mesh_count = 0;
+  dr_renderer.draw_lines = null;
+  dr_renderer.draw_quads = null;
+  dr_reset_buffer(dr_renderer.mesh_instances);
+  dr_reset_buffer(dr_renderer.line_instances);
+  dr_reset_buffer(dr_renderer.quad_instances);
+  array_reset(*dr_renderer.lights);
 }
 
 dr_create_storage_buffer :: (name: string, size: int) -> *SDL_GPUBuffer
