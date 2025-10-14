@@ -1,6 +1,6 @@
 name: hex_stone
-specular_power: 3
-tex_coord_scale: [4, 16]
+specular_power: 8
+tex_coord_scale: [1, 1]
 tex_colour: textures/hex_stone.png
 tex_normal: textures/hex_stone_norm.png
 tex_specular: textures/deco_wallpaper_spec.png

@@ -372,7 +372,7 @@ editor_imgui :: ()
   mat: *DR_MeshMaterial;
   if ed_editor.selected_entity
   {
-    mat = ed_editor.selected_entity.material;
+    mat = *ed_editor.selected_entity.material_overrides;
   }
   else
   {
@@ -383,6 +383,17 @@ editor_imgui :: ()
       ed_editor.editing_material = dr_create_material();
     }
     mat = ed_editor.editing_material;
+    ImGui.SameLine();
+    if ImGui.Button("Update Entities")
+    {
+      for each_entity()
+      {
+        if it.material && it.material.name == mat.name
+        {
+          it.material_overrides = mat.*;
+        }
+      }
+    }
   }
   string_property("name", *mat.name);
   if ImGui.DragInt("specular_power", *mat.specular_power)

@@ -146,6 +146,7 @@ Entity :: struct
   rotation: Vec3F32;
   scale := Vec3F32.{1, 1, 1};
   material: *DR_MeshMaterial;
+  material_overrides: DR_MeshMaterial; @no_imgui
   colour := Vec4F32.{1, 1, 1, 1}; @colour
   collision: CollisionInfo;
   collision.type = .Box;
@@ -183,6 +184,7 @@ g_create_entity :: ($T: Type) -> *T
   {
     entity.material = dr_get_material(entity.material_name);
   }
+  entity.material_overrides = entity.material.*;
   return g_downcast(entity, T);
 }
 
@@ -325,7 +327,7 @@ g_draw :: (filter := EntityFilter.{})
       instance: DR_MeshInstance;
       instance.transform = mat4x4f32_transform(it.position, it.rotation, it.scale);
       instance.colour = it.colour;
-      dr_draw_mesh(it.mesh, .[instance], it.material);
+      dr_draw_mesh(it.mesh, .[instance], *it.material_overrides);
     }
   }
   for each_entity(.{include_types = .[UsableObject]})

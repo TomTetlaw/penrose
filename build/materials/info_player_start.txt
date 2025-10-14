@@ -1,5 +1,5 @@
 name: info_player_start
-specular_power: 9
+specular_power: 8
 tex_coord_scale: [1, 1]
 tex_colour: textures/info_player_start.png
 tex_normal: dr_default_normal_texture

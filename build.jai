@@ -186,6 +186,8 @@ generate_imgui_member_code :: (info: *Type_Info, name: string, base_name: string
           {
             return tprint("vec4_property(\"%\", *%);\n", name, name);
           }
+        case "DR_Texture";
+          return tprint("texture_property(\"%\", *%);\n", name, name);
         case "DR_MeshMaterial";
           return tprint("material_property(\"%\", *%);\n", name, name);
       }
@@ -227,6 +229,8 @@ generate_deserialize_member_code :: (info: *Type_Info, name: string, base_name: 
           return tprint("if key == \"%1\" %1 = parse_v4(value);\n", name);
         case "DR_Mesh";
           return tprint("if key == \"%1\" %1 = dr_get_mesh(value);\n", name);
+        case "DR_Texture";
+          return tprint("if key == \"%1\" %1 = dr_get_texture(value);\n", name);
         case "DR_MeshMaterial";
           return tprint("if key == \"%1\" %1 = dr_get_material(value);\n", name);
       }
@@ -268,6 +272,8 @@ generate_serialize_member_code :: (info: *Type_Info, name: string, base_name: st
           return tprint("file_print_v4(file, \"%1\", %1);\n", name);
         case "DR_Mesh";
           return tprint("if %1 file_print_line(file, \"%1: \%\", %1.path);\n", name);
+        case "DR_Texture";
+          return tprint("if %1 file_print_line(file, \"%1: \%\", %1.path);\n", name);
         case "DR_MeshMaterial";
           return tprint("if %1 file_print_line(file, \"%1: \%\", %1.name);\n", name);
       }
@@ -281,7 +287,7 @@ generate_serialize_member_code :: (info: *Type_Info, name: string, base_name: st
 generate_per_member_code :: (info: *Type_Info_Struct, base: string, callback: PerMemberCallback, note_filter: string) -> string
 {
   filtered_members :: string.["next", "prev"];
-  handled_types :: string.["DR_Mesh", "DR_Material", "V2", "V3", "V4"];
+  handled_types :: string.["DR_Mesh", "DR_Material", "DR_Texture", "V2", "V3", "V4"];
   builder: String_Builder;
   for info.members
   {
