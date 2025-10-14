@@ -26,7 +26,12 @@ build :: ()
   }
   set_build_options(options, workspace);
   make_directory_if_it_does_not_exist("./build/shaders");
+  plugins: [..] *Metaprogram_Plugin;
+  init_plugins(.[.{name="tracy"}], *plugins, workspace);
+  intercept_flags: Intercept_Flags;
+  for plugins if it.before_intercept it.before_intercept(it, *intercept_flags);
   compiler_begin_intercept(workspace);
+  for plugins if it.add_source it.add_source(it);
   files := file_list("./");
   for files
   {
@@ -74,6 +79,7 @@ build :: ()
   while true
   {
     message := compiler_wait_for_message();
+    for plugins if it.message it.message(it, message);
     if message.kind ==
     {
       case .COMPLETE;
@@ -106,6 +112,8 @@ build :: ()
     }
   }
   compiler_end_intercept(workspace);
+  for plugins if it.finish it.finish(it);
+  for plugins if it.shutdown it.shutdown(it);
   set_build_options_dc(.{do_output=false});
 }
 
@@ -383,3 +391,4 @@ generate_code :: (entity_types: [] *Type_Info_Struct) -> string
 #import "Bindings_Generator";
 #import "Process";
 #import "BuildCpp";
+#import "Metaprogram_Plugins";

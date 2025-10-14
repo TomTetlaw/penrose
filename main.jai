@@ -97,10 +97,9 @@ main :: ()
         {
           camera = *g_game_state.player.camera;
         }
-        frame_start := profile_start();
         dr_draw_frame(camera);
-        profile_end("frame", frame_start);
         arena_reset(arena_temp);
+        ___tracy_emit_frame_mark("frame");
       }
     }
   }
@@ -114,21 +113,6 @@ penrose_quit :: ()
 }
 
 #scope_file
-
-profile_start :: () -> F64
-{
-  now := current_time_monotonic();
-  result := to_float64_seconds(now);
-  return result;
-}
-
-profile_end :: (label: string, start: F64)
-{
-  now := current_time_monotonic();
-  end := to_float64_seconds(now);
-  duration := end - start;
-  print("% took %s\n", label, duration);
-}
 
 main_loop := true;
 imgui_io: *ImGuiIO;
@@ -152,3 +136,7 @@ update_time :: ()
   }
   frame_num += 1;
 }
+
+#scope_file
+
+#import "tracy";

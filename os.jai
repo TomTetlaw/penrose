@@ -9,6 +9,7 @@
   os_commit :: (memory: *void, size: u64)
   {
     VirtualAlloc(memory, size, MEM_COMMIT, PAGE_READWRITE);
+    ___tracy_emit_memory_alloc(memory, size, 0);
   }
 
   os_free :: (memory: *void, size: u64)
