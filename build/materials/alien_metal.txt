@@ -1,6 +1,6 @@
 name: alien_metal
 specular_power: 9
-tex_coord_scale: [3, 6]
-tex_colour: textures/alien_metal.png
-tex_normal: textures/alien_metal_norm.png
-tex_specular: textures/alien_metal_spec.png
+tex_coord_scale: [1, 1]
+tex_colour_path: textures/alien_metal.png
+tex_normal_path: textures/alien_metal_norm.png
+tex_specular_path: textures/alien_metal_spec.png

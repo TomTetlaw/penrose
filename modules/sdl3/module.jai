@@ -1309,15 +1309,18 @@ SDL_MAJOR_VERSION :: 3;
 
 SDL_MINOR_VERSION :: 2;
 
-SDL_MICRO_VERSION :: 22;
+SDL_MICRO_VERSION :: 24;
 
 SDL_SHADERCROSS_MAJOR_VERSION :: 3;
 SDL_SHADERCROSS_MINOR_VERSION :: 0;
 SDL_SHADERCROSS_MICRO_VERSION :: 0;
 
-SDL_SHADERCROSS_PROP_SPIRV_PSSL_COMPATIBILITY :: "SDL.shadercross.spirv.pssl.compatibility";
+SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN :: "SDL_shadercross.spirv.debug.enable";
+SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING :: "SDL_shadercross.spirv.debug.name";
+SDL_SHADERCROSS_PROP_SHADER_CULL_UNUSED_BINDINGS_BOOLEAN :: "SDL_shadercross.spirv.cull_unused_bindings";
 
-SDL_SHADERCROSS_PROP_SPIRV_MSL_VERSION :: "SDL.shadercross.spirv.msl.version";
+SDL_SHADERCROSS_PROP_SPIRV_PSSL_COMPATIBILITY_BOOLEAN :: "SDL_shadercross.spirv.pssl.compatibility";
+SDL_SHADERCROSS_PROP_SPIRV_MSL_VERSION_STRING :: "SDL_shadercross.spirv.msl.version";
 
 /**
 * A signed 8-bit integer type.
@@ -24331,9 +24334,9 @@ SDL_Event :: union {
     architectures) for this union, and GCC will use the alignment of the
     largest datatype within the union, which is 8 bytes on 64-bit
     architectures.
-
+    
     So... we'll add padding to force the size to be the same for both.
-
+    
     On architectures where pointers are 16 bytes, this needs rounding up to
     the next multiple of 16, 64, and on architectures where pointers are
     even larger the size of SDL_UserEvent will dominate as being 3 pointers.
@@ -29892,7 +29895,7 @@ SDL_hid_device_info :: struct {
 
     /** The USB interface which this logical device
     represents.
-
+    
     Valid only if the device is a USB HID device.
     Set to -1 in all other cases.
     */
@@ -36200,6 +36203,34 @@ SDL_GetVersion :: () -> s32 #foreign sdl3;
 */
 SDL_GetRevision :: () -> *u8 #foreign sdl3;
 
+SDL_ShaderCross_IOVarType :: enum s32 {
+    UNKNOWN :: 0;
+    INT8    :: 1;
+    UINT8   :: 2;
+    INT16   :: 3;
+    UINT16  :: 4;
+    INT32   :: 5;
+    UINT32  :: 6;
+    INT64   :: 7;
+    UINT64  :: 8;
+    FLOAT16 :: 9;
+    FLOAT32 :: 10;
+    FLOAT64 :: 11;
+
+    SDL_SHADERCROSS_IOVAR_TYPE_UNKNOWN :: UNKNOWN;
+    SDL_SHADERCROSS_IOVAR_TYPE_INT8    :: INT8;
+    SDL_SHADERCROSS_IOVAR_TYPE_UINT8   :: UINT8;
+    SDL_SHADERCROSS_IOVAR_TYPE_INT16   :: INT16;
+    SDL_SHADERCROSS_IOVAR_TYPE_UINT16  :: UINT16;
+    SDL_SHADERCROSS_IOVAR_TYPE_INT32   :: INT32;
+    SDL_SHADERCROSS_IOVAR_TYPE_UINT32  :: UINT32;
+    SDL_SHADERCROSS_IOVAR_TYPE_INT64   :: INT64;
+    SDL_SHADERCROSS_IOVAR_TYPE_UINT64  :: UINT64;
+    SDL_SHADERCROSS_IOVAR_TYPE_FLOAT16 :: FLOAT16;
+    SDL_SHADERCROSS_IOVAR_TYPE_FLOAT32 :: FLOAT32;
+    SDL_SHADERCROSS_IOVAR_TYPE_FLOAT64 :: FLOAT64;
+}
+
 SDL_ShaderCross_ShaderStage :: enum s32 {
     VERTEX   :: 0;
     FRAGMENT :: 1;
@@ -36210,13 +36241,26 @@ SDL_ShaderCross_ShaderStage :: enum s32 {
     SDL_SHADERCROSS_SHADERSTAGE_COMPUTE  :: COMPUTE;
 }
 
-SDL_ShaderCross_GraphicsShaderMetadata :: struct {
+SDL_ShaderCross_IOVarMetadata :: struct {
+    name:        *u8; /**< The UTF-8 name of the variable. */
+    location:    Uint32; /**< The location of the variable. */
+    vector_type: SDL_ShaderCross_IOVarType; /**< The vector type of the variable. */
+    vector_size: Uint32; /**< The number of components in the vector type of the variable. */
+}
+
+SDL_ShaderCross_GraphicsShaderResourceInfo :: struct {
     num_samplers:         Uint32; /**< The number of samplers defined in the shader. */
     num_storage_textures: Uint32; /**< The number of storage textures defined in the shader. */
     num_storage_buffers:  Uint32; /**< The number of storage buffers defined in the shader. */
     num_uniform_buffers:  Uint32; /**< The number of uniform buffers defined in the shader. */
+}
 
-    props:                SDL_PropertiesID; /**< A properties ID for extensions. This is allocated and freed by the caller, and should be 0 if no extensions are needed. */
+SDL_ShaderCross_GraphicsShaderMetadata :: struct {
+    resource_info: SDL_ShaderCross_GraphicsShaderResourceInfo; /**< Sub-struct containing the resource info of the shader. */
+    num_inputs:    Uint32; /**< The number of inputs defined in the shader. */
+    inputs:        *SDL_ShaderCross_IOVarMetadata; /**< The inputs defined in the shader. */
+    num_outputs:   Uint32; /**< The number of outputs defined in the shader. */
+    outputs:       *SDL_ShaderCross_IOVarMetadata; /**< The outputs defined in the shader. */
 }
 
 SDL_ShaderCross_ComputePipelineMetadata :: struct {
@@ -36229,8 +36273,6 @@ SDL_ShaderCross_ComputePipelineMetadata :: struct {
     threadcount_x:                  Uint32; /**< The number of threads in the X dimension. */
     threadcount_y:                  Uint32; /**< The number of threads in the Y dimension. */
     threadcount_z:                  Uint32; /**< The number of threads in the Z dimension. */
-
-    props:                          SDL_PropertiesID; /**< A properties ID for extensions. This is allocated and freed by the caller, and should be 0 if no extensions are needed. */
 }
 
 SDL_ShaderCross_SPIRV_Info :: struct {
@@ -36238,8 +36280,6 @@ SDL_ShaderCross_SPIRV_Info :: struct {
     bytecode_size: u64; /**< The length of the SPIRV bytecode. */
     entrypoint:    *u8; /**< The entry point function name for the shader in UTF-8. */
     shader_stage:  SDL_ShaderCross_ShaderStage; /**< The shader stage to transpile the shader with. */
-    enable_debug:  bool; /**< Allows debug info to be emitted when relevant. Can be useful for graphics debuggers like RenderDoc. */
-    name:          *u8; /**< A UTF-8 name to associate with the shader. Optional, can be NULL. */
 
     props:         SDL_PropertiesID; /**< A properties ID for extensions. Should be 0 if no extensions are needed. */
 }
@@ -36255,8 +36295,6 @@ SDL_ShaderCross_HLSL_Info :: struct {
     include_dir:  *u8; /**< The include directory for shader code. Optional, can be NULL. */
     defines:      *SDL_ShaderCross_HLSL_Define; /**< An array of defines. Optional, can be NULL. If not NULL, must be terminated with a fully NULL define struct. */
     shader_stage: SDL_ShaderCross_ShaderStage; /**< The shader stage to compile the shader with. */
-    enable_debug: bool; /**< Allows debug info to be emitted when relevant. Can be useful for graphics debuggers like RenderDoc. */
-    name:         *u8; /**< A UTF-8 name to associate with the shader. Optional, can be NULL. */
 
     props:        SDL_PropertiesID; /**< A properties ID for extensions. Should be 0 if no extensions are needed. */
 }
@@ -36265,6 +36303,7 @@ SDL_ShaderCross_HLSL_Info :: struct {
 * Initializes SDL_shadercross
 *
 * \threadsafety This should only be called once, from a single thread.
+* \returns true on success, false otherwise.
 */
 SDL_ShaderCross_Init :: () -> bool #foreign sdl3_shadercross;
 
@@ -36279,6 +36318,7 @@ SDL_ShaderCross_Quit :: () -> void #foreign sdl3_shadercross;
 * Get the supported shader formats that SPIRV cross-compilation can output
 *
 * \threadsafety It is safe to call this function from any thread.
+* \returns GPU shader formats supported by SPIRV cross-compilation.
 */
 SDL_ShaderCross_GetSPIRVShaderFormats :: () -> SDL_GPUShaderFormat #foreign sdl3_shadercross;
 
@@ -36286,6 +36326,10 @@ SDL_ShaderCross_GetSPIRVShaderFormats :: () -> SDL_GPUShaderFormat #foreign sdl3
 * Transpile to MSL code from SPIRV code.
 *
 * You must SDL_free the returned string once you are done with it.
+*
+* These are the optional properties that can be used:
+*
+* - `SDL_SHADERCROSS_PROP_SPIRV_MSL_VERSION_STRING`: specifies the MSL version that should be emitted. Defaults to 1.2.0.
 *
 * \param info a struct describing the shader to transpile.
 * \returns an SDL_malloc'd string containing MSL code.
@@ -36296,6 +36340,10 @@ SDL_ShaderCross_TranspileMSLFromSPIRV :: (info: *SDL_ShaderCross_SPIRV_Info) -> 
 * Transpile to HLSL code from SPIRV code.
 *
 * You must SDL_free the returned string once you are done with it.
+*
+* These are the optional properties that can be used:
+*
+* - `SDL_SHADERCROSS_PROP_SPIRV_PSSL_COMPATIBILITY_BOOLEAN`: generates PSSL-compatible shader.
 *
 * \param info a struct describing the shader to transpile.
 * \returns an SDL_malloc'd string containing HLSL code.
@@ -36325,53 +36373,59 @@ SDL_ShaderCross_CompileDXBCFromSPIRV :: (info: *SDL_ShaderCross_SPIRV_Info, size
 SDL_ShaderCross_CompileDXILFromSPIRV :: (info: *SDL_ShaderCross_SPIRV_Info, size: *u64) -> *void #foreign sdl3_shadercross;
 
 /**
-* Compile an SDL GPU shader from SPIRV code.
+* Compile an SDL GPU shader from SPIRV code. If your shader source is HLSL, you should obtain SPIR-V bytecode from SDL_ShaderCross_CompileSPIRVFromHLSL().
 *
 * \param device the SDL GPU device.
 * \param info a struct describing the shader to transpile.
-* \param metadata a pointer filled in with shader metadata.
-* \returns a compiled SDL_GPUShader
+* \param resource_info a struct describing resource info of the shader. Can be obtained from SDL_ShaderCross_ReflectGraphicsSPIRV().
+* \param props a properties object filled in with extra shader metadata.
+* \returns a compiled SDL_GPUShader.
 *
 * \threadsafety It is safe to call this function from any thread.
 */
-SDL_ShaderCross_CompileGraphicsShaderFromSPIRV :: (device: *SDL_GPUDevice, info: *SDL_ShaderCross_SPIRV_Info, metadata: *SDL_ShaderCross_GraphicsShaderMetadata) -> *SDL_GPUShader #foreign sdl3_shadercross;
+SDL_ShaderCross_CompileGraphicsShaderFromSPIRV :: (device: *SDL_GPUDevice, info: *SDL_ShaderCross_SPIRV_Info, resource_info: *SDL_ShaderCross_GraphicsShaderResourceInfo, props: SDL_PropertiesID) -> *SDL_GPUShader #foreign sdl3_shadercross;
 
 /**
-* Compile an SDL GPU compute pipeline from SPIRV code.
+* Compile an SDL GPU compute pipeline from SPIRV code. If your shader source is HLSL, you should obtain SPIR-V bytecode from SDL_ShaderCross_CompileSPIRVFromHLSL().
 *
 * \param device the SDL GPU device.
 * \param info a struct describing the shader to transpile.
-* \param metadata a pointer filled in with compute pipeline metadata.
-* \returns a compiled SDL_GPUComputePipeline
+* \param metadata a struct describing shader metadata. Can be obtained from SDL_ShaderCross_ReflectComputeSPIRV().
+* \param props a properties object filled in with extra shader metadata.
+* \returns a compiled SDL_GPUComputePipeline.
 *
 * \threadsafety It is safe to call this function from any thread.
 */
-SDL_ShaderCross_CompileComputePipelineFromSPIRV :: (device: *SDL_GPUDevice, info: *SDL_ShaderCross_SPIRV_Info, metadata: *SDL_ShaderCross_ComputePipelineMetadata) -> *SDL_GPUComputePipeline #foreign sdl3_shadercross;
+SDL_ShaderCross_CompileComputePipelineFromSPIRV :: (device: *SDL_GPUDevice, info: *SDL_ShaderCross_SPIRV_Info, metadata: *SDL_ShaderCross_ComputePipelineMetadata, props: SDL_PropertiesID) -> *SDL_GPUComputePipeline #foreign sdl3_shadercross;
 
 /**
-* Reflect graphics shader info from SPIRV code.
+* Reflect graphics shader info from SPIRV code. If your shader source is HLSL, you should obtain SPIR-V bytecode from SDL_ShaderCross_CompileSPIRVFromHLSL(). This must be freed with SDL_free() when you are done with the metadata.
 *
 * \param bytecode the SPIRV bytecode.
 * \param bytecode_size the length of the SPIRV bytecode.
-* \param metadata a pointer filled in with shader metadata.
+* \param props a properties object filled in with extra shader metadata, provided by the user.
+* \returns A metadata struct on success, NULL otherwise. The struct must be free'd when it is no longer needed.
 *
 * \threadsafety It is safe to call this function from any thread.
 */
-SDL_ShaderCross_ReflectGraphicsSPIRV :: (bytecode: *Uint8, bytecode_size: u64, metadata: *SDL_ShaderCross_GraphicsShaderMetadata) -> bool #foreign sdl3_shadercross;
+SDL_ShaderCross_ReflectGraphicsSPIRV :: (bytecode: *Uint8, bytecode_size: u64, props: SDL_PropertiesID) -> *SDL_ShaderCross_GraphicsShaderMetadata #foreign sdl3_shadercross;
 
 /**
-* Reflect compute pipeline info from SPIRV code.
+* Reflect compute pipeline info from SPIRV code. If your shader source is HLSL, you should obtain SPIR-V bytecode from SDL_ShaderCross_CompileSPIRVFromHLSL(). This must be freed with SDL_free() when you are done with the metadata.
 *
 * \param bytecode the SPIRV bytecode.
 * \param bytecode_size the length of the SPIRV bytecode.
-* \param metadata a pointer filled in with compute pipeline metadata.
+* \param props a properties object filled in with extra shader metadata, provided by the user.
+* \returns A metadata struct on success, NULL otherwise.
 *
 * \threadsafety It is safe to call this function from any thread.
 */
-SDL_ShaderCross_ReflectComputeSPIRV :: (bytecode: *Uint8, bytecode_size: u64, metadata: *SDL_ShaderCross_ComputePipelineMetadata) -> bool #foreign sdl3_shadercross;
+SDL_ShaderCross_ReflectComputeSPIRV :: (bytecode: *Uint8, bytecode_size: u64, props: SDL_PropertiesID) -> *SDL_ShaderCross_ComputePipelineMetadata #foreign sdl3_shadercross;
 
 /**
 * Get the supported shader formats that HLSL cross-compilation can output
+*
+* \returns GPU shader formats supported by HLSL cross-compilation.
 *
 * \threadsafety It is safe to call this function from any thread.
 */
@@ -36381,6 +36435,12 @@ SDL_ShaderCross_GetHLSLShaderFormats :: () -> SDL_GPUShaderFormat #foreign sdl3_
 * Compile to DXBC bytecode from HLSL code via a SPIRV-Cross round trip.
 *
 * You must SDL_free the returned buffer once you are done with it.
+*
+* These are the optional properties that can be used:
+*
+* - `SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN`: allows debug info to be emitted when relevant. Should only be used with debugging tools like Renderdoc.
+* - `SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN`: a UTF-8 name to be used with the shader. Relevant for use with debugging tools like Renderdoc.
+* - `SDL_SHADERCROSS_PROP_SHADER_CULL_UNUSED_BINDINGS_BOOLEAN`: When true, indicates that the compiler should not cull unused shader resources. This behavior is disabled by default.
 *
 * \param info a struct describing the shader to transpile.
 * \param size filled in with the bytecode buffer size.
@@ -36395,6 +36455,12 @@ SDL_ShaderCross_CompileDXBCFromHLSL :: (info: *SDL_ShaderCross_HLSL_Info, size: 
 *
 * You must SDL_free the returned buffer once you are done with it.
 *
+* These are the optional properties that can be used:
+*
+* - `SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN`: allows debug info to be emitted when relevant. Should only be used with debugging tools like Renderdoc.
+* - `SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING`: a UTF-8 name to be used with the shader. Relevant for use with debugging tools like Renderdoc.
+* - `SDL_SHADERCROSS_PROP_SHADER_CULL_UNUSED_BINDINGS_BOOLEAN`: when true, indicates that the compiler should not cull unused shader resources. This behavior is disabled by default.
+*
 * \param info a struct describing the shader to transpile.
 * \param size filled in with the bytecode buffer size.
 * \returns an SDL_malloc'd buffer containing DXIL bytecode.
@@ -36408,6 +36474,12 @@ SDL_ShaderCross_CompileDXILFromHLSL :: (info: *SDL_ShaderCross_HLSL_Info, size: 
 *
 * You must SDL_free the returned buffer once you are done with it.
 *
+* These are the optional properties that can be used:
+*
+* - `SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN`: allows debug info to be emitted when relevant. Should only be used with debugging tools like Renderdoc.
+* - `SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING`: a UTF-8 name to be used with the shader. Relevant for use with debugging tools like Renderdoc.
+* - `SDL_SHADERCROSS_PROP_SHADER_CULL_UNUSED_BINDINGS_BOOLEAN`: when true, indicates that the compiler should not cull unused shader resources. This behavior is disabled by default.
+*
 * \param info a struct describing the shader to transpile.
 * \param size filled in with the bytecode buffer size.
 * \returns an SDL_malloc'd buffer containing SPIRV bytecode.
@@ -36416,36 +36488,12 @@ SDL_ShaderCross_CompileDXILFromHLSL :: (info: *SDL_ShaderCross_HLSL_Info, size: 
 */
 SDL_ShaderCross_CompileSPIRVFromHLSL :: (info: *SDL_ShaderCross_HLSL_Info, size: *u64) -> *void #foreign sdl3_shadercross;
 
-/**
-* Compile an SDL GPU shader from HLSL code.
-*
-* \param device the SDL GPU device.
-* \param info a struct describing the shader to transpile.
-* \param metadata a pointer filled in with shader metadata.
-* \returns a compiled SDL_GPUShader
-*
-* \threadsafety It is safe to call this function from any thread.
-*/
-SDL_ShaderCross_CompileGraphicsShaderFromHLSL :: (device: *SDL_GPUDevice, info: *SDL_ShaderCross_HLSL_Info, metadata: *SDL_ShaderCross_GraphicsShaderMetadata) -> *SDL_GPUShader #foreign sdl3_shadercross;
-
-/**
-* Compile an SDL GPU compute pipeline from code.
-*
-* \param device the SDL GPU device.
-* \param info a struct describing the shader to transpile.
-* \param metadata a pointer filled in with compute pipeline metadata.
-* \returns a compiled SDL_GPUComputePipeline
-*
-* \threadsafety It is safe to call this function from any thread.
-*/
-SDL_ShaderCross_CompileComputePipelineFromHLSL :: (device: *SDL_GPUDevice, info: *SDL_ShaderCross_HLSL_Info, metadata: *SDL_ShaderCross_ComputePipelineMetadata) -> *SDL_GPUComputePipeline #foreign sdl3_shadercross;
-
 #scope_file
 
 #import "Basic"; // For assert, push_context
 
-sdl3 :: #library,no_dll "lib/SDL3";
-sdl3_shadercross :: #library,no_dll "lib/SDL3_shadercross";
+sdl3 :: #library "lib/SDL3";
+sdl3_shadercross :: #library "lib/SDL3_shadercross";
 
 #run {
     {
@@ -39959,27 +40007,69 @@ sdl3_shadercross :: #library,no_dll "lib/SDL3_shadercross";
     }
 
     {
-        info := type_info(SDL_ShaderCross_GraphicsShaderMetadata);
+        info := type_info(SDL_ShaderCross_IOVarMetadata);
+        for info.members {
+            if it.name == {
+                case "name";
+                    assert(it.offset_in_bytes == 0, "SDL_ShaderCross_IOVarMetadata.name has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SDL_ShaderCross_IOVarMetadata.name has unexpected size % instead of 8", it.type.runtime_size);
+                case "location";
+                    assert(it.offset_in_bytes == 8, "SDL_ShaderCross_IOVarMetadata.location has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_IOVarMetadata.location has unexpected size % instead of 4", it.type.runtime_size);
+                case "vector_type";
+                    assert(it.offset_in_bytes == 12, "SDL_ShaderCross_IOVarMetadata.vector_type has unexpected offset % instead of 12", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_IOVarMetadata.vector_type has unexpected size % instead of 4", it.type.runtime_size);
+                case "vector_size";
+                    assert(it.offset_in_bytes == 16, "SDL_ShaderCross_IOVarMetadata.vector_size has unexpected offset % instead of 16", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_IOVarMetadata.vector_size has unexpected size % instead of 4", it.type.runtime_size);
+            }
+        }
+        assert(size_of(SDL_ShaderCross_IOVarMetadata) == 24, "SDL_ShaderCross_IOVarMetadata has size % instead of 24", size_of(SDL_ShaderCross_IOVarMetadata));
+    }
+
+    {
+        info := type_info(SDL_ShaderCross_GraphicsShaderResourceInfo);
         for info.members {
             if it.name == {
                 case "num_samplers";
-                    assert(it.offset_in_bytes == 0, "SDL_ShaderCross_GraphicsShaderMetadata.num_samplers has unexpected offset % instead of 0", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderMetadata.num_samplers has unexpected size % instead of 4", it.type.runtime_size);
+                    assert(it.offset_in_bytes == 0, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_samplers has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_samplers has unexpected size % instead of 4", it.type.runtime_size);
                 case "num_storage_textures";
-                    assert(it.offset_in_bytes == 4, "SDL_ShaderCross_GraphicsShaderMetadata.num_storage_textures has unexpected offset % instead of 4", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderMetadata.num_storage_textures has unexpected size % instead of 4", it.type.runtime_size);
+                    assert(it.offset_in_bytes == 4, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_storage_textures has unexpected offset % instead of 4", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_storage_textures has unexpected size % instead of 4", it.type.runtime_size);
                 case "num_storage_buffers";
-                    assert(it.offset_in_bytes == 8, "SDL_ShaderCross_GraphicsShaderMetadata.num_storage_buffers has unexpected offset % instead of 8", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderMetadata.num_storage_buffers has unexpected size % instead of 4", it.type.runtime_size);
+                    assert(it.offset_in_bytes == 8, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_storage_buffers has unexpected offset % instead of 8", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_storage_buffers has unexpected size % instead of 4", it.type.runtime_size);
                 case "num_uniform_buffers";
-                    assert(it.offset_in_bytes == 12, "SDL_ShaderCross_GraphicsShaderMetadata.num_uniform_buffers has unexpected offset % instead of 12", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderMetadata.num_uniform_buffers has unexpected size % instead of 4", it.type.runtime_size);
-                case "props";
-                    assert(it.offset_in_bytes == 16, "SDL_ShaderCross_GraphicsShaderMetadata.props has unexpected offset % instead of 16", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderMetadata.props has unexpected size % instead of 4", it.type.runtime_size);
+                    assert(it.offset_in_bytes == 12, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_uniform_buffers has unexpected offset % instead of 12", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderResourceInfo.num_uniform_buffers has unexpected size % instead of 4", it.type.runtime_size);
             }
         }
-        assert(size_of(SDL_ShaderCross_GraphicsShaderMetadata) == 20, "SDL_ShaderCross_GraphicsShaderMetadata has size % instead of 20", size_of(SDL_ShaderCross_GraphicsShaderMetadata));
+        assert(size_of(SDL_ShaderCross_GraphicsShaderResourceInfo) == 16, "SDL_ShaderCross_GraphicsShaderResourceInfo has size % instead of 16", size_of(SDL_ShaderCross_GraphicsShaderResourceInfo));
+    }
+
+    {
+        info := type_info(SDL_ShaderCross_GraphicsShaderMetadata);
+        for info.members {
+            if it.name == {
+                case "resource_info";
+                    assert(it.offset_in_bytes == 0, "SDL_ShaderCross_GraphicsShaderMetadata.resource_info has unexpected offset % instead of 0", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 16, "SDL_ShaderCross_GraphicsShaderMetadata.resource_info has unexpected size % instead of 16", it.type.runtime_size);
+                case "num_inputs";
+                    assert(it.offset_in_bytes == 16, "SDL_ShaderCross_GraphicsShaderMetadata.num_inputs has unexpected offset % instead of 16", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderMetadata.num_inputs has unexpected size % instead of 4", it.type.runtime_size);
+                case "inputs";
+                    assert(it.offset_in_bytes == 24, "SDL_ShaderCross_GraphicsShaderMetadata.inputs has unexpected offset % instead of 24", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SDL_ShaderCross_GraphicsShaderMetadata.inputs has unexpected size % instead of 8", it.type.runtime_size);
+                case "num_outputs";
+                    assert(it.offset_in_bytes == 32, "SDL_ShaderCross_GraphicsShaderMetadata.num_outputs has unexpected offset % instead of 32", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_GraphicsShaderMetadata.num_outputs has unexpected size % instead of 4", it.type.runtime_size);
+                case "outputs";
+                    assert(it.offset_in_bytes == 40, "SDL_ShaderCross_GraphicsShaderMetadata.outputs has unexpected offset % instead of 40", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 8, "SDL_ShaderCross_GraphicsShaderMetadata.outputs has unexpected size % instead of 8", it.type.runtime_size);
+            }
+        }
+        assert(size_of(SDL_ShaderCross_GraphicsShaderMetadata) == 48, "SDL_ShaderCross_GraphicsShaderMetadata has size % instead of 48", size_of(SDL_ShaderCross_GraphicsShaderMetadata));
     }
 
     {
@@ -40013,12 +40103,9 @@ sdl3_shadercross :: #library,no_dll "lib/SDL3_shadercross";
                 case "threadcount_z";
                     assert(it.offset_in_bytes == 32, "SDL_ShaderCross_ComputePipelineMetadata.threadcount_z has unexpected offset % instead of 32", it.offset_in_bytes);
                     assert(it.type.runtime_size == 4, "SDL_ShaderCross_ComputePipelineMetadata.threadcount_z has unexpected size % instead of 4", it.type.runtime_size);
-                case "props";
-                    assert(it.offset_in_bytes == 36, "SDL_ShaderCross_ComputePipelineMetadata.props has unexpected offset % instead of 36", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 4, "SDL_ShaderCross_ComputePipelineMetadata.props has unexpected size % instead of 4", it.type.runtime_size);
             }
         }
-        assert(size_of(SDL_ShaderCross_ComputePipelineMetadata) == 40, "SDL_ShaderCross_ComputePipelineMetadata has size % instead of 40", size_of(SDL_ShaderCross_ComputePipelineMetadata));
+        assert(size_of(SDL_ShaderCross_ComputePipelineMetadata) == 36, "SDL_ShaderCross_ComputePipelineMetadata has size % instead of 36", size_of(SDL_ShaderCross_ComputePipelineMetadata));
     }
 
     {
@@ -40037,18 +40124,12 @@ sdl3_shadercross :: #library,no_dll "lib/SDL3_shadercross";
                 case "shader_stage";
                     assert(it.offset_in_bytes == 24, "SDL_ShaderCross_SPIRV_Info.shader_stage has unexpected offset % instead of 24", it.offset_in_bytes);
                     assert(it.type.runtime_size == 4, "SDL_ShaderCross_SPIRV_Info.shader_stage has unexpected size % instead of 4", it.type.runtime_size);
-                case "enable_debug";
-                    assert(it.offset_in_bytes == 28, "SDL_ShaderCross_SPIRV_Info.enable_debug has unexpected offset % instead of 28", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 1, "SDL_ShaderCross_SPIRV_Info.enable_debug has unexpected size % instead of 1", it.type.runtime_size);
-                case "name";
-                    assert(it.offset_in_bytes == 32, "SDL_ShaderCross_SPIRV_Info.name has unexpected offset % instead of 32", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 8, "SDL_ShaderCross_SPIRV_Info.name has unexpected size % instead of 8", it.type.runtime_size);
                 case "props";
-                    assert(it.offset_in_bytes == 40, "SDL_ShaderCross_SPIRV_Info.props has unexpected offset % instead of 40", it.offset_in_bytes);
+                    assert(it.offset_in_bytes == 28, "SDL_ShaderCross_SPIRV_Info.props has unexpected offset % instead of 28", it.offset_in_bytes);
                     assert(it.type.runtime_size == 4, "SDL_ShaderCross_SPIRV_Info.props has unexpected size % instead of 4", it.type.runtime_size);
             }
         }
-        assert(size_of(SDL_ShaderCross_SPIRV_Info) == 48, "SDL_ShaderCross_SPIRV_Info has size % instead of 48", size_of(SDL_ShaderCross_SPIRV_Info));
+        assert(size_of(SDL_ShaderCross_SPIRV_Info) == 32, "SDL_ShaderCross_SPIRV_Info has size % instead of 32", size_of(SDL_ShaderCross_SPIRV_Info));
     }
 
     {
@@ -40085,18 +40166,12 @@ sdl3_shadercross :: #library,no_dll "lib/SDL3_shadercross";
                 case "shader_stage";
                     assert(it.offset_in_bytes == 32, "SDL_ShaderCross_HLSL_Info.shader_stage has unexpected offset % instead of 32", it.offset_in_bytes);
                     assert(it.type.runtime_size == 4, "SDL_ShaderCross_HLSL_Info.shader_stage has unexpected size % instead of 4", it.type.runtime_size);
-                case "enable_debug";
-                    assert(it.offset_in_bytes == 36, "SDL_ShaderCross_HLSL_Info.enable_debug has unexpected offset % instead of 36", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 1, "SDL_ShaderCross_HLSL_Info.enable_debug has unexpected size % instead of 1", it.type.runtime_size);
-                case "name";
-                    assert(it.offset_in_bytes == 40, "SDL_ShaderCross_HLSL_Info.name has unexpected offset % instead of 40", it.offset_in_bytes);
-                    assert(it.type.runtime_size == 8, "SDL_ShaderCross_HLSL_Info.name has unexpected size % instead of 8", it.type.runtime_size);
                 case "props";
-                    assert(it.offset_in_bytes == 48, "SDL_ShaderCross_HLSL_Info.props has unexpected offset % instead of 48", it.offset_in_bytes);
+                    assert(it.offset_in_bytes == 36, "SDL_ShaderCross_HLSL_Info.props has unexpected offset % instead of 36", it.offset_in_bytes);
                     assert(it.type.runtime_size == 4, "SDL_ShaderCross_HLSL_Info.props has unexpected size % instead of 4", it.type.runtime_size);
             }
         }
-        assert(size_of(SDL_ShaderCross_HLSL_Info) == 56, "SDL_ShaderCross_HLSL_Info has size % instead of 56", size_of(SDL_ShaderCross_HLSL_Info));
+        assert(size_of(SDL_ShaderCross_HLSL_Info) == 40, "SDL_ShaderCross_HLSL_Info has size % instead of 40", size_of(SDL_ShaderCross_HLSL_Info));
     }
 }
 

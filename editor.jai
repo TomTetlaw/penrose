@@ -245,19 +245,14 @@ string_property :: (name: string, dest: *string) -> bool
   return result;
 }
 
-texture_property :: (label: string, texture: **DR_Texture)
+texture_property :: (label: string, texture: *DR_Texture)
 {
-  path, base, ext := path_decomp(texture.*.path);
-  label_str := str_format(arena_temp, "%: %", label, base);
   ImGui.Text(label);
   ImGui.SameLine();
-  if (ImGui.Button(cstr_from_str(arena_temp, str_format(arena_temp, "%###%", base, get_hash(texture.*.path, get_hash(label))))))
+  if texture
   {
-    texture_picker_dest = texture;
-    ImGui.OpenPopup("TexturePicker");
+    ImGui.Image(.{_TexID = cast(ImTextureID) texture.ref}, .{32, 32});
   }
-  ImGui.SameLine();
-  ImGui.Image(.{_TexID = cast(ImTextureID) texture.*.ref}, .{32, 32});
 }
 
 material_property :: (label: string, dest: **DR_MeshMaterial)
@@ -368,7 +363,6 @@ editor_imgui :: ()
   ImGui.Begin("Materials");
   draw_list := ImGui.GetWindowDrawList();
   draw_list.AddCallback(draw_list, set_sampler_callback, null);
-  texture_picker_modal();
   mat: *DR_MeshMaterial;
   if ed_editor.selected_entity
   {
@@ -401,9 +395,9 @@ editor_imgui :: ()
     mat.specular_shininess = cast(F32) (1 << mat.specular_power);
   }
   ImGui.DragFloat2("tex_coord_scale", *mat.tex_coord_scale.f);
-  texture_property("tex_colour", *mat.tex_colour);
-  texture_property("tex_normal", *mat.tex_normal);
-  texture_property("tex_specular", *mat.tex_specular);
+  ImGui.Text(str_format(arena_temp, "colour: %", mat.tex_colour_path));
+  ImGui.Text(str_format(arena_temp, "normal: %", mat.tex_normal_path));
+  ImGui.Text(str_format(arena_temp, "specular: %", mat.tex_specular_path));
   ImGui.End();
 }
 
@@ -617,41 +611,6 @@ update_scale_widget :: (transform: ED_TransformInfo, dest: *Vec3F32)
     result[ed_editor.dragging_axis_index] *= factor;
     result[ed_editor.dragging_axis_index] = max(.01, result[ed_editor.dragging_axis_index]);
     dest.* = result;
-  }
-}
-
-texture_picker_dest: **DR_Texture;
-
-texture_picker_modal :: ()
-{
-  if texture_picker_dest && ImGui.BeginPopup("TexturePicker")
-  {
-    if ImGui.IsKeyPressed(.Escape)
-    {
-      ImGui.CloseCurrentPopup();
-      texture_picker_dest = null;
-    }
-    if ImGui.BeginTable("textures", 3)
-    {
-      for each_element(dr_renderer.textures)
-      {
-        if contains(it.path, ".png") || contains(it.path, ".tga")
-        {
-          path, base, ext := path_decomp(it.path);
-          ImGui.Text("%.%", base, ext);
-          cstr := cstr_from_str(arena_temp, str_format(arena_temp, "%.%", base, ext));
-          if ImGui.ImageButton(cstr, .{_TexID = cast(ImTextureID) it.ref}, ImVec2.{64, 64})
-          {
-            texture_picker_dest.* = it;
-            texture_picker_dest = null;
-            ImGui.CloseCurrentPopup();
-          }
-          ImGui.TableNextColumn();
-        }
-      }
-      ImGui.EndTable();
-    }
-    ImGui.EndPopup();
   }
 }
 

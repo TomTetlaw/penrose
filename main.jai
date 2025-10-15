@@ -99,7 +99,10 @@ main :: ()
         }
         dr_draw_frame(camera);
         arena_reset(arena_temp);
-        ___tracy_emit_frame_mark("frame");
+        #if PENROSE_PROFILE
+        {
+          ___tracy_emit_frame_mark("");
+        }
       }
     }
   }
@@ -138,5 +141,3 @@ update_time :: ()
 }
 
 #scope_file
-
-#import "tracy";

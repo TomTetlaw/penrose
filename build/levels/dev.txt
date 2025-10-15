@@ -1,17 +1,19 @@
 entity: Prop
 entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [-101.405884, -18.629627, 73.298828]
+entity.base.position: [-101.641632, -18.629627, 73.143509]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [10, 25, 1]
 entity.base.material: floor_grate
 entity.base.material_overrides.name: floor_grate
-entity.base.material_overrides.specular_shininess: 4096
-entity.base.material_overrides.specular_power: 12
-entity.base.material_overrides.tex_coord_scale: [5, 25]
-entity.base.material_overrides.tex_colour: textures/floor_grate.png
+entity.base.material_overrides.specular_shininess: 128
+entity.base.material_overrides.specular_power: 7
+entity.base.material_overrides.tex_coord_scale: [5, 10]
+entity.base.material_overrides.tex_colour_spec: textures/floor_grate.png
 entity.base.material_overrides.tex_normal: textures/floor_grate_norm.png
-entity.base.material_overrides.tex_specular: textures/floor_grate_spec.png
+entity.base.material_overrides.tex_colour_path: textures/floor_grate.png
+entity.base.material_overrides.tex_normal_path: textures/floor_grate_norm.png
+entity.base.material_overrides.tex_specular_path: textures/floor_grate_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: false
@@ -26,12 +28,14 @@ entity.base.rotation: [0, 0, 0]
 entity.base.scale: [0.25, 0.25, 7]
 entity.base.material: deco_wallpaper
 entity.base.material_overrides.name: deco_wallpaper
-entity.base.material_overrides.specular_shininess: 256
-entity.base.material_overrides.specular_power: 8
-entity.base.material_overrides.tex_coord_scale: [12, 1]
-entity.base.material_overrides.tex_colour: textures/deco_wallpaper.png
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: textures/deco_wallpaper.png
 entity.base.material_overrides.tex_normal: textures/deco_wallpaper_norm.png
-entity.base.material_overrides.tex_specular: textures/deco_wallpaper_spec.png
+entity.base.material_overrides.tex_colour_path: textures/deco_wallpaper.png
+entity.base.material_overrides.tex_normal_path: textures/deco_wallpaper_norm.png
+entity.base.material_overrides.tex_specular_path: textures/deco_wallpaper_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -46,12 +50,14 @@ entity.base.rotation: [0, 0, 0]
 entity.base.scale: [0.25, 0.25, 7]
 entity.base.material: deco_wallpaper
 entity.base.material_overrides.name: deco_wallpaper
-entity.base.material_overrides.specular_shininess: 256
-entity.base.material_overrides.specular_power: 8
-entity.base.material_overrides.tex_coord_scale: [12, 1]
-entity.base.material_overrides.tex_colour: textures/deco_wallpaper.png
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: textures/deco_wallpaper.png
 entity.base.material_overrides.tex_normal: textures/deco_wallpaper_norm.png
-entity.base.material_overrides.tex_specular: textures/deco_wallpaper_spec.png
+entity.base.material_overrides.tex_colour_path: textures/deco_wallpaper.png
+entity.base.material_overrides.tex_normal_path: textures/deco_wallpaper_norm.png
+entity.base.material_overrides.tex_specular_path: textures/deco_wallpaper_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -66,12 +72,14 @@ entity.base.rotation: [0, 0, 0]
 entity.base.scale: [0.25, 0.25, 7]
 entity.base.material: deco_wallpaper
 entity.base.material_overrides.name: deco_wallpaper
-entity.base.material_overrides.specular_shininess: 256
-entity.base.material_overrides.specular_power: 8
-entity.base.material_overrides.tex_coord_scale: [12, 1]
-entity.base.material_overrides.tex_colour: textures/deco_wallpaper.png
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: textures/deco_wallpaper.png
 entity.base.material_overrides.tex_normal: textures/deco_wallpaper_norm.png
-entity.base.material_overrides.tex_specular: textures/deco_wallpaper_spec.png
+entity.base.material_overrides.tex_colour_path: textures/deco_wallpaper.png
+entity.base.material_overrides.tex_normal_path: textures/deco_wallpaper_norm.png
+entity.base.material_overrides.tex_specular_path: textures/deco_wallpaper_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -86,12 +94,14 @@ entity.base.rotation: [0, 0, 0]
 entity.base.scale: [0.25, 0.25, 7]
 entity.base.material: deco_wallpaper
 entity.base.material_overrides.name: deco_wallpaper
-entity.base.material_overrides.specular_shininess: 256
-entity.base.material_overrides.specular_power: 8
-entity.base.material_overrides.tex_coord_scale: [12, 1]
-entity.base.material_overrides.tex_colour: textures/deco_wallpaper.png
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: textures/deco_wallpaper.png
 entity.base.material_overrides.tex_normal: textures/deco_wallpaper_norm.png
-entity.base.material_overrides.tex_specular: textures/deco_wallpaper_spec.png
+entity.base.material_overrides.tex_colour_path: textures/deco_wallpaper.png
+entity.base.material_overrides.tex_normal_path: textures/deco_wallpaper_norm.png
+entity.base.material_overrides.tex_specular_path: textures/deco_wallpaper_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -106,12 +116,14 @@ entity.base.rotation: [0, 0, 0]
 entity.base.scale: [2.637069, 1, 1.515457]
 entity.base.material: hex_stone
 entity.base.material_overrides.name: hex_stone
-entity.base.material_overrides.specular_shininess: 256
-entity.base.material_overrides.specular_power: 8
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
 entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: textures/hex_stone.png
+entity.base.material_overrides.tex_colour_spec: textures/hex_stone.png
 entity.base.material_overrides.tex_normal: textures/hex_stone_norm.png
-entity.base.material_overrides.tex_specular: textures/deco_wallpaper_spec.png
+entity.base.material_overrides.tex_colour_path: textures/hex_stone.png
+entity.base.material_overrides.tex_normal_path: textures/hex_stone_norm.png
+entity.base.material_overrides.tex_specular_path: textures/hex_stone_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -126,12 +138,14 @@ entity.base.rotation: [0, 0, 0]
 entity.base.scale: [2.70697, 1, 1.752151]
 entity.base.material: hex_stone
 entity.base.material_overrides.name: hex_stone
-entity.base.material_overrides.specular_shininess: 256
-entity.base.material_overrides.specular_power: 8
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
 entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: textures/hex_stone.png
+entity.base.material_overrides.tex_colour_spec: textures/hex_stone.png
 entity.base.material_overrides.tex_normal: textures/hex_stone_norm.png
-entity.base.material_overrides.tex_specular: textures/deco_wallpaper_spec.png
+entity.base.material_overrides.tex_colour_path: textures/hex_stone.png
+entity.base.material_overrides.tex_normal_path: textures/hex_stone_norm.png
+entity.base.material_overrides.tex_specular_path: textures/hex_stone_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -141,17 +155,19 @@ entity.base.collision.capsule_height: 0
 entity: Door
 entity.base.name: test_door
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [-101.374413, -22.560196, 76.655479]
+entity.base.position: [-101.374413, -22.509493, 76.655479]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [3, 0.5, 6]
 entity.base.material: alien_metal
 entity.base.material_overrides.name: alien_metal
-entity.base.material_overrides.specular_shininess: 512
+entity.base.material_overrides.specular_shininess: 32
 entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [3, 6]
-entity.base.material_overrides.tex_colour: textures/alien_metal.png
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: textures/alien_metal.png
 entity.base.material_overrides.tex_normal: textures/alien_metal_norm.png
-entity.base.material_overrides.tex_specular: textures/alien_metal_spec.png
+entity.base.material_overrides.tex_colour_path: textures/alien_metal.png
+entity.base.material_overrides.tex_normal_path: textures/alien_metal_norm.png
+entity.base.material_overrides.tex_specular_path: textures/alien_metal_spec.png
 entity.base.colour: [1, 0.7, 0, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -169,9 +185,11 @@ entity.base.material_overrides.name: dr_default_material
 entity.base.material_overrides.specular_shininess: 32
 entity.base.material_overrides.specular_power: 9
 entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: dr_default_white_texture
+entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
 entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_specular: dr_default_white_texture
+entity.base.material_overrides.tex_colour_path: 
+entity.base.material_overrides.tex_normal_path: 
+entity.base.material_overrides.tex_specular_path: 
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: false
@@ -184,7 +202,7 @@ entity.custom_id: Test
 entity.target_name: test_door
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [-101.448082, -12.947715, 81.048332]
+entity.base.position: [-101.606445, -14.023584, 82.85215]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -192,135 +210,25 @@ entity.base.material_overrides.name: dr_default_material
 entity.base.material_overrides.specular_shininess: 32
 entity.base.material_overrides.specular_power: 9
 entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: dr_default_white_texture
+entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
 entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_specular: dr_default_white_texture
+entity.base.material_overrides.tex_colour_path: 
+entity.base.material_overrides.tex_normal_path: 
+entity.base.material_overrides.tex_specular_path: 
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [-101.448082, -12.947715, 81.048332]
+entity.light_info.position: [-101.606445, -14.023584, 82.85215]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
+entity.light_info.brightness: 1
 entity.light_info.dir: [1, 0, 0]
 entity.light_info.radius: 39
 entity.light_info.inner_radius: 0
 entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-101.448082, -30.82309, 81.048332]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_specular: dr_default_white_texture
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-101.448082, -30.82309, 81.048332]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 39
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-100.653763, -7.331319, 74.140831]
-entity.base.rotation: [0.25, 0.25, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_specular: dr_default_white_texture
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-100.653763, -7.331319, 74.140831]
-entity.light_info.type: Spot
-entity.light_info.colour: [1, 0, 0]
-entity.light_info.brightness: 142
-entity.light_info.dir: [0, 1, 0]
-entity.light_info.radius: 70
-entity.light_info.inner_radius: 35
-entity.light_info.outer_radius: 40
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-100.653763, -13.686966, 74.140831]
-entity.base.rotation: [0.25, 0.25, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_specular: dr_default_white_texture
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-100.653763, -13.686966, 74.140831]
-entity.light_info.type: Spot
-entity.light_info.colour: [0, 1, 0]
-entity.light_info.brightness: 142
-entity.light_info.dir: [0, 1, 0]
-entity.light_info.radius: 70
-entity.light_info.inner_radius: 35
-entity.light_info.outer_radius: 40
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-100.653763, -10.9485, 75.606865]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_specular: dr_default_white_texture
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-100.653763, -10.9485, 75.606865]
-entity.light_info.type: Spot
-entity.light_info.colour: [0, 0, 1]
-entity.light_info.brightness: 142
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 70
-entity.light_info.inner_radius: 35
-entity.light_info.outer_radius: 40
 entity.light_info.pad: [0, 0]
 entity: PlayerStart
 entity.base.name: player_start
@@ -328,17 +236,49 @@ entity.base.mesh: dr_default_cube_mesh
 entity.base.position: [-100.452972, -16.880318, 74.453758]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
-entity.base.material: info_player_start
+entity.base.material: floor_grate
 entity.base.material_overrides.name: info_player_start
 entity.base.material_overrides.specular_shininess: 256
 entity.base.material_overrides.specular_power: 8
 entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour: textures/info_player_start.png
+entity.base.material_overrides.tex_colour_spec: textures/info_player_start.png
 entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_specular: dr_default_white_texture
+entity.base.material_overrides.tex_colour_path: textures/info_player_start.png
+entity.base.material_overrides.tex_normal_path: textures/info_player_start_norm.png
+entity.base.material_overrides.tex_specular_path: textures/info_player_start_spec.png
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-101.606445, -27.994503, 82.85215]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.material_overrides.name: dr_default_material
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
+entity.base.material_overrides.tex_normal: dr_default_normal_texture
+entity.base.material_overrides.tex_colour_path: 
+entity.base.material_overrides.tex_normal_path: 
+entity.base.material_overrides.tex_specular_path: 
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-101.606445, -27.994503, 82.85215]
+entity.light_info.type: Point
+entity.light_info.colour: [1, 1, 1]
+entity.light_info.brightness: 1
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.radius: 39
+entity.light_info.inner_radius: 0
+entity.light_info.outer_radius: 0
+entity.light_info.pad: [0, 0]

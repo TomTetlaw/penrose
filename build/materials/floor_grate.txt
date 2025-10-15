@@ -1,6 +1,6 @@
 name: floor_grate
-specular_power: 12
-tex_coord_scale: [5, 25]
-tex_colour: textures/floor_grate.png
-tex_normal: textures/floor_grate_norm.png
-tex_specular: textures/floor_grate_spec.png
+specular_power: 9
+tex_coord_scale: [5, 10]
+tex_colour_path: textures/floor_grate.png
+tex_normal_path: textures/floor_grate_norm.png
+tex_specular_path: textures/floor_grate_spec.png

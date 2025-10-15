@@ -13,7 +13,6 @@ struct FragInput
   float4 clip_position: SV_Position;
   float2 tex_coord: TEXCOORD0;
   float4 colour: TEXCOORD1;
-  float4 props: TEXCOORD2;
 };
 
 cbuffer VertConstantBuffer : register(b0, space1)

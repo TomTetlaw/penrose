@@ -4,11 +4,16 @@ build :: ()
   project_dir := get_working_directory();
   workspace := compiler_create_workspace("Penrose build");
   release_build := false;
+  profiling := false;
   options := get_build_options();
   args := options.compile_time_command_line;
   if array_find(args, "release")
   {
     release_build = true;
+  }
+  if array_find(args, "profile")
+  {
+    profiling = true;
   }
   options.output_executable_name = "penrose";
   options.output_path = "build";
@@ -31,6 +36,9 @@ build :: ()
   intercept_flags: Intercept_Flags;
   for plugins if it.before_intercept it.before_intercept(it, *intercept_flags);
   compiler_begin_intercept(workspace);
+  add_build_string(tprint("PENROSE_RELEASE :: %;\n", release_build), workspace);
+  add_build_string(tprint("PENROSE_DEBUG :: %;\n", !release_build), workspace);
+  add_build_string(tprint("PENROSE_PROFILE :: %;\n", profiling), workspace);
   for plugins if it.add_source it.add_source(it);
   files := file_list("./");
   for files
@@ -43,35 +51,6 @@ build :: ()
     {
       path, base, ext := path_decomp(it);
       copy_file(tprint("%.hlsl", base), tprint("build/shaders/%.hlsl", base));
-    }
-  }
-  texture_files := file_list("build/textures");
-  for texture_files
-  {
-    if !contains(it, "_spec") && !contains(it, "_norm")
-    {
-      path, base, ext := path_decomp(it);
-      col := tprint("textures/%.%", base, ext);
-      norm := tprint("textures/%_norm.%", base, ext);
-      spec := tprint("textures/%_spec.%", base, ext);
-      if !file_exists(tprint("build/%", norm))
-      {
-        norm = "dr_default_normal_texture";
-      }
-      if !file_exists(tprint("build/%", spec))
-      {
-        spec = "dr_default_white_texture";
-      }
-      if !file_exists(tprint("build/materials/%.txt", base))
-      {
-        builder: String_Builder;
-        print_to_builder(*builder, "name: %\n", base);
-        print_to_builder(*builder, "tex_colour: %\n", col);
-        print_to_builder(*builder, "tex_normal: %\n", norm);
-        print_to_builder(*builder, "tex_specular: %\n", spec);
-        mat := builder_to_string(*builder);
-        write_entire_file(tprint("build/materials/%.txt", base), mat);
-      }
     }
   }
   entity_types: [..] *Type_Info_Struct;

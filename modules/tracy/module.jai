@@ -14,7 +14,6 @@
 
     #load "instrument.jai";
     #load "options.jai";
-	 #load "runtime.jai";
 } else {
     // When imported by the client, we provide the actual profiling code,
     // and code for reporting the profile results (either batch-wise

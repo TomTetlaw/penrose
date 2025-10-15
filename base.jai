@@ -69,6 +69,20 @@ str_format :: (arena: *Arena, format: string, args: ..Any) -> string
   return result;
 }
 
+str_temp_format :: (format: string, args: ..Any) -> string
+{
+  return str_format(arena_temp, format, ..args);
+}
+
+//cstr_temp_format :: (format: string, args: ..Any) -> *u8
+//{
+//  builder: String_Builder;
+//  allocator := arena_allocator(arena);
+//  print_to_builder(*builder, format, ..args,, allocator);
+//  result := builder_to_string(*builder,, allocator);
+//  return result;
+//}
+
 offset_of :: ($T: Type, $member: string) -> u32
 {
   for type_info(T).members

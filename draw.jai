@@ -90,9 +90,11 @@ DR_MeshMaterial :: struct
   specular_shininess := 32.0;
   specular_power: s32 = 9;
   tex_coord_scale := Vec2F32.{1, 1};
-  tex_colour: *DR_Texture;
+  tex_colour_spec: *DR_Texture;
   tex_normal: *DR_Texture;
-  tex_specular: *DR_Texture;
+  tex_colour_path: string;
+  tex_normal_path: string;
+  tex_specular_path: string;
 }
 
 DR_DrawMesh :: struct
@@ -163,6 +165,7 @@ DR_RendererState :: struct
   tex_black: *DR_Texture;
   tex_normal: *DR_Texture;
   depth_target: *DR_Texture;
+  draw_mesh_arena: *Arena;
   draw_meshes: *DR_DrawMesh;
   draw_mesh_count: int;
   draw_lines: *DR_DrawLines;
@@ -224,8 +227,8 @@ DR_Shader :: struct
 {
   next: *DR_Shader;
   name: string;
-  vert_meta: SDL_ShaderCross_GraphicsShaderMetadata;
-  frag_meta: SDL_ShaderCross_GraphicsShaderMetadata;
+  vert_meta: SDL_ShaderCross_GraphicsShaderResourceInfo;
+  frag_meta: SDL_ShaderCross_GraphicsShaderResourceInfo;
   vert: *SDL_GPUShader;
   frag: *SDL_GPUShader;
 }
@@ -409,11 +412,11 @@ dr_create_target_texture :: (name: string, width: int, height: int, format: SDL_
 	return null;
 }
 
-dr_create_draw_texture :: (name: string, width: int, height: int, data: *void) -> *DR_Texture
+dr_create_draw_texture :: (name: string, width: int, height: int, format: SDL_GPUTextureFormat, data: *void) -> *DR_Texture
 {
   info: SDL_GPUTextureCreateInfo;
 	info.type = .SDL_GPU_TEXTURETYPE_2D;
-	info.format = .R8G8B8A8_UNORM;
+	info.format = format;
 	info.width = xx width;
 	info.height = xx height;
 	info.layer_count_or_depth = 1;
@@ -427,7 +430,13 @@ dr_create_draw_texture :: (name: string, width: int, height: int, data: *void) -
 	  texture.path = str_copy(dr_renderer.arena, name);
 	  texture.ref = ref;
 	  stack_push(*dr_renderer.textures, texture);
-    dr_queue_texture_upload(ref, data, width, height, 4, info.num_levels > 1);
+	  stride := 4;
+	  if format ==
+	  {
+	    case .R8G8_UNORM;
+	      stride = 2;
+	  }
+    dr_queue_texture_upload(ref, data, width, height, stride, info.num_levels > 1);
 	  return texture;
   }
 	return null;
@@ -441,7 +450,7 @@ dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_Me
     {
       it.material_params = mesh_material_params(material.specular_shininess, material.tex_coord_scale);
     }
-    draw_mesh := arena_push_struct(arena_temp, DR_DrawMesh);
+    draw_mesh := arena_push_struct(dr_renderer.draw_mesh_arena, DR_DrawMesh);
     stack_push(*dr_renderer.draw_meshes, draw_mesh);
     dr_renderer.draw_mesh_count += instances.count;
     draw_mesh.instances = dr_write_buffer(dr_renderer.mesh_instances, instances.data, size_of(DR_MeshInstance) * instances.count);
@@ -717,9 +726,9 @@ dr_create_builtin_meshes :: () {
 
 dr_create_builtin_textures :: ()
 {
-  dr_renderer.tex_white = dr_create_draw_texture("dr_default_white_texture", 1, 1, u8.[255, 255, 255, 255].data);
-  dr_renderer.tex_black = dr_create_draw_texture("dr_default_black_texture", 1, 1, u8.[0, 0, 0, 0].data);
-  dr_renderer.tex_normal = dr_create_draw_texture("dr_default_normal_texture", 1, 1, u8.[0, 128, 0, 0].data);
+  dr_renderer.tex_white = dr_create_draw_texture("dr_default_white_texture", 1, 1, .R8G8B8A8_UNORM, u8.[255, 255, 255, 255].data);
+  dr_renderer.tex_black = dr_create_draw_texture("dr_default_black_texture", 1, 1, .R8G8B8A8_UNORM, u8.[0, 0, 0, 0].data);
+  dr_renderer.tex_normal = dr_create_draw_texture("dr_default_normal_texture", 1, 1, .R8G8B8A8_UNORM, u8.[0, 128, 0, 0].data);
 }
 
 dr_create_sampler_set :: ()
@@ -775,6 +784,7 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.device = device;
   dr_renderer.resolution = resolution;
   dr_renderer.transfer_arena = mem_create_arena();
+  dr_renderer.draw_mesh_arena = mem_create_arena();
   dr_renderer.shader_depth = dr_get_shader("depth");
   dr_renderer.shader_mesh = dr_get_shader("mesh");
   dr_renderer.shader_lines = dr_get_shader("lines");
@@ -793,10 +803,6 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_create_sampler_set();
   dr_renderer.mat_default = dr_create_material();
   dr_renderer.mat_default.name = "dr_default_material";
-  for file_list("textures")
-  {
-    dr_get_texture(it);
-  }
   read_materials();
 }
 
@@ -809,14 +815,42 @@ dr_create_material :: () -> *DR_MeshMaterial
 {
   mat := arena_push_struct(dr_renderer.arena, DR_MeshMaterial);
   stack_push(*dr_renderer.materials, mat);
-  mat.tex_colour = dr_renderer.tex_white;
+  mat.tex_colour_spec = dr_renderer.tex_white;
   mat.tex_normal = dr_renderer.tex_normal;
-  mat.tex_specular = dr_renderer.tex_white;
   return mat;
 }
 
 read_materials :: ()
 {
+  texture_files := file_list("textures");
+  for texture_files
+  {
+    if !contains(it, "_spec") && !contains(it, "_norm")
+    {
+      path, base, ext := path_decomp(it);
+      col := str_temp_format("textures/%.%", base, ext);
+      norm := str_temp_format("textures/%_norm.%", base, ext);
+      spec := str_temp_format("textures/%_spec.%", base, ext);
+      if !file_exists(str_temp_format("%", norm))
+      {
+        norm = "dr_default_normal_texture";
+      }
+      if !file_exists(str_temp_format("%", spec))
+      {
+        spec = "dr_default_white_texture";
+      }
+      if !file_exists(str_temp_format("materials/%.txt", base))
+      {
+        builder: String_Builder;
+        print_to_builder(*builder, "name: %\n", base);
+        print_to_builder(*builder, "tex_colour_path: %\n", col);
+        print_to_builder(*builder, "tex_normal_path: %\n", norm);
+        print_to_builder(*builder, "tex_specular_path: %\n", spec);
+        mat := builder_to_string(*builder);
+        write_entire_file(str_temp_format("materials/%.txt", base), mat);
+      }
+    }
+  }
   for file_list("materials")
   {
     file_data, ok := read_entire_file(it,, arena_allocator(arena_temp));
@@ -838,14 +872,15 @@ read_materials :: ()
             mat.specular_shininess = cast(F32) (1 << mat.specular_power);
           case "tex_coord_scale";
             mat.tex_coord_scale = parse_v2(right);
-          case "tex_colour";
-            mat.tex_colour = dr_get_texture(right);
-          case "tex_normal";
-            mat.tex_normal = dr_get_texture(right);
-          case "tex_specular";
-            mat.tex_specular = dr_get_texture(right);
+          case "tex_colour_path";
+            mat.tex_colour_path = right;
+          case "tex_normal_path";
+            mat.tex_normal_path = right;
+          case "tex_specular_path";
+            mat.tex_specular_path = right;
         }
       }
+      mat.tex_colour_spec, mat.tex_normal = tex_load_material(mat.tex_colour_path, mat.tex_normal_path, mat.tex_specular_path);
     }
   }
 }
@@ -862,9 +897,9 @@ write_materials :: ()
       file_print_line(*file, "name: %", it.name);
       file_print_line(*file, "specular_power: %", it.specular_power);
       file_print_v2(*file, "tex_coord_scale", it.tex_coord_scale);
-      file_print_line(*file, "tex_colour: %", it.tex_colour.path);
-      file_print_line(*file, "tex_normal: %", it.tex_normal.path);
-      file_print_line(*file, "tex_specular: %", it.tex_specular.path);
+      file_print_line(*file, "tex_colour_path: %", it.tex_colour_path);
+      file_print_line(*file, "tex_normal_path: %", it.tex_normal_path);
+      file_print_line(*file, "tex_specular_path: %", it.tex_specular_path);
     }
   }
 }
@@ -1021,11 +1056,16 @@ dr_run_depth_prepass :: (swap_texture: *SDL_GPUTexture, command_buffer: *SDL_GPU
   SDL_EndGPURenderPass(pass);
 }
 
+sort_draw_mesh :: (a: DR_DrawMesh, b: DR_DrawMesh) -> int
+{
+  return get_hash(a.material.name) - get_hash(b.material.name);
+}
+
 dr_draw_frame :: (camera: *CAM_Base)
 {
   command_buffer := SDL_AcquireGPUCommandBuffer(dr_renderer.device);
   swap_texture: *SDL_GPUTexture;
-  SDL_AcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
+  SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
   if (swap_texture)
   {
     dr_process_upload_queue(command_buffer);
@@ -1037,6 +1077,10 @@ dr_draw_frame :: (camera: *CAM_Base)
     vert_constants.viewport.zw = v2f32(0.1, 1000.0);
     dr_run_clear_pass(swap_texture, command_buffer);
     dr_run_depth_prepass(swap_texture, command_buffer, vert_constants);
+    draw_meshes: [] DR_DrawMesh;
+    draw_meshes.count = dr_renderer.draw_mesh_count;
+    draw_meshes.data = cast(*DR_DrawMesh) dr_renderer.draw_mesh_arena.base;
+    quick_sort(draw_meshes, sort_draw_mesh);
     for light, light_index: dr_renderer.lights
     {
       colour_target := SDL_GPUColorTargetInfo.{
@@ -1061,18 +1105,27 @@ dr_draw_frame :: (camera: *CAM_Base)
       main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
       SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
       SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
-      for each_element(dr_renderer.draw_meshes)
+      current_vertex_buffer: *SDL_GPUBuffer;
+      current_material: *DR_MeshMaterial;
+      for draw_meshes
       {
-        binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
-        binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
-        binding_textures := SDL_GPUTextureSamplerBinding.[
-          .{it.material.tex_colour.ref, sampler},
-          .{it.material.tex_normal.ref, sampler},
-          .{it.material.tex_specular.ref, sampler}
-        ];
-        SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
-        SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
-        SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+        if current_vertex_buffer != it.vertices.ref
+        {
+          binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
+          binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
+          SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
+          SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+          current_vertex_buffer = it.vertices.ref;
+        }
+        if current_material != it.material
+        {
+          binding_textures := SDL_GPUTextureSamplerBinding.[
+            .{it.material.tex_colour_spec.ref, sampler},
+            .{it.material.tex_normal.ref, sampler},
+          ];
+          SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
+          current_material = it.material;
+        }
         SDL_DrawGPUIndexedPrimitives(main_pass,
           xx it.index_count,
           xx it.instance_count,
@@ -1133,9 +1186,9 @@ dr_draw_frame :: (camera: *CAM_Base)
   }
   else
   {
-    ImGui.EndFrame();
     SDL_CancelGPUCommandBuffer(command_buffer);
   }
+  ImGui.EndFrame();
   dr_renderer.draw_meshes = null;
   dr_renderer.draw_mesh_count = 0;
   dr_renderer.draw_lines = null;
@@ -1144,6 +1197,7 @@ dr_draw_frame :: (camera: *CAM_Base)
   dr_reset_buffer(dr_renderer.line_instances);
   dr_reset_buffer(dr_renderer.quad_instances);
   array_reset(*dr_renderer.lights);
+  arena_reset(dr_renderer.draw_mesh_arena);
 }
 
 dr_create_storage_buffer :: (name: string, size: int) -> *SDL_GPUBuffer
@@ -1228,8 +1282,8 @@ dr_get_shader :: (name: string) -> *DR_Shader
 DR_ShaderHeader :: struct
 {
   hash: u32;
-  vert_meta: SDL_ShaderCross_GraphicsShaderMetadata;
-  frag_meta: SDL_ShaderCross_GraphicsShaderMetadata;
+  vert_meta: SDL_ShaderCross_GraphicsShaderResourceInfo;
+  frag_meta: SDL_ShaderCross_GraphicsShaderResourceInfo;
   vert_size: int;
   frag_size: int;
 }
@@ -1246,7 +1300,7 @@ dr_compile_shader :: (name: string)
       entry: string;
       spirv: *void;
       spirv_size: int;
-      meta: SDL_ShaderCross_GraphicsShaderMetadata;
+      meta: SDL_ShaderCross_GraphicsShaderResourceInfo;
     }
     infos := DR_ShaderCompilerInfo.[
       .{stage = .VERTEX, entry = "vert_main"},
@@ -1258,7 +1312,11 @@ dr_compile_shader :: (name: string)
       hlsl_info.source = cstr_from_str(arena_temp, code);
       hlsl_info.entrypoint = cstr_from_str(arena_temp, it.entry);
       hlsl_info.shader_stage = it.stage;
-      hlsl_info.name = cstr_from_str(arena_temp, name);
+      props := SDL_CreateProperties();
+      SDL_SetBooleanProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN, true);
+      SDL_SetBooleanProperty(props, SDL_SHADERCROSS_PROP_SHADER_CULL_UNUSED_BINDINGS_BOOLEAN, true);
+      SDL_SetStringProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING, cstr_from_str(arena_temp, name));
+      hlsl_info.props = props;
       spirv: *void;
       spirv_size: u64;
       spirv = SDL_ShaderCross_CompileSPIRVFromHLSL(*hlsl_info, *spirv_size);
@@ -1269,11 +1327,10 @@ dr_compile_shader :: (name: string)
         spirv_info.bytecode_size = spirv_size;
         spirv_info.entrypoint = hlsl_info.entrypoint;
         spirv_info.shader_stage = it.stage;
-        meta: SDL_ShaderCross_GraphicsShaderMetadata;
-        SDL_ShaderCross_ReflectGraphicsSPIRV(spirv, spirv_size, *meta);
+        meta := SDL_ShaderCross_ReflectGraphicsSPIRV(spirv, spirv_size, props);
         it.spirv = spirv;
         it.spirv_size = xx spirv_size;
-        it.meta = meta;
+        it.meta = meta.resource_info;
       }
       else
       {

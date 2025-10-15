@@ -81,8 +81,6 @@ Texture2D texture0: register(t0, space2);
 SamplerState sampler0: register(s0, space2);
 Texture2D texture1: register(t1, space2);
 SamplerState sampler1: register(s1, space2);
-Texture2D texture2: register(t2, space2);
-SamplerState sampler2: register(s2, space2);
 
 enum LightType
 {
@@ -166,11 +164,14 @@ float4 frag_main(FragInput input) : SV_Target
   float2 tex_coord = input.tex_coord * input.material_params.xy;
 
   float3 v = normalize(input.view_dir);
-  float3 n = normalize((texture1.Sample(sampler1, tex_coord).rgb * 2.0 - 1.0) * float3(1, 1, 1));
 
-  float3 object_colour = input.colour.rgb * texture0.Sample(sampler0, tex_coord).rgb;
+  float2 normal_map = texture1.Sample(sampler1, tex_coord).rg * 2.0 - 1.0;
+  float4 colour_spec_map = texture0.Sample(sampler0, tex_coord);
+  float normal_z = sqrt(saturate(1.0 - length(normal_map)));
+  float3 n = normalize(float3(normal_map, normal_z));
+  float3 object_colour = input.colour.rgb * colour_spec_map.rgb;
   float3 colour = float3(0, 0, 0);
-  float spec_map = texture2.Sample(sampler2, tex_coord).r;
+  float spec_map = colour_spec_map.a;
   float3 light_dir = input.light_pos - input.frag_pos;
   float3 L = normalize(light_dir);
   float dist = length(light_dir);
