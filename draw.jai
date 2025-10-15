@@ -420,7 +420,7 @@ dr_create_draw_texture :: (name: string, width: int, height: int, format: SDL_GP
 	info.width = xx width;
 	info.height = xx height;
 	info.layer_count_or_depth = 1;
-	info.num_levels = cast(u32) log(cast(float) max(width, height)) + 1;
+	info.num_levels = cast(u32)(floor(log(cast(float) max(width, height)) / log(2.0)) + 1);
 	info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
 	ref := SDL_CreateGPUTexture(dr_renderer.device, *info);
 	if ref
@@ -760,6 +760,7 @@ dr_create_sampler_set :: ()
         info.mipmap_mode = mip_filter;
         info.address_mode_u = address_mode;
         info.address_mode_v = address_mode;
+        info.max_lod = 5;
         sampler := SDL_CreateGPUSampler(dr_renderer.device, *info);
         index := cast(int) filter +
                  cast(int) mip_filter*filters.count +
@@ -934,6 +935,7 @@ dr_queue_texture_upload :: (dest: *SDL_GPUTexture, data: *void, width: int, heig
   upload.x = x;
   upload.y = y;
   upload.texture = dest;
+  upload.generate_mipmaps = generate_mipmaps;
   dr_renderer.upload_size += upload.size;
 }
 

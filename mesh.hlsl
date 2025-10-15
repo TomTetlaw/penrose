@@ -138,7 +138,7 @@ void lighting_spot(LightInfo light, float3 frag_pos, float3 L, float dist, float
   spec = pow(max(0, dot(n, h)), material_params.z) * light.brightness * total_atten;
 }
 
-void lighting(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, float spec_map, float3 object_colour, inout float3 colour, float4 material_params)
+void lighting(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, float spec_intensity, float3 object_colour, inout float3 colour, float4 material_params)
 {
   float diffuse, spec;
   if (light.type == LightType_Directional)
@@ -156,7 +156,7 @@ void lighting(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, 
     lighting_spot(light, frag_pos, L, dist, v, n, diffuse, spec, material_params);
     colour += object_colour * light.colour * diffuse;
   }
-  colour += light.colour * spec * spec_map * 2;
+  colour += light.colour * spec * spec_intensity * 2;
 }
 
 float4 frag_main(FragInput input) : SV_Target
@@ -171,11 +171,10 @@ float4 frag_main(FragInput input) : SV_Target
   float3 n = normalize(float3(normal_map, normal_z));
   float3 object_colour = input.colour.rgb * colour_spec_map.rgb;
   float3 colour = float3(0, 0, 0);
-  float spec_map = colour_spec_map.a;
   float3 light_dir = input.light_pos - input.frag_pos;
   float3 L = normalize(light_dir);
   float dist = length(light_dir);
-  lighting(light, input.frag_pos, L, dist, v, n, spec_map, object_colour, colour, input.material_params);
+  lighting(light, input.frag_pos, L, dist, v, n, colour_spec_map.a, object_colour, colour, input.material_params);
 
   float4 result = float4(colour * input.colour.a, input.colour.a);
   return result;
