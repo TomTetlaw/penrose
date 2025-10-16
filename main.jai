@@ -48,6 +48,7 @@ main :: ()
       dr_init(window, device, resolution);
       in_init();
       g_init();
+      print("%\n", mesh_load(arena_temp, "../source_data/mesh_export.bin"));
       ed_init();
       while main_loop
       {

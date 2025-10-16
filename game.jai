@@ -327,7 +327,7 @@ g_draw :: (filter := EntityFilter.{})
       instance: DR_MeshInstance;
       instance.transform = mat4x4f32_transform(it.position, it.rotation, it.scale);
       instance.colour = it.colour;
-      dr_draw_mesh(it.mesh, .[instance], *it.material_overrides);
+      dr_draw_mesh(it.mesh, .[instance], it.material);
     }
   }
   for each_entity(.{include_types = .[UsableObject]})

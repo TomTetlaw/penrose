@@ -3,7 +3,6 @@ struct VertInput
 {
   float3 position: POSITION;
   float2 tex_coord: TEXCOORD0;
-  float4 colour: TEXCOORD1;
   float3 normal: TEXCOORD2;
   float3 tangent: TEXCOORD3;
 };
@@ -13,10 +12,9 @@ struct FragInput
   float4 clip_position: SV_Position;
   float3 frag_pos: TEXCOORD0;
   float2 tex_coord: TEXCOORD1;
-  float4 colour: TEXCOORD2;
-  float3 view_dir: TEXCOORD3;
-  float3 light_pos: TEXCOORD4;
-  float4 material_params: TEXCOORD5;
+  float3 view_dir: TEXCOORD2;
+  float3 light_pos: TEXCOORD3;
+  float4 material_params: TEXCOORD4;
 };
 
 cbuffer VertConstantBuffer : register(b0, space1)
@@ -53,7 +51,6 @@ float3x3 adjoint(float4x4 m)
 FragInput vert_main(VertInput input, int instance_id: SV_InstanceId)
 {
   InstanceData instance = instance_buffer[instance_id];
-  float4 colour = input.colour * instance.colour;
   float2 tex_coord = input.tex_coord;
   float4 world_position = mul(instance.transform, float4(input.position, 1));
   float4 view_position = mul(world_to_view, world_position);
@@ -61,15 +58,13 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId)
   float3x3 adj = adjoint(instance.transform);
   float3 normal = normalize(mul(adj, input.normal));
   float3 tangent = normalize(mul(adj, input.tangent));
-  float3 bitangent = normalize(cross(normal, tangent));
   tangent = normalize(tangent - dot(tangent, normal) * normal);
-  bitangent = normalize(cross(normal, tangent));
+  float3 bitangent = cross(normal, tangent);
   float3x3 tbn = transpose(float3x3(tangent, bitangent, normal));
   float3 view_dir = normalize(mul(tbn, normalize(camera_pos - world_position.xyz)));
   FragInput output;
   output.clip_position = clip_position;
   output.tex_coord = tex_coord;
-  output.colour = colour;
   output.frag_pos = mul(tbn, world_position.xyz);
   output.view_dir = view_dir;
   output.light_pos =  mul(tbn, light_pos);
@@ -96,10 +91,10 @@ struct LightInfo
   float3 colour;
   float brightness;
   float3 dir;
-  float radius;
+  float pad0;
   float inner_radius;
   float outer_radius;
-  float2 pad;
+  float2 pad1;
 };
 
 cbuffer FragConstantBuffer : register(b0, space3)
@@ -116,7 +111,7 @@ void lighting_directional(LightInfo light, float3 L, float dist, float3 v, float
 
 void lighting_point(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, float3 n, out float diffuse, out float spec, float4 material_params)
 {
-  float atten = saturate(1.0 - (dist / light.radius));
+  float atten = saturate((light.outer_radius - dist) / (light.outer_radius - light.inner_radius));
   atten *= atten;
   diffuse = max(dot(n, L), 0.0) * light.brightness * atten;
   float3 h = normalize(L + v);
@@ -162,20 +157,17 @@ void lighting(LightInfo light, float3 frag_pos, float3 L, float dist, float3 v, 
 float4 frag_main(FragInput input) : SV_Target
 {
   float2 tex_coord = input.tex_coord * input.material_params.xy;
-
-  float3 v = normalize(input.view_dir);
-
-  float2 normal_map = texture1.Sample(sampler1, tex_coord).rg * 2.0 - 1.0;
   float4 colour_spec_map = texture0.Sample(sampler0, tex_coord);
+  float2 normal_map = texture1.Sample(sampler1, tex_coord).rg * 2.0 - 1.0;
   float normal_z = sqrt(saturate(1.0 - length(normal_map)));
   float3 n = normalize(float3(normal_map, normal_z));
-  float3 object_colour = input.colour.rgb * colour_spec_map.rgb;
+  float3 object_colour = colour_spec_map.rgb;
   float3 colour = float3(0, 0, 0);
   float3 light_dir = input.light_pos - input.frag_pos;
-  float3 L = normalize(light_dir);
+  float3 l = normalize(light_dir);
   float dist = length(light_dir);
-  lighting(light, input.frag_pos, L, dist, v, n, colour_spec_map.a, object_colour, colour, input.material_params);
-
-  float4 result = float4(colour * input.colour.a, input.colour.a);
+  float3 v = normalize(input.view_dir);
+  lighting(light, input.frag_pos, l, dist, v, n, colour_spec_map.a, object_colour, colour, input.material_params);
+  float4 result = float4(colour, 1);
   return result;
 }

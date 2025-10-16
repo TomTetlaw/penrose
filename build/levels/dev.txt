@@ -226,10 +226,10 @@ entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
 entity.light_info.brightness: 1
 entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 39
+entity.light_info.pad0: 0
 entity.light_info.inner_radius: 0
 entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
+entity.light_info.pad1: [0, 0]
 entity: PlayerStart
 entity.base.name: player_start
 entity.base.mesh: dr_default_cube_mesh
@@ -254,7 +254,7 @@ entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [-101.606445, -27.994503, 82.85215]
+entity.base.position: [-100.811554, -18.41386, 79.637825]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -273,18 +273,62 @@ entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [-101.606445, -27.994503, 82.85215]
+entity.light_info.position: [-100.811554, -18.41386, 79.637825]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 1
+entity.light_info.brightness: 10
 entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 39
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
+entity.light_info.pad0: 0
+entity.light_info.inner_radius: 5
+entity.light_info.outer_radius: 15
+entity.light_info.pad1: [0, 0]
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-101.872368, -27.054567, 74.948006]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: uv_check
+entity.base.material_overrides.name: dr_default_material
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
+entity.base.material_overrides.tex_normal: dr_default_normal_texture
+entity.base.material_overrides.tex_colour_path: 
+entity.base.material_overrides.tex_normal_path: 
+entity.base.material_overrides.tex_specular_path: 
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity: MeshTest
+entity.base.name: 
+entity.base.mesh: mesh_export
+entity.base.position: [-104.944176, -25.51757, 73.971588]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: floor_grate
+entity.base.material_overrides.name: dr_default_material
+entity.base.material_overrides.specular_shininess: 32
+entity.base.material_overrides.specular_power: 9
+entity.base.material_overrides.tex_coord_scale: [1, 1]
+entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
+entity.base.material_overrides.tex_normal: dr_default_normal_texture
+entity.base.material_overrides.tex_colour_path: 
+entity.base.material_overrides.tex_normal_path: 
+entity.base.material_overrides.tex_specular_path: 
+entity.base.colour: [0.25, 0.25, 0.25, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [-99.528244, -15.179056, 79.030762]
+entity.base.position: [-100.811554, -32.533909, 79.637825]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -303,18 +347,18 @@ entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [-99.528244, -15.179056, 79.030762]
+entity.light_info.position: [-100.811554, -32.533909, 79.637825]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
+entity.light_info.brightness: 10
 entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
+entity.light_info.pad0: 0
+entity.light_info.inner_radius: 5
+entity.light_info.outer_radius: 15
+entity.light_info.pad1: [0, 0]
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [-99.528244, -18.847221, 79.030762]
+entity.base.position: [-113.160194, -23.573193, 79.637825]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -333,18 +377,18 @@ entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [-99.528244, -18.847221, 79.030762]
+entity.light_info.position: [-113.160194, -23.573193, 79.637825]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
+entity.light_info.brightness: 10
 entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
+entity.light_info.pad0: 0
+entity.light_info.inner_radius: 5
+entity.light_info.outer_radius: 15
+entity.light_info.pad1: [0, 0]
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [-99.528244, -23.287918, 79.030762]
+entity.base.position: [-93.144203, -23.573193, 79.637825]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -363,222 +407,12 @@ entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [-99.528244, -23.287918, 79.030762]
+entity.light_info.position: [-93.144203, -23.573193, 79.637825]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
+entity.light_info.brightness: 10
 entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-99.528244, -27.254189, 79.030762]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_colour_path: 
-entity.base.material_overrides.tex_normal_path: 
-entity.base.material_overrides.tex_specular_path: 
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-99.528244, -27.254189, 79.030762]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-109.675842, -27.254189, 79.030762]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_colour_path: 
-entity.base.material_overrides.tex_normal_path: 
-entity.base.material_overrides.tex_specular_path: 
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-109.675842, -27.254189, 79.030762]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-109.675842, -21.736881, 79.030762]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_colour_path: 
-entity.base.material_overrides.tex_normal_path: 
-entity.base.material_overrides.tex_specular_path: 
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-109.675842, -21.736881, 79.030762]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-109.675842, -16.420498, 79.030762]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_colour_path: 
-entity.base.material_overrides.tex_normal_path: 
-entity.base.material_overrides.tex_specular_path: 
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-109.675842, -16.420498, 79.030762]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-109.675842, -11.009449, 79.030762]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_colour_path: 
-entity.base.material_overrides.tex_normal_path: 
-entity.base.material_overrides.tex_specular_path: 
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-109.675842, -11.009449, 79.030762]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-109.675842, -5.502701, 79.030762]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_colour_path: 
-entity.base.material_overrides.tex_normal_path: 
-entity.base.material_overrides.tex_specular_path: 
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-109.675842, -5.502701, 79.030762]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-103.342323, -5.502701, 79.030762]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.material_overrides.name: dr_default_material
-entity.base.material_overrides.specular_shininess: 32
-entity.base.material_overrides.specular_power: 9
-entity.base.material_overrides.tex_coord_scale: [1, 1]
-entity.base.material_overrides.tex_colour_spec: dr_default_white_texture
-entity.base.material_overrides.tex_normal: dr_default_normal_texture
-entity.base.material_overrides.tex_colour_path: 
-entity.base.material_overrides.tex_normal_path: 
-entity.base.material_overrides.tex_specular_path: 
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-103.342323, -5.502701, 79.030762]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 5
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.radius: 18
-entity.light_info.inner_radius: 0
-entity.light_info.outer_radius: 0
-entity.light_info.pad: [0, 0]
+entity.light_info.pad0: 0
+entity.light_info.inner_radius: 5
+entity.light_info.outer_radius: 15
+entity.light_info.pad1: [0, 0]

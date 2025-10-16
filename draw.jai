@@ -254,7 +254,6 @@ DR_MeshVertex :: struct
 {
   position: Vec3F32;
   tex_coord: Vec2F32;
-  colour: Vec4F32;
   normal: Vec3F32;
   tangent: Vec3F32;
 }
@@ -271,12 +270,12 @@ DR_LightInfo :: struct
   position: Vec3F32;
   type := LightType.Point;
   colour := Vec3F32.{1, 1, 1};
-  brightness := 1.0;
+  brightness := 5.0;
   dir: Vec3F32;
-  radius := 5.0;
-  inner_radius: F32;
-  outer_radius: F32;
-  pad: Vec2F32;
+  pad0: F32;
+  inner_radius := 3.0;
+  outer_radius := 5.0;
+  pad1: Vec2F32;
 }
 
 dr_renderer: *DR_RendererState;
@@ -586,7 +585,6 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   vert_attribute_desc :: VertAttributeDesc.[
     .{#run offset_of(DR_MeshVertex, "position"),  .FLOAT3},
     .{#run offset_of(DR_MeshVertex, "tex_coord"), .FLOAT2},
-    .{#run offset_of(DR_MeshVertex, "colour"),    .FLOAT4},
     .{#run offset_of(DR_MeshVertex, "normal"),    .FLOAT3},
     .{#run offset_of(DR_MeshVertex, "tangent"),   .FLOAT3},
   ];
@@ -658,30 +656,30 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
 
 dr_create_builtin_meshes :: () {
   cube_vertices := DR_MeshVertex.[
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,0,1), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,0,-1), tangent=v3f32(-1,0,0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(-1,0,0), tangent=v3f32(0,0,-1)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(1,0,0), tangent=v3f32(0,0,1)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,0), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,0), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,1), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,1), colour=v4f32(1.0), normal=v3f32(0,-1,0), tangent=v3f32(1,0,0)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
   ];
   cube_indices := u32.[
     0,1,2, 0,2,3,
@@ -693,18 +691,18 @@ dr_create_builtin_meshes :: () {
   ];
   dr_renderer.mesh_cube = dr_create_mesh("dr_default_cube_mesh", cube_vertices, cube_indices);
   line_vertices := DR_MeshVertex.[
-    .{position = v3f32(-1,  2, 0), tex_coord=v2f32(-1,  2), colour=v4f32(1.0)},
-    .{position = v3f32( 1,  2, 0), tex_coord=v2f32( 1,  2), colour=v4f32(1.0)},
-    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1), colour=v4f32(1.0)},
-    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1), colour=v4f32(1.0)},
-    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1), colour=v4f32(1.0)},
-    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1), colour=v4f32(1.0)},
-    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0), colour=v4f32(1.0)},
-    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0), colour=v4f32(1.0)},
-    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0), colour=v4f32(1.0)},
-    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0), colour=v4f32(1.0)},
-    .{position = v3f32(-1, -1, 0), tex_coord=v2f32(-1, -1), colour=v4f32(1.0)},
-    .{position = v3f32( 1, -1, 0), tex_coord=v2f32( 1, -1), colour=v4f32(1.0)},
+    .{position = v3f32(-1,  2, 0), tex_coord=v2f32(-1,  2)},
+    .{position = v3f32( 1,  2, 0), tex_coord=v2f32( 1,  2)},
+    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1)},
+    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1)},
+    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1)},
+    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1)},
+    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0)},
+    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0)},
+    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0)},
+    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0)},
+    .{position = v3f32(-1, -1, 0), tex_coord=v2f32(-1, -1)},
+    .{position = v3f32( 1, -1, 0), tex_coord=v2f32( 1, -1)},
   ];
   line_indices := u32.[
     0, 2, 1, 2, 3, 1,
@@ -713,10 +711,10 @@ dr_create_builtin_meshes :: () {
   ];
   dr_renderer.mesh_line = dr_create_mesh("dr_line", line_vertices, line_indices);
   quad_vertices := DR_MeshVertex.[
-    .{position = v3f32(-.5, -.5, 0), tex_coord=v2f32(0, 0), colour=v4f32(1.0)},
-    .{position = v3f32( .5, -.5, 0), tex_coord=v2f32(1, 0), colour=v4f32(1.0)},
-    .{position = v3f32( .5,  .5, 0), tex_coord=v2f32(1, 1), colour=v4f32(1.0)},
-    .{position = v3f32(-.5,  .5, 0), tex_coord=v2f32(0, 1), colour=v4f32(1.0)},
+    .{position = v3f32(-.5, -.5, 0), tex_coord=v2f32(0, 0)},
+    .{position = v3f32( .5, -.5, 0), tex_coord=v2f32(1, 0)},
+    .{position = v3f32( .5,  .5, 0), tex_coord=v2f32(1, 1)},
+    .{position = v3f32(-.5,  .5, 0), tex_coord=v2f32(0, 1)},
   ];
   quad_indices := u32.[
     0, 1, 2, 2, 3, 0
@@ -760,7 +758,7 @@ dr_create_sampler_set :: ()
         info.mipmap_mode = mip_filter;
         info.address_mode_u = address_mode;
         info.address_mode_v = address_mode;
-        info.max_lod = 5;
+        info.max_lod = 99;
         sampler := SDL_CreateGPUSampler(dr_renderer.device, *info);
         index := cast(int) filter +
                  cast(int) mip_filter*filters.count +

@@ -89,7 +89,7 @@ offset_of :: ($T: Type, $member: string) -> u32
   {
     if it.name == member return xx it.offset_in_bytes;
   }
-  assert(false);
+  assert(false, "member not found");
   return 0;
 }
 

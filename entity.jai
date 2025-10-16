@@ -81,3 +81,9 @@ Door :: struct
   base.scale = Vec3F32.{0.5, 3.0, 7.0};
   open: bool;
 }
+
+MeshTest :: struct
+{
+  using #as base: Entity;
+  base.mesh_path = "mesh_export";
+}

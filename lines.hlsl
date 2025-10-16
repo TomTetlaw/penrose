@@ -3,9 +3,8 @@ struct VertInput
 {
   float3 position: POSITION;
   float2 tex_coord: TEXCOORD0;
-  float4 colour: TEXCOORD1;
-  float3 normal: TEXCOORD2;
-  float3 tangent: TEXCOORD3;
+  float3 normal: TEXCOORD1;
+  float3 tangent: TEXCOORD2;
 };
 
 struct FragInput
@@ -59,7 +58,7 @@ FragInput vert_main(VertInput input, int instance_id: SV_InstanceId)
   InstanceData instance = instance_buffer[instance_id];
   float thickness = instance.props.x;
   FragInput output;
-  float4 colour = input.colour * instance.colour;
+  float4 colour = instance.colour;
   float2 tex_coord = input.tex_coord;
   float3 start = instance.start;
   float3 end = instance.end;
