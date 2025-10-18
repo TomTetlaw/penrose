@@ -146,7 +146,6 @@ Entity :: struct
   rotation: Vec3F32;
   scale := Vec3F32.{1, 1, 1};
   material: *DR_MeshMaterial;
-  material_overrides: DR_MeshMaterial; @no_imgui
   colour := Vec4F32.{1, 1, 1, 1}; @colour
   collision: CollisionInfo;
   collision.type = .Box;
@@ -184,7 +183,6 @@ g_create_entity :: ($T: Type) -> *T
   {
     entity.material = dr_get_material(entity.material_name);
   }
-  entity.material_overrides = entity.material.*;
   return g_downcast(entity, T);
 }
 
@@ -218,14 +216,17 @@ g_clear_level :: ()
 
 g_start_level :: ()
 {
-  set_fps_mode(true);
   player_start := g_find_entity_by_name("player_start", .{include_editor_only = true});
-  g_game_state.player = g_create_entity(Player);
-  g_game_state.player.position = player_start.position;
-  g_game_state.mode = .Game;
-  for each_entity()
+  if player_start
   {
-    it.spawn_position = it.position;
+    set_fps_mode(true);
+    g_game_state.player = g_create_entity(Player);
+    g_game_state.player.position = player_start.position;
+    g_game_state.mode = .Game;
+    for each_entity()
+    {
+      it.spawn_position = it.position;
+    }
   }
 }
 

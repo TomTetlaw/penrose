@@ -363,41 +363,22 @@ editor_imgui :: ()
   ImGui.Begin("Materials");
   draw_list := ImGui.GetWindowDrawList();
   draw_list.AddCallback(draw_list, set_sampler_callback, null);
-  mat: *DR_MeshMaterial;
-  if ed_editor.selected_entity
+  material_property("material", *ed_editor.editing_material);
+  ImGui.SameLine();
+  if ImGui.Button("+")
   {
-    mat = *ed_editor.selected_entity.material_overrides;
+    ed_editor.editing_material = dr_create_material();
   }
-  else
-  {
-    material_property("material", *ed_editor.editing_material);
-    ImGui.SameLine();
-    if ImGui.Button("+")
-    {
-      ed_editor.editing_material = dr_create_material();
-    }
-    mat = ed_editor.editing_material;
-    ImGui.SameLine();
-    if ImGui.Button("Update Entities")
-    {
-      for each_entity()
-      {
-        if it.material && it.material.name == mat.name
-        {
-          it.material_overrides = mat.*;
-        }
-      }
-    }
-  }
+  mat := ed_editor.editing_material;
+  ImGui.SameLine();
   string_property("name", *mat.name);
   if ImGui.DragInt("specular_power", *mat.specular_power)
   {
     mat.specular_shininess = cast(F32) (1 << mat.specular_power);
   }
   ImGui.DragFloat2("tex_coord_scale", *mat.tex_coord_scale.f);
-  ImGui.Text(str_format(arena_temp, "colour: %", mat.tex_colour_path));
+  ImGui.Text(str_format(arena_temp, "colour: %", mat.tex_colour_spec_path));
   ImGui.Text(str_format(arena_temp, "normal: %", mat.tex_normal_path));
-  ImGui.Text(str_format(arena_temp, "specular: %", mat.tex_specular_path));
   ImGui.End();
 }
 

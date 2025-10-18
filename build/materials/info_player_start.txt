@@ -1,6 +1,0 @@
-name: info_player_start
-specular_power: 13
-tex_coord_scale: [1, 1]
-tex_colour_path: textures/info_player_start.png
-tex_normal_path: textures/info_player_start_norm.png
-tex_specular_path: textures/info_player_start_spec.png

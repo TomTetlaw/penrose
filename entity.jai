@@ -85,5 +85,11 @@ Door :: struct
 MeshTest :: struct
 {
   using #as base: Entity;
-  base.mesh_path = "mesh_export";
+  base.mesh_path = "silo";
+}
+
+MeshTest2 :: struct
+{
+  using #as base: Entity;
+  base.mesh_path = "boiled";
 }

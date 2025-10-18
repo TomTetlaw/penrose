@@ -1,6 +1,0 @@
-name: deco_wallpaper
-specular_power: 9
-tex_coord_scale: [1, 1]
-tex_colour_path: textures/deco_wallpaper.png
-tex_normal_path: textures/deco_wallpaper_norm.png
-tex_specular_path: textures/deco_wallpaper_spec.png

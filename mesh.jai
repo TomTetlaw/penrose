@@ -7,7 +7,6 @@ mesh_load :: (arena: *Arena, path: string) -> *DR_Mesh
   {
     vert_count: u32;
     file_read(*file, *vert_count, size_of(u32));
-    print("vert_count=%\n", vert_count);
     verts := arena_push_view(arena, DR_MeshVertex, vert_count);
     file_read(*file, verts.data, vert_count * size_of(DR_MeshVertex));
     indices := arena_push_view(arena, u32, vert_count);

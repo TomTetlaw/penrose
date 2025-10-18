@@ -92,9 +92,8 @@ DR_MeshMaterial :: struct
   tex_coord_scale := Vec2F32.{1, 1};
   tex_colour_spec: *DR_Texture;
   tex_normal: *DR_Texture;
-  tex_colour_path: string;
+  tex_colour_spec_path: string;
   tex_normal_path: string;
-  tex_specular_path: string;
 }
 
 DR_DrawMesh :: struct
@@ -162,6 +161,7 @@ DR_RendererState :: struct
   textures: *DR_Texture;
   mat_default: *DR_MeshMaterial;
   tex_white: *DR_Texture;
+  tex_gray: *DR_Texture;
   tex_black: *DR_Texture;
   tex_normal: *DR_Texture;
   depth_target: *DR_Texture;
@@ -255,7 +255,7 @@ DR_MeshVertex :: struct
   position: Vec3F32;
   tex_coord: Vec2F32;
   normal: Vec3F32;
-  tangent: Vec3F32;
+  tangent: Vec4F32;
 }
 
 LightType :: enum u32
@@ -289,7 +289,7 @@ dr_get_mesh :: (path: string) -> *DR_Mesh
       return it;
     }
   }
-  return null;
+  return mesh_load(arena_temp, str_format(arena_temp, "meshes/%.mesh", path));
 }
 
 dr_get_texture :: (path: string) -> *DR_Texture
@@ -314,7 +314,7 @@ dr_get_material :: (name: string) -> *DR_MeshMaterial
       return it;
     }
   }
-  return null;
+  return dr_renderer.mat_default;
 }
 
 dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) -> *DR_Mesh
@@ -322,7 +322,7 @@ dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) ->
   capacity_vertices := size_of(DR_MeshVertex) * vertices.count;
   mesh := arena_push_struct(dr_renderer.arena, DR_Mesh);
   stack_push(*dr_renderer.meshes, mesh);
-  mesh.path = name;
+  mesh.path = str_copy(dr_renderer.arena, name);
   mesh.buffer_vertex = dr_create_vertex_buffer(str_format(arena_temp, "%_vertices", name), capacity_vertices, null, 0, 0);
   mesh.vertices = dr_write_buffer(mesh.buffer_vertex, vertices.data, capacity_vertices);
   mesh.vertex_count = vertices.count;
@@ -586,7 +586,7 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
     .{#run offset_of(DR_MeshVertex, "position"),  .FLOAT3},
     .{#run offset_of(DR_MeshVertex, "tex_coord"), .FLOAT2},
     .{#run offset_of(DR_MeshVertex, "normal"),    .FLOAT3},
-    .{#run offset_of(DR_MeshVertex, "tangent"),   .FLOAT3},
+    .{#run offset_of(DR_MeshVertex, "tangent"),   .FLOAT4},
   ];
   attributes: [vert_attribute_desc.count] SDL_GPUVertexAttribute;
   if flags & .PositionOnly
@@ -656,30 +656,30 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
 
 dr_create_builtin_meshes :: () {
   cube_vertices := DR_MeshVertex.[
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,1),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,-1), tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(1,0,0),  tangent=v3f32( 0,-1,  0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(-1,0,0), tangent=v3f32( 0, 1,  0)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,1,0),  tangent=v3f32( 1, 0,  0)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,-1,0), tangent=v3f32(-1, 0,  0)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
+    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
+    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
+    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
+    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
+    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
   ];
   cube_indices := u32.[
     0,1,2, 0,2,3,
@@ -725,7 +725,8 @@ dr_create_builtin_meshes :: () {
 dr_create_builtin_textures :: ()
 {
   dr_renderer.tex_white = dr_create_draw_texture("dr_default_white_texture", 1, 1, .R8G8B8A8_UNORM, u8.[255, 255, 255, 255].data);
-  dr_renderer.tex_black = dr_create_draw_texture("dr_default_black_texture", 1, 1, .R8G8B8A8_UNORM, u8.[0, 0, 0, 0].data);
+  dr_renderer.tex_gray = dr_create_draw_texture("dr_default_gray_texture", 1, 1, .R8G8B8A8_UNORM, u8.[128, 128, 128, 255].data);
+  dr_renderer.tex_black = dr_create_draw_texture("dr_default_black_texture", 1, 1, .R8G8B8A8_UNORM, u8.[0, 0, 0, 255].data);
   dr_renderer.tex_normal = dr_create_draw_texture("dr_default_normal_texture", 1, 1, .R8G8B8A8_UNORM, u8.[0, 128, 0, 0].data);
 }
 
@@ -824,27 +825,21 @@ read_materials :: ()
   texture_files := file_list("textures");
   for texture_files
   {
-    if !contains(it, "_spec") && !contains(it, "_norm")
+    if !contains(it, "_norm")
     {
       path, base, ext := path_decomp(it);
-      col := str_temp_format("textures/%.%", base, ext);
+      col_spec := str_temp_format("textures/%.%", base, ext);
       norm := str_temp_format("textures/%_norm.%", base, ext);
-      spec := str_temp_format("textures/%_spec.%", base, ext);
       if !file_exists(str_temp_format("%", norm))
       {
         norm = "dr_default_normal_texture";
-      }
-      if !file_exists(str_temp_format("%", spec))
-      {
-        spec = "dr_default_white_texture";
       }
       if !file_exists(str_temp_format("materials/%.txt", base))
       {
         builder: String_Builder;
         print_to_builder(*builder, "name: %\n", base);
-        print_to_builder(*builder, "tex_colour_path: %\n", col);
+        print_to_builder(*builder, "tex_colour_spec_path: %\n", col_spec);
         print_to_builder(*builder, "tex_normal_path: %\n", norm);
-        print_to_builder(*builder, "tex_specular_path: %\n", spec);
         mat := builder_to_string(*builder);
         write_entire_file(str_temp_format("materials/%.txt", base), mat);
       }
@@ -871,15 +866,14 @@ read_materials :: ()
             mat.specular_shininess = cast(F32) (1 << mat.specular_power);
           case "tex_coord_scale";
             mat.tex_coord_scale = parse_v2(right);
-          case "tex_colour_path";
-            mat.tex_colour_path = right;
+          case "tex_colour_spec_path";
+            mat.tex_colour_spec_path = right;
           case "tex_normal_path";
             mat.tex_normal_path = right;
-          case "tex_specular_path";
-            mat.tex_specular_path = right;
         }
       }
-      mat.tex_colour_spec, mat.tex_normal = tex_load_material(mat.tex_colour_path, mat.tex_normal_path, mat.tex_specular_path);
+      mat.tex_colour_spec = dr_get_texture(mat.tex_colour_spec_path);
+      mat.tex_normal = dr_get_texture(mat.tex_normal_path);
     }
   }
 }
@@ -896,9 +890,8 @@ write_materials :: ()
       file_print_line(*file, "name: %", it.name);
       file_print_line(*file, "specular_power: %", it.specular_power);
       file_print_v2(*file, "tex_coord_scale", it.tex_coord_scale);
-      file_print_line(*file, "tex_colour_path: %", it.tex_colour_path);
+      file_print_line(*file, "tex_colour_spec_path: %", it.tex_colour_spec_path);
       file_print_line(*file, "tex_normal_path: %", it.tex_normal_path);
-      file_print_line(*file, "tex_specular_path: %", it.tex_specular_path);
     }
   }
 }
@@ -1119,10 +1112,21 @@ dr_draw_frame :: (camera: *CAM_Base)
         }
         if current_material != it.material
         {
-          binding_textures := SDL_GPUTextureSamplerBinding.[
-            .{it.material.tex_colour_spec.ref, sampler},
-            .{it.material.tex_normal.ref, sampler},
-          ];
+          binding_textures: [2] SDL_GPUTextureSamplerBinding;
+          if it.material
+          {
+            binding_textures = SDL_GPUTextureSamplerBinding.[
+              .{it.material.tex_colour_spec.ref, sampler},
+              .{it.material.tex_normal.ref, sampler},
+            ];
+          }
+          else
+          {
+            binding_textures = SDL_GPUTextureSamplerBinding.[
+              .{dr_renderer.tex_gray.ref, sampler},
+              .{dr_renderer.tex_normal.ref, sampler},
+            ];
+          }
           SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
           current_material = it.material;
         }
@@ -1313,7 +1317,7 @@ dr_compile_shader :: (name: string)
       hlsl_info.entrypoint = cstr_from_str(arena_temp, it.entry);
       hlsl_info.shader_stage = it.stage;
       props := SDL_CreateProperties();
-      SDL_SetBooleanProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN, true);
+      // SDL_SetBooleanProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN, true);
       SDL_SetBooleanProperty(props, SDL_SHADERCROSS_PROP_SHADER_CULL_UNUSED_BINDINGS_BOOLEAN, true);
       SDL_SetStringProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING, cstr_from_str(arena_temp, name));
       hlsl_info.props = props;

@@ -32,7 +32,12 @@ build :: ()
   set_build_options(options, workspace);
   make_directory_if_it_does_not_exist("./build/shaders");
   plugins: [..] *Metaprogram_Plugin;
-  init_plugins(.[.{name="tracy"}], *plugins, workspace);
+  to_create: [..] Plugin_To_Create;
+  if profiling
+  {
+    array_add(*to_create, .{name="tracy"});
+  }
+  init_plugins(to_create, *plugins, workspace);
   intercept_flags: Intercept_Flags;
   for plugins if it.before_intercept it.before_intercept(it, *intercept_flags);
   compiler_begin_intercept(workspace);
