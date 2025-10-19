@@ -1,19 +1,6 @@
-entity: MeshTest
-entity.base.name: 
-entity.base.mesh: silo
-entity.base.position: [-17.973652, 0, 4.689116]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: silo
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: true
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [18.649231, -17.720406, 13.829941]
+entity.base.position: [-33.417618, -85.022141, 62.110039]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -23,56 +10,22 @@ entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [18.649231, -17.720406, 13.829941]
+entity.light_info.position: [-33.417618, -85.022141, 62.110039]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
 entity.light_info.brightness: 3
 entity.light_info.dir: [1, 0, 0]
 entity.light_info.pad0: 0
-entity.light_info.inner_radius: 15
-entity.light_info.outer_radius: 30
+entity.light_info.inner_radius: 1
+entity.light_info.outer_radius: 15
 entity.light_info.pad1: [0, 0]
-entity: PlayerStart
-entity.base.name: player_start
+entity: Prop
+entity.base.name: 
 entity.base.mesh: dr_default_cube_mesh
-entity.base.position: [-1.002537, 0, 8.924908]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: true
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity: DynamicLight
-entity.base.name: 
-entity.base.position: [-21.282646, -8.549686, 22.463768]
-entity.base.rotation: [0, 0, 0]
-entity.base.scale: [1, 1, 1]
-entity.base.material: dr_default_material
-entity.base.colour: [1, 1, 1, 1]
-entity.base.collision.type: Box
-entity.base.collision.enabled: false
-entity.base.collision.box_scale: [1, 1, 1]
-entity.base.collision.capsule_radius: 0
-entity.base.collision.capsule_height: 0
-entity.light_info.position: [-21.282646, -8.549686, 22.463768]
-entity.light_info.type: Point
-entity.light_info.colour: [1, 1, 1]
-entity.light_info.brightness: 3
-entity.light_info.dir: [1, 0, 0]
-entity.light_info.pad0: 0
-entity.light_info.inner_radius: 15
-entity.light_info.outer_radius: 30
-entity.light_info.pad1: [0, 0]
-entity: MeshTest
-entity.base.name: 
-entity.base.mesh: silo
-entity.base.position: [0, 0, 0]
+entity.base.position: [-32.905998, -86.294998, 61.237]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [25, 25, 1]
-entity.base.material: silo
+entity.base.material: grate
 entity.base.colour: [1, 1, 1, 1]
 entity.base.collision.type: Box
 entity.base.collision.enabled: true
@@ -81,7 +34,7 @@ entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [15.743107, 24.346016, 13.829941]
+entity.base.position: [-24.068789, -76.066681, 62.440712]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -91,18 +44,18 @@ entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [15.743107, 24.346016, 13.829941]
+entity.light_info.position: [-24.068789, -76.066681, 62.440712]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
 entity.light_info.brightness: 3
 entity.light_info.dir: [1, 0, 0]
 entity.light_info.pad0: 0
-entity.light_info.inner_radius: 15
-entity.light_info.outer_radius: 30
+entity.light_info.inner_radius: 1
+entity.light_info.outer_radius: 15
 entity.light_info.pad1: [0, 0]
 entity: DynamicLight
 entity.base.name: 
-entity.base.position: [-16.232166, 24.346016, 13.829941]
+entity.base.position: [-39.698605, -87.66951, 62.351967]
 entity.base.rotation: [0, 0, 0]
 entity.base.scale: [1, 1, 1]
 entity.base.material: dr_default_material
@@ -112,12 +65,46 @@ entity.base.collision.enabled: false
 entity.base.collision.box_scale: [1, 1, 1]
 entity.base.collision.capsule_radius: 0
 entity.base.collision.capsule_height: 0
-entity.light_info.position: [-16.232166, 24.346016, 13.829941]
+entity.light_info.position: [-39.698605, -87.66951, 62.351967]
 entity.light_info.type: Point
 entity.light_info.colour: [1, 1, 1]
 entity.light_info.brightness: 3
 entity.light_info.dir: [1, 0, 0]
 entity.light_info.pad0: 0
-entity.light_info.inner_radius: 15
-entity.light_info.outer_radius: 30
+entity.light_info.inner_radius: 1
+entity.light_info.outer_radius: 15
 entity.light_info.pad1: [0, 0]
+entity: DynamicLight
+entity.base.name: 
+entity.base.position: [-27.919878, -95.061165, 63.422318]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: dr_default_material
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: false
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0
+entity.light_info.position: [-27.919878, -95.061165, 63.422318]
+entity.light_info.type: Point
+entity.light_info.colour: [1, 1, 1]
+entity.light_info.brightness: 3
+entity.light_info.dir: [1, 0, 0]
+entity.light_info.pad0: 0
+entity.light_info.inner_radius: 1
+entity.light_info.outer_radius: 15
+entity.light_info.pad1: [0, 0]
+entity: Prop
+entity.base.name: 
+entity.base.mesh: dr_default_cube_mesh
+entity.base.position: [-27.676781, -84.069527, 64.280823]
+entity.base.rotation: [0, 0, 0]
+entity.base.scale: [1, 1, 1]
+entity.base.material: grate
+entity.base.colour: [1, 1, 1, 1]
+entity.base.collision.type: Box
+entity.base.collision.enabled: true
+entity.base.collision.box_scale: [1, 1, 1]
+entity.base.collision.capsule_radius: 0
+entity.base.collision.capsule_height: 0

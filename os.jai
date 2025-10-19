@@ -1,6 +1,16 @@
 
 #if OS == .WINDOWS
 {
+  using,only
+  (
+    VirtualAlloc,
+    VirtualFree,
+    GetSystemInfo,
+    SYSTEM_INFO,
+    MEM_RESERVE, MEM_COMMIT, MEM_DECOMMIT, MEM_RELEASE,
+    PAGE_READWRITE
+  ) Windows :: #import "Windows";
+
   os_reserve :: (size: u64) -> *void
   {
     return VirtualAlloc(null, size, MEM_RESERVE, PAGE_READWRITE);
@@ -9,7 +19,10 @@
   os_commit :: (memory: *void, size: u64)
   {
     VirtualAlloc(memory, size, MEM_COMMIT, PAGE_READWRITE);
-    ___tracy_emit_memory_alloc(memory, size, 0);
+    #if PENROSE_PROFILE
+    {
+      ___tracy_emit_memory_alloc(memory, size, 0);
+    }
   }
 
   os_free :: (memory: *void, size: u64)

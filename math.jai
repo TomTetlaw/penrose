@@ -7,28 +7,10 @@ sin_turns :: (t: float) -> float {return sin(t * RadiansFromTurns);}
 cos_turns :: (t: float) -> float {return cos(t * RadiansFromTurns);}
 tan_turns :: (t: float) -> float {return tan(t * RadiansFromTurns);}
 
-lerp :: (a: F32, b: F32, t: F32) -> F32
-{
-  return a + (b - a) * t;
-}
-
 approach :: (current: float, goal: float, duration: float, delta: float) -> float
 {
   decay :: 4.6;
   return goal + (current - goal) * exp(-decay * delta * (1.0 / duration));
-}
-
-clamp :: (v: $T, min_value: T, max_value: T) -> T
-{
-  if v < min_value
-  {
-    return min_value;
-  }
-  if v > max_value
-  {
-    return max_value;
-  }
-  return v;
 }
 
 PlaneF32 :: struct
@@ -344,6 +326,12 @@ Mat4x4F32 :: struct
   _20, _21, _22, _23: float;
   _30, _31, _32, _33: float;
   #place _00; m: [4][4] float;
+}
+
+mat4x4f32_transform_position :: (p: Vec3F32, m: Mat4x4F32) -> Vec3F32
+{
+  result := m * v4f32(p, 1);
+  return result.xyz;
 }
 
 operator * :: (a: Mat4x4F32, b: Mat4x4F32) -> Mat4x4F32 { return mul_mat4x4f32(a, b); }

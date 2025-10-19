@@ -3,9 +3,21 @@ dr_shaders_dir :: "shaders";
 dr_max_mesh_instances :: 10240;
 dr_max_line_instances :: 10240;
 dr_max_quad_instances :: 10240;
+dr_colour_format :: SDL_GPUTextureFormat.B8G8R8A8_UNORM_SRGB;
 dr_depth_format :: SDL_GPUTextureFormat.D24_UNORM_S8_UINT;
 dr_depth_compare_op :: SDL_GPUCompareOp.GREATER_OR_EQUAL;
 dr_depth_clear_value :: 0.0;
+dr_max_shadow_verts :: 10240;
+
+dr_msaa_enabled :: true;
+#if dr_msaa_enabled
+{
+  dr_msaa_sample_count :: SDL_GPUSampleCount._8;
+}
+else
+{
+  dr_msaa_sample_count :: SDL_GPUSampleCount._1;
+}
 
 DR_Buffer :: struct
 {
@@ -90,16 +102,19 @@ DR_MeshMaterial :: struct
   specular_shininess := 32.0;
   specular_power: s32 = 9;
   tex_coord_scale := Vec2F32.{1, 1};
-  tex_colour_spec: *DR_Texture;
+  tex_colour: *DR_Texture;
   tex_normal: *DR_Texture;
-  tex_colour_spec_path: string;
+  tex_spec: *DR_Texture;
+  tex_colour_path: string;
   tex_normal_path: string;
+  tex_spec_path: string;
 }
 
 DR_DrawMesh :: struct
 {
   next: *DR_DrawMesh;
   instances: DR_BufferRef;
+  instances_view: [] DR_MeshInstance;
   vertices: DR_BufferRef;
   indices: DR_BufferRef;
   base_instance: int;
@@ -108,6 +123,7 @@ DR_DrawMesh :: struct
   instance_count: int;
   index_count: int;
   material: *DR_MeshMaterial;
+  shadow_volume: *SH_ShadowVolume;
 }
 
 DR_DrawLines :: struct
@@ -138,6 +154,8 @@ DR_Mesh :: struct
   index_count: int;
   bounds_min: Vec3F32;
   bounds_max: Vec3F32;
+  positions: [] Vec3F32;
+  shadow_volume: *SH_ShadowVolume;
 }
 
 DR_Texture :: struct
@@ -164,6 +182,8 @@ DR_RendererState :: struct
   tex_gray: *DR_Texture;
   tex_black: *DR_Texture;
   tex_normal: *DR_Texture;
+  colour_target: *DR_Texture;
+  resolve_target: *DR_Texture;
   depth_target: *DR_Texture;
   draw_mesh_arena: *Arena;
   draw_meshes: *DR_DrawMesh;
@@ -184,6 +204,8 @@ DR_RendererState :: struct
   pipeline_mesh: *DR_Pipeline;
   pipeline_lines: *DR_Pipeline;
   pipeline_quads: *DR_Pipeline;
+  pipeline_shadow: *DR_Pipeline;
+  shadow_vertex_buffer: *DR_Buffer;
   upload_size: int;
   upload_queue: *DR_Upload;
   last_upload: *DR_Upload;
@@ -205,6 +227,7 @@ DR_PipelineFlags :: enum_flags
   HasWireframeVariant;
   PositionOnly;
   NoColour;
+  StencilShadow;
 }
 
 DR_PipelineTopology :: enum
@@ -260,7 +283,6 @@ DR_MeshVertex :: struct
 
 LightType :: enum u32
 {
-  Directional :: 0;
   Point :: 1;
   Spot :: 2;
 }
@@ -273,8 +295,8 @@ DR_LightInfo :: struct
   brightness := 5.0;
   dir: Vec3F32;
   pad0: F32;
-  inner_radius := 3.0;
-  outer_radius := 5.0;
+  inner_radius := .25;
+  outer_radius := 1.0;
   pad1: Vec2F32;
 }
 
@@ -328,8 +350,10 @@ dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) ->
   mesh.vertex_count = vertices.count;
   mesh.bounds_min = v3f32(MaxF32);
   mesh.bounds_max = v3f32(-MaxF32);
+  mesh.positions = arena_push_view(dr_renderer.arena, Vec3F32, xx vertices.count);
   for vertices
   {
+    mesh.positions[it_index] = it.position;
     mesh.bounds_min = min_v3(mesh.bounds_min, it.position);
     mesh.bounds_max = max_v3(mesh.bounds_max, it.position);
   }
@@ -340,6 +364,7 @@ dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) ->
     mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
     mesh.index_count = indices.count;
   }
+  mesh.shadow_volume = sh_generate_base_mesh(dr_renderer.arena, mesh);
   return mesh;
 }
 
@@ -388,7 +413,7 @@ dr_reset_buffer :: (buffer: *DR_Buffer)
   buffer.used = 0;
 }
 
-dr_create_target_texture :: (name: string, width: int, height: int, format: SDL_GPUTextureFormat, usage: SDL_GPUTextureUsageFlags) -> *DR_Texture
+dr_create_target_texture :: (name: string, width: int, height: int, sample_count: SDL_GPUSampleCount, format: SDL_GPUTextureFormat, usage: SDL_GPUTextureUsageFlags) -> *DR_Texture
 {
   info: SDL_GPUTextureCreateInfo;
 	info.type = .SDL_GPU_TEXTURETYPE_2D;
@@ -398,6 +423,7 @@ dr_create_target_texture :: (name: string, width: int, height: int, format: SDL_
 	info.layer_count_or_depth = 1;
 	info.num_levels = 1;
 	info.usage = usage;
+	info.sample_count = sample_count;
 	ref := SDL_CreateGPUTexture(dr_renderer.device, *info);
 	if ref
 	{
@@ -461,6 +487,8 @@ dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_Me
     draw_mesh.instance_count = instances.count;
     draw_mesh.index_count = mesh.indices.size / size_of(u32);
     draw_mesh.material = material;
+    draw_mesh.shadow_volume = mesh.shadow_volume;
+    draw_mesh.instances_view = arena_copy_view(arena_temp, instances);
   }
 }
 
@@ -566,7 +594,7 @@ dr_draw_circle :: (center: Vec3F32, normal: Vec3F32, radius: F32, segments: int,
 dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: DR_PipelineFlags, topology: DR_PipelineTopology) -> *DR_Pipeline
 {
   colour_target_desc: SDL_GPUColorTargetDescription;
-  colour_target_desc.format = .B8G8R8A8_UNORM;
+  colour_target_desc.format = dr_colour_format;
   if flags & .Blend
   {
     colour_target_desc.blend_state.enable_blend = true;
@@ -622,6 +650,7 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   }
   info_base.rasterizer_state.cull_mode = .BACK;
   info_base.rasterizer_state.fill_mode = .FILL;
+  info_base.multisample_state.sample_count = dr_msaa_sample_count;
   if topology ==
   {
     case .Triangles;
@@ -633,6 +662,23 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   {
     info_base.target_info.depth_stencil_format = dr_depth_format;
     info_base.target_info.has_depth_stencil_target = true;
+  }
+  if (flags & .StencilShadow)
+  {
+    info_base.rasterizer_state.cull_mode = .NONE;
+    info_base.depth_stencil_state.back_stencil_state.depth_fail_op = .INCREMENT_AND_WRAP;
+    info_base.depth_stencil_state.front_stencil_state.depth_fail_op = .DECREMENT_AND_WRAP;
+    info_base.depth_stencil_state.enable_depth_write = false;
+    info_base.depth_stencil_state.enable_depth_test = true;
+    info_base.depth_stencil_state.enable_stencil_test = true;
+    info_base.depth_stencil_state.compare_mask = 0xff;
+    info_base.depth_stencil_state.write_mask = 0xff;
+    info_base.depth_stencil_state.back_stencil_state.compare_op = .ALWAYS;
+    info_base.depth_stencil_state.back_stencil_state.fail_op = .KEEP;
+    info_base.depth_stencil_state.back_stencil_state.pass_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.compare_op = .ALWAYS;
+    info_base.depth_stencil_state.front_stencil_state.fail_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.pass_op = .KEEP;
   }
   info_base.depth_stencil_state.compare_op = dr_depth_compare_op;
   info_base.depth_stencil_state.enable_depth_test = cast(bool) (flags & .DepthTest);
@@ -794,9 +840,16 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.quad_instances = dr_create_storage_buffer("quad_instances", size_of(DR_QuadInstance) * dr_max_quad_instances, null, 0, 0);
   dr_renderer.pipeline_depth = dr_create_pipeline(dr_renderer.shader_depth, dr_renderer.mesh_instances, .DepthTest | .DepthWrite | .PositionOnly | .NoColour, .Triangles);
   dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest, .Triangles);
-  dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .None, .Triangles);
+  dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .DepthTest, .Triangles);
   dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .None, .Triangles);
-  dr_renderer.depth_target = dr_create_target_texture("depth_target", xx resolution.x, xx resolution.y, dr_depth_format, SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+  dr_renderer.pipeline_shadow = dr_create_pipeline(dr_renderer.shader_depth, dr_renderer.mesh_instances, .DepthTest | .StencilShadow, .Triangles);
+  dr_renderer.shadow_vertex_buffer =  dr_create_vertex_buffer("shadow_vertices", size_of(Vec3F32) * dr_max_shadow_verts, null, 0, 0);
+  if dr_msaa_enabled
+  {
+    dr_renderer.colour_target = dr_create_target_texture("colour_target", xx resolution.x, xx resolution.y, dr_msaa_sample_count, dr_colour_format, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
+    dr_renderer.resolve_target = dr_create_target_texture("resolve_target", xx resolution.x, xx resolution.y, ._1, dr_colour_format, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+  }
+  dr_renderer.depth_target = dr_create_target_texture("depth_target", xx resolution.x, xx resolution.y, dr_msaa_sample_count, dr_depth_format, SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
   dr_renderer.lights.allocator = arena_allocator(arena_temp);
   dr_create_builtin_meshes();
   dr_create_builtin_textures();
@@ -815,8 +868,9 @@ dr_create_material :: () -> *DR_MeshMaterial
 {
   mat := arena_push_struct(dr_renderer.arena, DR_MeshMaterial);
   stack_push(*dr_renderer.materials, mat);
-  mat.tex_colour_spec = dr_renderer.tex_white;
+  mat.tex_colour = dr_renderer.tex_white;
   mat.tex_normal = dr_renderer.tex_normal;
+  mat.tex_spec = dr_renderer.tex_white;
   return mat;
 }
 
@@ -825,21 +879,27 @@ read_materials :: ()
   texture_files := file_list("textures");
   for texture_files
   {
-    if !contains(it, "_norm")
+    if !contains(it, "_norm") && !contains(it, "_spec")
     {
       path, base, ext := path_decomp(it);
       col_spec := str_temp_format("textures/%.%", base, ext);
       norm := str_temp_format("textures/%_norm.%", base, ext);
+      spec := str_temp_format("textures/%_spec.%", base, ext);
       if !file_exists(str_temp_format("%", norm))
       {
         norm = "dr_default_normal_texture";
+      }
+      if !file_exists(str_temp_format("%", spec))
+      {
+        norm = "dr_default_white_texture";
       }
       if !file_exists(str_temp_format("materials/%.txt", base))
       {
         builder: String_Builder;
         print_to_builder(*builder, "name: %\n", base);
-        print_to_builder(*builder, "tex_colour_spec_path: %\n", col_spec);
+        print_to_builder(*builder, "tex_colour_path: %\n", col_spec);
         print_to_builder(*builder, "tex_normal_path: %\n", norm);
+        print_to_builder(*builder, "tex_spec_path: %\n", spec);
         mat := builder_to_string(*builder);
         write_entire_file(str_temp_format("materials/%.txt", base), mat);
       }
@@ -866,14 +926,17 @@ read_materials :: ()
             mat.specular_shininess = cast(F32) (1 << mat.specular_power);
           case "tex_coord_scale";
             mat.tex_coord_scale = parse_v2(right);
-          case "tex_colour_spec_path";
-            mat.tex_colour_spec_path = right;
+          case "tex_colour_path";
+            mat.tex_colour_path = right;
           case "tex_normal_path";
             mat.tex_normal_path = right;
+          case "tex_spec_path";
+            mat.tex_spec_path = right;
         }
       }
-      mat.tex_colour_spec = dr_get_texture(mat.tex_colour_spec_path);
+      mat.tex_colour = dr_get_texture(mat.tex_colour_path);
       mat.tex_normal = dr_get_texture(mat.tex_normal_path);
+      mat.tex_spec = dr_get_texture(mat.tex_spec_path);
     }
   }
 }
@@ -890,8 +953,9 @@ write_materials :: ()
       file_print_line(*file, "name: %", it.name);
       file_print_line(*file, "specular_power: %", it.specular_power);
       file_print_v2(*file, "tex_coord_scale", it.tex_coord_scale);
-      file_print_line(*file, "tex_colour_spec_path: %", it.tex_colour_spec_path);
+      file_print_line(*file, "tex_colour_path: %", it.tex_colour_path);
       file_print_line(*file, "tex_normal_path: %", it.tex_normal_path);
+      file_print_line(*file, "tex_spec_path: %", it.tex_spec_path);
     }
   }
 }
@@ -1020,7 +1084,7 @@ dr_run_clear_pass :: (swap_texture: *SDL_GPUTexture, command_buffer: *SDL_GPUCom
   SDL_EndGPURenderPass(pass);
 }
 
-dr_run_depth_prepass :: (swap_texture: *SDL_GPUTexture, command_buffer: *SDL_GPUCommandBuffer, vert_constants: DR_MeshVertConstants)
+dr_run_depth_prepass :: (command_buffer: *SDL_GPUCommandBuffer, vert_constants: DR_MeshVertConstants)
 {
   depth_target := SDL_GPUDepthStencilTargetInfo.{
     texture = dr_renderer.depth_target.ref,
@@ -1054,13 +1118,46 @@ sort_draw_mesh :: (a: DR_DrawMesh, b: DR_DrawMesh) -> int
   return get_hash(a.material.name) - get_hash(b.material.name);
 }
 
+ShadowVolume :: struct
+{
+  base_vert: int;
+  vert_count: int;
+}
+
 dr_draw_frame :: (camera: *CAM_Base)
 {
   command_buffer := SDL_AcquireGPUCommandBuffer(dr_renderer.device);
   swap_texture: *SDL_GPUTexture;
-  SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, null, null);
+  swap_width, swap_height: u32;
+  SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, *swap_width, *swap_height);
   if (swap_texture)
   {
+    draw_meshes: [..] DR_DrawMesh;
+    draw_meshes.allocator = arena_allocator(arena_temp);
+    for each_element(dr_renderer.draw_meshes)
+    {
+      array_add(*draw_meshes, it);
+    }
+    quick_sort(draw_meshes, sort_draw_mesh);
+    shadow_volumes: [..] ShadowVolume;
+    shadow_volumes.allocator = arena_allocator(arena_temp);
+    position_count := 0;
+    for draw_meshes
+    {
+      for instance: it.instances_view
+      {
+        for light: dr_renderer.lights
+        {
+          positions := sh_build_shadow_mesh(arena_temp, it.shadow_volume, light, instance.transform);
+          dr_queue_buffer_upload(dr_renderer.shadow_vertex_buffer, positions.data, size_of(Vec3F32) * positions.count, size_of(Vec3F32) * position_count);
+          position_count += positions.count;
+          volume: ShadowVolume;
+          volume.base_vert = position_count;
+          volume.vert_count = positions.count;
+          array_add(*shadow_volumes, volume);
+        }
+      }
+    }
     dr_process_upload_queue(command_buffer);
     vert_constants: DR_MeshVertConstants;
     vert_constants.world_to_view = camera.view;
@@ -1068,16 +1165,36 @@ dr_draw_frame :: (camera: *CAM_Base)
     vert_constants.camera_pos = camera.position;
     vert_constants.viewport.xy = dr_renderer.resolution;
     vert_constants.viewport.zw = v2f32(0.1, 1000.0);
-    dr_run_clear_pass(swap_texture, command_buffer);
-    dr_run_depth_prepass(swap_texture, command_buffer, vert_constants);
-    draw_meshes: [] DR_DrawMesh;
-    draw_meshes.count = dr_renderer.draw_mesh_count;
-    draw_meshes.data = cast(*DR_DrawMesh) dr_renderer.draw_mesh_arena.base;
-    quick_sort(draw_meshes, sort_draw_mesh);
+    colour_target_texture := ifx dr_msaa_enabled then dr_renderer.colour_target.ref else swap_texture;
+    dr_run_clear_pass(colour_target_texture, command_buffer);
+    dr_run_depth_prepass(command_buffer, vert_constants);
+    {
+      depth_target := SDL_GPUDepthStencilTargetInfo.{
+        texture = dr_renderer.depth_target.ref,
+        clear_depth = dr_depth_clear_value,
+        load_op = .LOAD,
+        store_op = .STORE
+      };
+      pass := SDL_BeginGPURenderPass(command_buffer, null, 0, *depth_target);
+      SDL_BindGPUGraphicsPipeline(pass, dr_renderer.pipeline_shadow.ref_base);
+      SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+      for shadow_volumes
+      {
+        binding_vertex := SDL_GPUBufferBinding.{dr_renderer.shadow_vertex_buffer.ref, 0};
+        SDL_BindGPUVertexBuffers(pass, 0, *binding_vertex, 1);
+        SDL_DrawGPUPrimitives(pass,
+          xx it.vert_count,
+          1,
+          xx it.base_vert,
+          0
+        );
+      }
+      SDL_EndGPURenderPass(pass);
+    }
     for light, light_index: dr_renderer.lights
     {
       colour_target := SDL_GPUColorTargetInfo.{
-        texture = swap_texture,
+        texture = colour_target_texture,
         clear_color = .{.125, .125, .125, 1.0},
         load_op = .LOAD,
         store_op = .STORE
@@ -1112,12 +1229,13 @@ dr_draw_frame :: (camera: *CAM_Base)
         }
         if current_material != it.material
         {
-          binding_textures: [2] SDL_GPUTextureSamplerBinding;
+          binding_textures: [3] SDL_GPUTextureSamplerBinding;
           if it.material
           {
             binding_textures = SDL_GPUTextureSamplerBinding.[
-              .{it.material.tex_colour_spec.ref, sampler},
+              .{it.material.tex_colour.ref, sampler},
               .{it.material.tex_normal.ref, sampler},
+              .{it.material.tex_spec.ref, sampler},
             ];
           }
           else
@@ -1125,6 +1243,7 @@ dr_draw_frame :: (camera: *CAM_Base)
             binding_textures = SDL_GPUTextureSamplerBinding.[
               .{dr_renderer.tex_gray.ref, sampler},
               .{dr_renderer.tex_normal.ref, sampler},
+              .{dr_renderer.tex_white.ref, sampler}
             ];
           }
           SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
@@ -1141,11 +1260,16 @@ dr_draw_frame :: (camera: *CAM_Base)
       SDL_EndGPURenderPass(main_pass);
     }
     colour_target := SDL_GPUColorTargetInfo.{
-      texture = swap_texture,
+      texture = colour_target_texture,
       load_op = .LOAD,
       store_op = .STORE
     };
-    lines_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, null);
+    depth_target := SDL_GPUDepthStencilTargetInfo.{
+      texture = dr_renderer.depth_target.ref,
+      load_op = .LOAD,
+      store_op = .STORE
+    };
+    lines_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
     SDL_BindGPUGraphicsPipeline(lines_pass, dr_renderer.pipeline_lines.ref_base);
     SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
     SDL_BindGPUVertexStorageBuffers(lines_pass, 0, *dr_renderer.line_instances.ref, 1);
@@ -1159,7 +1283,7 @@ dr_draw_frame :: (camera: *CAM_Base)
     }
     SDL_EndGPURenderPass(lines_pass);
     colour_target = SDL_GPUColorTargetInfo.{
-      texture = swap_texture,
+      texture = colour_target_texture,
       load_op = .LOAD,
       store_op = .STORE
     };
@@ -1180,12 +1304,31 @@ dr_draw_frame :: (camera: *CAM_Base)
     draw_data := ImGui.GetDrawData();
     ImGui_ImplSDLGPU3_PrepareDrawData(draw_data, command_buffer);
     target_info: SDL_GPUColorTargetInfo;
-    target_info.texture = swap_texture;
+    target_info.texture = colour_target_texture;
+    if dr_msaa_enabled
+    {
+      target_info.resolve_texture = dr_renderer.resolve_target.ref;
+      target_info.store_op = .RESOLVE_AND_STORE;
+    }
+    else
+    {
+      target_info.store_op = .STORE;
+    }
     target_info.load_op = .LOAD;
-    target_info.store_op = .STORE;
     render_pass := SDL_BeginGPURenderPass(command_buffer, *target_info, 1, null);
     ImGui_ImplSDLGPU3_RenderDrawData(draw_data, command_buffer, render_pass);
     SDL_EndGPURenderPass(render_pass);
+    if dr_msaa_enabled
+    {
+      info: SDL_GPUBlitInfo;
+      info.source.texture = dr_renderer.resolve_target.ref;
+      info.source.w = xx dr_renderer.resolution.x;
+      info.source.h = xx dr_renderer.resolution.y;
+      info.destination.texture = swap_texture;
+      info.destination.w = swap_width;
+      info.destination.h = swap_height;
+      SDL_BlitGPUTexture(command_buffer, *info);
+    }
     SDL_SubmitGPUCommandBuffer(command_buffer);
   }
   else
@@ -1200,6 +1343,7 @@ dr_draw_frame :: (camera: *CAM_Base)
   dr_reset_buffer(dr_renderer.mesh_instances);
   dr_reset_buffer(dr_renderer.line_instances);
   dr_reset_buffer(dr_renderer.quad_instances);
+  dr_reset_buffer(dr_renderer.shadow_vertex_buffer);
   array_reset(*dr_renderer.lights);
   arena_reset(dr_renderer.draw_mesh_arena);
 }

@@ -4,7 +4,7 @@ import imageio.v2 as imageio
 from scipy.ndimage import sobel
 from PIL import Image
 import sys
-TARGET_SIZE = 1024
+TARGET_SIZE = 512
 PENROSE_PATH = "F:/penrose"
 def load_tex(path, fallback_value=1.0):
     if not path or not os.path.exists(path):

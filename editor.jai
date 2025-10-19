@@ -377,8 +377,9 @@ editor_imgui :: ()
     mat.specular_shininess = cast(F32) (1 << mat.specular_power);
   }
   ImGui.DragFloat2("tex_coord_scale", *mat.tex_coord_scale.f);
-  ImGui.Text(str_format(arena_temp, "colour: %", mat.tex_colour_spec_path));
+  ImGui.Text(str_format(arena_temp, "colour: %", mat.tex_colour_path));
   ImGui.Text(str_format(arena_temp, "normal: %", mat.tex_normal_path));
+  ImGui.Text(str_format(arena_temp, "spec: %", mat.tex_spec_path));
   ImGui.End();
 }
 

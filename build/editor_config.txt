@@ -1,4 +1,4 @@
 last_loaded_level: dev
-camera_position: [-40.085514, -28.867804, 15.118762]
-camera_yaw: 15.888
-camera_pitch: -0.042183
+camera_position: [-47.206913, -63.799065, 72.684593]
+camera_yaw: 19.148767
+camera_pitch: -0.067293

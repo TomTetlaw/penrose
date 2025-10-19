@@ -87,6 +87,12 @@ arena_push_copy :: (arena: *Arena, data: *void, size: u64) -> *void
   return result;
 }
 
+arena_copy_view :: (arena: *Arena, view: [] $T) -> [] T
+{
+  data := arena_push_copy(arena, view.data, xx (view.count * size_of(T)));
+  return .{view.count, data};
+}
+
 arena_push_struct :: (arena: *Arena, $T: Type, count: u64 = 1) -> *T
 {
   result := arena_push(arena, size_of(T));

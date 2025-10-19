@@ -35,12 +35,17 @@ main :: ()
     if device
     {
       SDL_ClaimWindowForGPUDevice(device, window);
+      if SDL_WindowSupportsGPUSwapchainComposition(device, window, .SDR_LINEAR)
+      {
+        SDL_SetGPUSwapchainParameters(device, window, .SDR_LINEAR, .MAILBOX);
+      }
       imgui_context := ImGui.CreateContext();
       ImGui.SetCurrentContext(imgui_context);
       ImGui_ImplSDL3_InitForSDLGPU(window);
       imgui_info: ImGui_ImplSDLGPU3_InitInfo;
       imgui_info.Device = device;
       imgui_info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(device, window);
+      imgui_info.MSAASamples = dr_msaa_sample_count;
       ImGui_ImplSDLGPU3_Init(*imgui_info);
       imgui_io = ImGui.GetIO();
       SDL_ShowWindow(window);
