@@ -1,6 +1,7 @@
 name: grate
-specular_power: 4
-tex_coord_scale: [5, 5]
-tex_colour_path: textures/grate.png
-tex_normal_path: textures/grate_norm.png
-tex_spec_path: textures/grate_spec.png
+roughness: 1.23
+metallic: 1
+tex_coord_scale: [25, 25]
+tex_colour: textures/grate.png
+tex_normal: textures/grate_norm.png
+tex_aorm: textures/grate_aorm.png

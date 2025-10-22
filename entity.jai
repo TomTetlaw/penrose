@@ -81,3 +81,10 @@ Door :: struct
   base.scale = Vec3F32.{0.5, 3.0, 7.0};
   open: bool;
 }
+
+Sphere :: struct
+{
+  using #as base: Entity;
+  base.mesh_path = "sphere";
+  base.material_name = "dr_default_material";
+}

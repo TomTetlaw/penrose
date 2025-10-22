@@ -19,6 +19,7 @@ build :: ()
   options.output_path = "build";
   options.text_output_flags = 0;
   options.backend = .LLVM;
+  options.llvm_options.output_llvm_ir = true;
   options.additional_linker_arguments = .["user32.lib", "imm32.lib", "shell32.lib"];
   if (release_build)
   {

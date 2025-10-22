@@ -330,7 +330,7 @@ Mat4x4F32 :: struct
 
 mat4x4f32_transform_position :: (p: Vec3F32, m: Mat4x4F32) -> Vec3F32
 {
-  result := m * v4f32(p, 1);
+  result := mul_mat4x4f32_vec4f32(m, v4f32(p, 1));
   return result.xyz;
 }
 

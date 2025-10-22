@@ -15,12 +15,13 @@ sh_generate_base_mesh :: (arena: *Arena, mesh: *DR_Mesh) -> *SH_ShadowVolume
   table: Table(u32, u32);
   table.allocator = arena_allocator(arena_temp);
   index: u32 = 0;
-  for mesh.positions
+  for mesh.index
   {
-    key := get_hash(it.x, get_hash(it.y, get_hash(it.z)));
+    p := mesh.positions[it];
+    key := get_hash(p.x, get_hash(p.y, get_hash(p.z)));
     if !table_contains(*table, key)
     {
-      positions[index] = it;
+      positions[index] = p;
       indices[it_index] = index;
       table_add(*table, key, index);
       index += 1;
@@ -35,6 +36,7 @@ sh_generate_base_mesh :: (arena: *Arena, mesh: *DR_Mesh) -> *SH_ShadowVolume
   volume := arena_push_struct(arena, SH_ShadowVolume);
   volume.base_positions = positions;
   volume.base_indices = indices;
+  print("%:\n",mesh.path);
   volume.edges = sh_generate_mesh_adjacency(arena, volume);
   return volume;
 }
@@ -58,6 +60,8 @@ sh_generate_mesh_adjacency :: (arena: *Arena, volume: SH_ShadowVolume) -> [] Edg
       then cast(int) a.i0 - cast(int) b.i0
       else cast(int) a.i1 - cast(int) b.i1
   );
+  count := 0;
+  result := arena_push_view(arena, Edge, xx edge_count);
   for 0..edge_count-2
   {
     e0 := *edges[it];
@@ -65,14 +69,12 @@ sh_generate_mesh_adjacency :: (arena: *Arena, volume: SH_ShadowVolume) -> [] Edg
     if e0.i0 == e1.i0 && e0.i1 == e1.i1
     {
       e0.t1 = e1.t0;
-      e1.t1 = e0.t0;
-      e0.t0 = min(e0.t0, e0.t1);
-      e0.t1 = max(e0.t0, e0.t1);
-      e1.t0 = min(e1.t0, e1.t1);
-      e1.t1 = max(e1.t0, e1.t1);
+      result[count] = e0;
+      count += 1;
     }
   }
-  return edges;
+  result.count = count;
+  return result;
 }
 
 sh_build_shadow_mesh :: (arena: *Arena, volume: *SH_ShadowVolume, light: DR_LightInfo, to_world: Mat4x4F32) -> [] Vec3F32
@@ -81,13 +83,9 @@ sh_build_shadow_mesh :: (arena: *Arena, volume: *SH_ShadowVolume, light: DR_Ligh
   facing := arena_push_view(arena, bool, xx tri_count);
   for 0..tri_count-1
   {
-    p0 := volume.base_positions[volume.base_indices[it*3 + 0]];
-    p1 := volume.base_positions[volume.base_indices[it*3 + 1]];
-    p2 := volume.base_positions[volume.base_indices[it*3 + 2]];
-
-    p0 = mat4x4f32_transform_position(p0, to_world);
-    p1 = mat4x4f32_transform_position(p1, to_world);
-    p2 = mat4x4f32_transform_position(p2, to_world);
+    p0 := mat4x4f32_transform_position(volume.base_positions[volume.base_indices[it*3 + 0]], to_world);
+    p1 := mat4x4f32_transform_position(volume.base_positions[volume.base_indices[it*3 + 1]], to_world);
+    p2 := mat4x4f32_transform_position(volume.base_positions[volume.base_indices[it*3 + 2]], to_world);
     normal := normalize_v3(cross_v3(p1 - p0, p2 - p0));
     if light.type == {
     case .Point;
@@ -128,12 +126,10 @@ sh_build_shadow_mesh :: (arena: *Arena, volume: *SH_ShadowVolume, light: DR_Ligh
       i0 = c;
       i1 = a;
     }
-    v0 := volume.base_positions[i0];
-    v1 := volume.base_positions[i1];
-    v0 = mat4x4f32_transform_position(v0, to_world);
-    v1 = mat4x4f32_transform_position(v1, to_world);
+    v0 := mat4x4f32_transform_position(volume.base_positions[i0], to_world);
+    v1 := mat4x4f32_transform_position(volume.base_positions[i1], to_world);
     v0_ex, v1_ex: Vec3F32;
-    if #complete light.type == {
+    if light.type == {
     case .Point;
       v0_dir := normalize_v3(light.position - v0);
       v1_dir := normalize_v3(light.position - v1);
@@ -186,11 +182,10 @@ sh_build_shadow_mesh :: (arena: *Arena, volume: *SH_ShadowVolume, light: DR_Ligh
       i0 := volume.base_indices[it*3 + 0];
       i1 := volume.base_indices[it*3 + 1];
       i2 := volume.base_indices[it*3 + 2];
-
       p0 := mat4x4f32_transform_position(volume.base_positions[i0], to_world);
       p1 := mat4x4f32_transform_position(volume.base_positions[i1], to_world);
       p2 := mat4x4f32_transform_position(volume.base_positions[i2], to_world);
-      if #complete light.type == {
+      if light.type == {
       case .Point;
         p0 = p0 + normalize_v3(light.position - p0) * extrude;
         p1 = p1 + normalize_v3(light.position - p1) * extrude;

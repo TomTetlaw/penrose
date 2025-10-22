@@ -4,10 +4,11 @@ dr_max_mesh_instances :: 10240;
 dr_max_line_instances :: 10240;
 dr_max_quad_instances :: 10240;
 dr_colour_format :: SDL_GPUTextureFormat.B8G8R8A8_UNORM_SRGB;
-dr_depth_format :: SDL_GPUTextureFormat.D24_UNORM_S8_UINT;
-dr_depth_compare_op :: SDL_GPUCompareOp.GREATER_OR_EQUAL;
+dr_depth_format :: SDL_GPUTextureFormat.D32_FLOAT_S8_UINT;
 dr_depth_clear_value :: 0.0;
-dr_max_shadow_verts :: 10240;
+dr_max_shadow_verts :: 163840;
+dr_near_plane :: 0.1;
+dr_far_plane :: 1000.0;
 
 dr_msaa_enabled :: true;
 #if dr_msaa_enabled
@@ -41,9 +42,9 @@ DR_MeshInstance :: struct
   material_params: Vec4F32;
 }
 
-mesh_material_params :: (spec_shininess: F32, tex_coord_scale: Vec2F32) -> Vec4F32
+mesh_material_params :: (roughness: F32, metallic: F32, tex_coord_scale: Vec2F32) -> Vec4F32
 {
-  return v4f32(tex_coord_scale, spec_shininess, 0);
+  return v4f32(roughness, metallic, tex_coord_scale.x, tex_coord_scale.y);
 }
 
 DR_LineInstance :: struct
@@ -99,15 +100,12 @@ DR_MeshMaterial :: struct
 {
   next: *DR_MeshMaterial;
   name: string;
-  specular_shininess := 32.0;
-  specular_power: s32 = 9;
+  roughness := 0.5;
+  metallic := 0.0;
   tex_coord_scale := Vec2F32.{1, 1};
   tex_colour: *DR_Texture;
   tex_normal: *DR_Texture;
-  tex_spec: *DR_Texture;
-  tex_colour_path: string;
-  tex_normal_path: string;
-  tex_spec_path: string;
+  tex_aorm: *DR_Texture;
 }
 
 DR_DrawMesh :: struct
@@ -155,6 +153,7 @@ DR_Mesh :: struct
   bounds_min: Vec3F32;
   bounds_max: Vec3F32;
   positions: [] Vec3F32;
+  index: [] u32;
   shadow_volume: *SH_ShadowVolume;
 }
 
@@ -194,6 +193,7 @@ DR_RendererState :: struct
   mesh_line: *DR_Mesh;
   mesh_quad: *DR_Mesh;
   shader_depth: *DR_Shader;
+  shader_shadow: *DR_Shader;
   shader_mesh: *DR_Shader;
   shader_lines: *DR_Shader;
   shader_quads: *DR_Shader;
@@ -202,6 +202,7 @@ DR_RendererState :: struct
   line_instances: *DR_Buffer;
   pipeline_depth: *DR_Pipeline;
   pipeline_mesh: *DR_Pipeline;
+  pipeline_ambient: *DR_Pipeline;
   pipeline_lines: *DR_Pipeline;
   pipeline_quads: *DR_Pipeline;
   pipeline_shadow: *DR_Pipeline;
@@ -228,6 +229,8 @@ DR_PipelineFlags :: enum_flags
   PositionOnly;
   NoColour;
   StencilShadow;
+  StencilTest;
+  StencilTestInverted;
 }
 
 DR_PipelineTopology :: enum
@@ -283,6 +286,7 @@ DR_MeshVertex :: struct
 
 LightType :: enum u32
 {
+  Ambient :: 0;
   Point :: 1;
   Spot :: 2;
 }
@@ -363,6 +367,7 @@ dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) ->
     mesh.buffer_index = dr_create_index_buffer(str_format(arena_temp, "%_indices", name), capacity_indices, null, 0, 0);
     mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
     mesh.index_count = indices.count;
+    mesh.index = indices;
   }
   mesh.shadow_volume = sh_generate_base_mesh(dr_renderer.arena, mesh);
   return mesh;
@@ -473,7 +478,7 @@ dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_Me
   {
     for * instances
     {
-      it.material_params = mesh_material_params(material.specular_shininess, material.tex_coord_scale);
+      it.material_params = mesh_material_params(material.roughness, material.metallic, material.tex_coord_scale);
     }
     draw_mesh := arena_push_struct(dr_renderer.draw_mesh_arena, DR_DrawMesh);
     stack_push(*dr_renderer.draw_meshes, draw_mesh);
@@ -636,7 +641,14 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   }
   vertex_buffer_desc: SDL_GPUVertexBufferDescription;
   vertex_buffer_desc.slot = 0;
-  vertex_buffer_desc.pitch = size_of(DR_MeshVertex);
+  if flags & .StencilShadow
+  {
+    vertex_buffer_desc.pitch = size_of(Vec3F32);
+  }
+  else
+  {
+    vertex_buffer_desc.pitch = size_of(DR_MeshVertex);
+  }
   vertex_buffer_desc.input_rate = .VERTEX;
   info_base: SDL_GPUGraphicsPipelineCreateInfo;
   info_base.vertex_input_state.vertex_buffer_descriptions = *vertex_buffer_desc;
@@ -650,6 +662,7 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   }
   info_base.rasterizer_state.cull_mode = .BACK;
   info_base.rasterizer_state.fill_mode = .FILL;
+  info_base.rasterizer_state.enable_depth_clip = true;
   info_base.multisample_state.sample_count = dr_msaa_sample_count;
   if topology ==
   {
@@ -663,26 +676,57 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
     info_base.target_info.depth_stencil_format = dr_depth_format;
     info_base.target_info.has_depth_stencil_target = true;
   }
-  if (flags & .StencilShadow)
+  info_base.depth_stencil_state.enable_depth_test = cast(bool) (flags & .DepthTest);
+  info_base.depth_stencil_state.enable_depth_write = cast(bool) (flags & .DepthWrite);
+  if flags & .DepthWrite
+  {
+    info_base.depth_stencil_state.compare_op = .GREATER;
+  }
+  else
+  {
+    info_base.depth_stencil_state.compare_op = .GREATER_OR_EQUAL;
+  }
+  if flags & .StencilShadow
   {
     info_base.rasterizer_state.cull_mode = .NONE;
-    info_base.depth_stencil_state.back_stencil_state.depth_fail_op = .INCREMENT_AND_WRAP;
-    info_base.depth_stencil_state.front_stencil_state.depth_fail_op = .DECREMENT_AND_WRAP;
-    info_base.depth_stencil_state.enable_depth_write = false;
-    info_base.depth_stencil_state.enable_depth_test = true;
     info_base.depth_stencil_state.enable_stencil_test = true;
     info_base.depth_stencil_state.compare_mask = 0xff;
     info_base.depth_stencil_state.write_mask = 0xff;
     info_base.depth_stencil_state.back_stencil_state.compare_op = .ALWAYS;
     info_base.depth_stencil_state.back_stencil_state.fail_op = .KEEP;
     info_base.depth_stencil_state.back_stencil_state.pass_op = .KEEP;
+    info_base.depth_stencil_state.back_stencil_state.depth_fail_op = .INCREMENT_AND_WRAP;
     info_base.depth_stencil_state.front_stencil_state.compare_op = .ALWAYS;
     info_base.depth_stencil_state.front_stencil_state.fail_op = .KEEP;
     info_base.depth_stencil_state.front_stencil_state.pass_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.depth_fail_op = .DECREMENT_AND_WRAP;
   }
-  info_base.depth_stencil_state.compare_op = dr_depth_compare_op;
-  info_base.depth_stencil_state.enable_depth_test = cast(bool) (flags & .DepthTest);
-  info_base.depth_stencil_state.enable_depth_write = cast(bool) (flags & .DepthWrite);
+  if flags & .StencilTest
+  {
+    info_base.depth_stencil_state.enable_stencil_test = true;
+    info_base.depth_stencil_state.compare_mask = 0xff;
+    info_base.depth_stencil_state.back_stencil_state.compare_op = .EQUAL;
+    info_base.depth_stencil_state.front_stencil_state.compare_op = .EQUAL;
+    info_base.depth_stencil_state.back_stencil_state.fail_op = .KEEP;
+    info_base.depth_stencil_state.back_stencil_state.pass_op = .KEEP;
+    info_base.depth_stencil_state.back_stencil_state.depth_fail_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.fail_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.pass_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.depth_fail_op = .KEEP;
+  }
+  if flags & .StencilTestInverted
+  {
+    info_base.depth_stencil_state.enable_stencil_test = true;
+    info_base.depth_stencil_state.compare_mask = 0xff;
+    info_base.depth_stencil_state.back_stencil_state.compare_op = .NOT_EQUAL;
+    info_base.depth_stencil_state.front_stencil_state.compare_op = .NOT_EQUAL;
+    info_base.depth_stencil_state.back_stencil_state.fail_op = .KEEP;
+    info_base.depth_stencil_state.back_stencil_state.pass_op = .KEEP;
+    info_base.depth_stencil_state.back_stencil_state.depth_fail_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.fail_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.pass_op = .KEEP;
+    info_base.depth_stencil_state.front_stencil_state.depth_fail_op = .KEEP;
+  }
   ref_base := SDL_CreateGPUGraphicsPipeline(dr_renderer.device, *info_base);
   pipeline := arena_push_struct(dr_renderer.arena, DR_Pipeline);
   stack_push(*dr_renderer.pipelines, pipeline);
@@ -835,14 +879,16 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.shader_mesh = dr_get_shader("mesh");
   dr_renderer.shader_lines = dr_get_shader("lines");
   dr_renderer.shader_quads = dr_get_shader("quads");
+  dr_renderer.shader_shadow = dr_get_shader("shadow");
   dr_renderer.mesh_instances = dr_create_storage_buffer("mesh_instances", size_of(DR_MeshInstance) * dr_max_mesh_instances, null, 0, 0);
   dr_renderer.line_instances = dr_create_storage_buffer("line_instances", size_of(DR_LineInstance) * dr_max_line_instances, null, 0, 0);
   dr_renderer.quad_instances = dr_create_storage_buffer("quad_instances", size_of(DR_QuadInstance) * dr_max_quad_instances, null, 0, 0);
   dr_renderer.pipeline_depth = dr_create_pipeline(dr_renderer.shader_depth, dr_renderer.mesh_instances, .DepthTest | .DepthWrite | .PositionOnly | .NoColour, .Triangles);
-  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest, .Triangles);
+  dr_renderer.pipeline_shadow = dr_create_pipeline(dr_renderer.shader_shadow, null, .DepthTest | .StencilShadow | .PositionOnly | .NoColour, .Triangles);
+  dr_renderer.pipeline_mesh = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest | .StencilTest, .Triangles);
+  dr_renderer.pipeline_ambient = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest | .StencilTestInverted, .Triangles);
   dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .DepthTest, .Triangles);
   dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .None, .Triangles);
-  dr_renderer.pipeline_shadow = dr_create_pipeline(dr_renderer.shader_depth, dr_renderer.mesh_instances, .DepthTest | .StencilShadow, .Triangles);
   dr_renderer.shadow_vertex_buffer =  dr_create_vertex_buffer("shadow_vertices", size_of(Vec3F32) * dr_max_shadow_verts, null, 0, 0);
   if dr_msaa_enabled
   {
@@ -870,7 +916,7 @@ dr_create_material :: () -> *DR_MeshMaterial
   stack_push(*dr_renderer.materials, mat);
   mat.tex_colour = dr_renderer.tex_white;
   mat.tex_normal = dr_renderer.tex_normal;
-  mat.tex_spec = dr_renderer.tex_white;
+  mat.tex_aorm = dr_renderer.tex_white;
   return mat;
 }
 
@@ -879,17 +925,17 @@ read_materials :: ()
   texture_files := file_list("textures");
   for texture_files
   {
-    if !contains(it, "_norm") && !contains(it, "_spec")
+    if !contains(it, "_norm") && !contains(it, "_aorm")
     {
       path, base, ext := path_decomp(it);
-      col_spec := str_temp_format("textures/%.%", base, ext);
+      col := str_temp_format("textures/%.%", base, ext);
       norm := str_temp_format("textures/%_norm.%", base, ext);
-      spec := str_temp_format("textures/%_spec.%", base, ext);
+      aorm := str_temp_format("textures/%_aorm.%", base, ext);
       if !file_exists(str_temp_format("%", norm))
       {
         norm = "dr_default_normal_texture";
       }
-      if !file_exists(str_temp_format("%", spec))
+      if !file_exists(str_temp_format("%", aorm))
       {
         norm = "dr_default_white_texture";
       }
@@ -897,9 +943,9 @@ read_materials :: ()
       {
         builder: String_Builder;
         print_to_builder(*builder, "name: %\n", base);
-        print_to_builder(*builder, "tex_colour_path: %\n", col_spec);
-        print_to_builder(*builder, "tex_normal_path: %\n", norm);
-        print_to_builder(*builder, "tex_spec_path: %\n", spec);
+        print_to_builder(*builder, "tex_colour: %\n", col);
+        print_to_builder(*builder, "tex_normal: %\n", norm);
+        print_to_builder(*builder, "tex_aorm: %\n", aorm);
         mat := builder_to_string(*builder);
         write_entire_file(str_temp_format("materials/%.txt", base), mat);
       }
@@ -921,22 +967,20 @@ read_materials :: ()
         {
           case "name";
             mat.name = str_copy(dr_renderer.arena, right);
-          case "specular_power";
-            mat.specular_power = xx parse_int(*right);
-            mat.specular_shininess = cast(F32) (1 << mat.specular_power);
+          case "roughness";
+            mat.roughness = parse_float(*right);
+          case "metallic";
+            mat.metallic = parse_float(*right);
           case "tex_coord_scale";
             mat.tex_coord_scale = parse_v2(right);
-          case "tex_colour_path";
-            mat.tex_colour_path = right;
-          case "tex_normal_path";
-            mat.tex_normal_path = right;
-          case "tex_spec_path";
-            mat.tex_spec_path = right;
+          case "tex_colour";
+            mat.tex_colour = dr_get_texture(right);
+          case "tex_normal";
+            mat.tex_normal = dr_get_texture(right);
+          case "tex_aorm";
+            mat.tex_aorm = dr_get_texture(right);
         }
       }
-      mat.tex_colour = dr_get_texture(mat.tex_colour_path);
-      mat.tex_normal = dr_get_texture(mat.tex_normal_path);
-      mat.tex_spec = dr_get_texture(mat.tex_spec_path);
     }
   }
 }
@@ -951,11 +995,12 @@ write_materials :: ()
       file := file_open(path, for_writing = true);
       defer file_close(*file);
       file_print_line(*file, "name: %", it.name);
-      file_print_line(*file, "specular_power: %", it.specular_power);
+      file_print_line(*file, "roughness: %", it.roughness);
+      file_print_line(*file, "metallic: %", it.metallic);
       file_print_v2(*file, "tex_coord_scale", it.tex_coord_scale);
-      file_print_line(*file, "tex_colour_path: %", it.tex_colour_path);
-      file_print_line(*file, "tex_normal_path: %", it.tex_normal_path);
-      file_print_line(*file, "tex_spec_path: %", it.tex_spec_path);
+      if it.tex_colour file_print_line(*file, "tex_colour: %", it.tex_colour.path);
+      if it.tex_normal file_print_line(*file, "tex_normal: %", it.tex_normal.path);
+      if it.tex_aorm file_print_line(*file, "tex_aorm: %", it.tex_aorm.path);
     }
   }
 }
@@ -1122,6 +1167,14 @@ ShadowVolume :: struct
 {
   base_vert: int;
   vert_count: int;
+  instance_count: int;
+  base_instance: int;
+}
+
+DrawCall :: struct
+{
+  light: DR_LightInfo;
+  volumes: [..] ShadowVolume;
 }
 
 dr_draw_frame :: (camera: *CAM_Base)
@@ -1132,29 +1185,28 @@ dr_draw_frame :: (camera: *CAM_Base)
   SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, *swap_width, *swap_height);
   if (swap_texture)
   {
-    draw_meshes: [..] DR_DrawMesh;
-    draw_meshes.allocator = arena_allocator(arena_temp);
-    for each_element(dr_renderer.draw_meshes)
+    draw_calls := arena_push_view(arena_temp, DrawCall, xx dr_renderer.lights.count);
+    for * draw_calls
     {
-      array_add(*draw_meshes, it);
+      it.volumes.allocator = arena_allocator(arena_temp);
     }
-    quick_sort(draw_meshes, sort_draw_mesh);
-    shadow_volumes: [..] ShadowVolume;
-    shadow_volumes.allocator = arena_allocator(arena_temp);
     position_count := 0;
-    for draw_meshes
+    for light, light_index: dr_renderer.lights
     {
-      for instance: it.instances_view
+      for each_element(dr_renderer.draw_meshes)
       {
-        for light: dr_renderer.lights
+        for inst: it.instances_view
         {
-          positions := sh_build_shadow_mesh(arena_temp, it.shadow_volume, light, instance.transform);
+          positions := sh_build_shadow_mesh(arena_temp, it.shadow_volume, light, inst.transform);
           dr_queue_buffer_upload(dr_renderer.shadow_vertex_buffer, positions.data, size_of(Vec3F32) * positions.count, size_of(Vec3F32) * position_count);
-          position_count += positions.count;
           volume: ShadowVolume;
           volume.base_vert = position_count;
           volume.vert_count = positions.count;
-          array_add(*shadow_volumes, volume);
+          volume.instance_count = it.instance_count;
+          volume.base_instance = it.base_instance;
+          position_count += positions.count;
+          draw_calls[light_index].light = light;
+          array_add(*draw_calls[light_index].volumes, volume);
         }
       }
     }
@@ -1164,91 +1216,85 @@ dr_draw_frame :: (camera: *CAM_Base)
     vert_constants.view_to_clip = camera.projection;
     vert_constants.camera_pos = camera.position;
     vert_constants.viewport.xy = dr_renderer.resolution;
-    vert_constants.viewport.zw = v2f32(0.1, 1000.0);
+    vert_constants.viewport.zw = v2f32(dr_near_plane, dr_far_plane);
     colour_target_texture := ifx dr_msaa_enabled then dr_renderer.colour_target.ref else swap_texture;
     dr_run_clear_pass(colour_target_texture, command_buffer);
     dr_run_depth_prepass(command_buffer, vert_constants);
+    for light, light_index: dr_renderer.lights
     {
+      shadow_volumes := draw_calls[light_index].volumes;
       depth_target := SDL_GPUDepthStencilTargetInfo.{
         texture = dr_renderer.depth_target.ref,
-        clear_depth = dr_depth_clear_value,
         load_op = .LOAD,
-        store_op = .STORE
+        store_op = .STORE,
+        stencil_load_op = .CLEAR,
+        stencil_store_op = .STORE,
+        clear_stencil = 0
       };
       pass := SDL_BeginGPURenderPass(command_buffer, null, 0, *depth_target);
+      viewport := SDL_GPUViewport.{
+        0, 0,
+        xx dr_renderer.resolution.x, xx dr_renderer.resolution.y,
+        0, .9999,
+      };
+      SDL_SetGPUViewport(pass, *viewport);
       SDL_BindGPUGraphicsPipeline(pass, dr_renderer.pipeline_shadow.ref_base);
       SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+      binding_vertex := SDL_GPUBufferBinding.{dr_renderer.shadow_vertex_buffer.ref, 0};
+      SDL_BindGPUVertexBuffers(pass, 0, *binding_vertex, 1);
       for shadow_volumes
       {
-        binding_vertex := SDL_GPUBufferBinding.{dr_renderer.shadow_vertex_buffer.ref, 0};
-        SDL_BindGPUVertexBuffers(pass, 0, *binding_vertex, 1);
         SDL_DrawGPUPrimitives(pass,
           xx it.vert_count,
-          1,
+          xx it.instance_count,
           xx it.base_vert,
-          0
+          xx it.base_instance,
         );
       }
       SDL_EndGPURenderPass(pass);
-    }
-    for light, light_index: dr_renderer.lights
-    {
-      colour_target := SDL_GPUColorTargetInfo.{
-        texture = colour_target_texture,
-        clear_color = .{.125, .125, .125, 1.0},
-        load_op = .LOAD,
-        store_op = .STORE
-      };
-      depth_target := SDL_GPUDepthStencilTargetInfo.{
-        texture = dr_renderer.depth_target.ref,
-        clear_depth = dr_depth_clear_value,
-        load_op = .LOAD,
-        store_op = .STORE
-      };
-      // NOTE(tt): push uniform data
-      vert_constants.light_pos = light.position;
-      frag_constants: DR_MeshFragConstants;
-      frag_constants.light = light;
-      SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
-      SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
-      sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
-      main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
-      SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
-      SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
-      current_vertex_buffer: *SDL_GPUBuffer;
-      current_material: *DR_MeshMaterial;
-      for draw_meshes
+      for each_element(dr_renderer.draw_meshes)
       {
-        if current_vertex_buffer != it.vertices.ref
+        colour_target := SDL_GPUColorTargetInfo.{
+          texture = colour_target_texture,
+          load_op = .LOAD,
+          store_op = .STORE
+        };
+        depth_target = SDL_GPUDepthStencilTargetInfo.{
+          texture = dr_renderer.depth_target.ref,
+          load_op = .LOAD,
+          store_op = .STORE
+        };
+        vert_constants.light_pos = light.position;
+        frag_constants: DR_MeshFragConstants;
+        frag_constants.light = light;
+        SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+        SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
+        sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
+        main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
+        SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_mesh.ref_base);
+        SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
+        binding_vertex = SDL_GPUBufferBinding.{it.vertices.ref, 0};
+        binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
+        SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
+        SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+        binding_textures: [3] SDL_GPUTextureSamplerBinding;
+        if it.material
         {
-          binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
-          binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
-          SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
-          SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
-          current_vertex_buffer = it.vertices.ref;
+          binding_textures = SDL_GPUTextureSamplerBinding.[
+            .{it.material.tex_colour.ref, sampler},
+            .{it.material.tex_normal.ref, sampler},
+            .{it.material.tex_aorm.ref, sampler},
+          ];
         }
-        if current_material != it.material
+        else
         {
-          binding_textures: [3] SDL_GPUTextureSamplerBinding;
-          if it.material
-          {
-            binding_textures = SDL_GPUTextureSamplerBinding.[
-              .{it.material.tex_colour.ref, sampler},
-              .{it.material.tex_normal.ref, sampler},
-              .{it.material.tex_spec.ref, sampler},
-            ];
-          }
-          else
-          {
-            binding_textures = SDL_GPUTextureSamplerBinding.[
-              .{dr_renderer.tex_gray.ref, sampler},
-              .{dr_renderer.tex_normal.ref, sampler},
-              .{dr_renderer.tex_white.ref, sampler}
-            ];
-          }
-          SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
-          current_material = it.material;
+          binding_textures = SDL_GPUTextureSamplerBinding.[
+            .{dr_renderer.tex_gray.ref, sampler},
+            .{dr_renderer.tex_normal.ref, sampler},
+            .{dr_renderer.tex_white.ref, sampler}
+          ];
         }
+        SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
         SDL_DrawGPUIndexedPrimitives(main_pass,
           xx it.index_count,
           xx it.instance_count,
@@ -1256,7 +1302,59 @@ dr_draw_frame :: (camera: *CAM_Base)
           xx it.base_vertex,
           xx it.base_instance
         );
+        SDL_EndGPURenderPass(main_pass);
       }
+    }
+    // NOTE(tt): ambient pass
+    for each_element(dr_renderer.draw_meshes)
+    {
+      colour_target := SDL_GPUColorTargetInfo.{
+        texture = colour_target_texture,
+        load_op = .LOAD,
+        store_op = .STORE
+      };
+      depth_target := SDL_GPUDepthStencilTargetInfo.{
+        texture = dr_renderer.depth_target.ref,
+        load_op = .LOAD,
+        store_op = .STORE
+      };
+      frag_constants: DR_MeshFragConstants;
+      frag_constants.light.type = .Ambient;
+      SDL_PushGPUVertexUniformData(command_buffer, 0, *vert_constants, xx size_of(DR_MeshVertConstants));
+      SDL_PushGPUFragmentUniformData(command_buffer, 0, *frag_constants, xx size_of(DR_MeshFragConstants));
+      sampler := dr_get_sampler(.LINEAR, .LINEAR, .REPEAT);
+      main_pass := SDL_BeginGPURenderPass(command_buffer, *colour_target, 1, *depth_target);
+      SDL_BindGPUGraphicsPipeline(main_pass, dr_renderer.pipeline_ambient.ref_base);
+      SDL_BindGPUVertexStorageBuffers(main_pass, 0, *dr_renderer.mesh_instances.ref, 1);
+      binding_vertex := SDL_GPUBufferBinding.{it.vertices.ref, 0};
+      binding_index := SDL_GPUBufferBinding.{it.indices.ref, 0};
+      SDL_BindGPUVertexBuffers(main_pass, 0, *binding_vertex, 1);
+      SDL_BindGPUIndexBuffer(main_pass, *binding_index, ._32BIT);
+      binding_textures: [3] SDL_GPUTextureSamplerBinding;
+      if it.material
+      {
+        binding_textures = SDL_GPUTextureSamplerBinding.[
+          .{it.material.tex_colour.ref, sampler},
+          .{it.material.tex_normal.ref, sampler},
+          .{it.material.tex_aorm.ref, sampler},
+        ];
+      }
+      else
+      {
+        binding_textures = SDL_GPUTextureSamplerBinding.[
+          .{dr_renderer.tex_gray.ref, sampler},
+          .{dr_renderer.tex_normal.ref, sampler},
+          .{dr_renderer.tex_white.ref, sampler}
+        ];
+      }
+      SDL_BindGPUFragmentSamplers(main_pass, 0, binding_textures.data, xx binding_textures.count);
+      SDL_DrawGPUIndexedPrimitives(main_pass,
+        xx it.index_count,
+        xx it.instance_count,
+        xx it.base_index,
+        xx it.base_vertex,
+        xx it.base_instance
+      );
       SDL_EndGPURenderPass(main_pass);
     }
     colour_target := SDL_GPUColorTargetInfo.{

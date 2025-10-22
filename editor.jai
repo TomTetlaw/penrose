@@ -372,14 +372,9 @@ editor_imgui :: ()
   mat := ed_editor.editing_material;
   ImGui.SameLine();
   string_property("name", *mat.name);
-  if ImGui.DragInt("specular_power", *mat.specular_power)
-  {
-    mat.specular_shininess = cast(F32) (1 << mat.specular_power);
-  }
+  ImGui.DragFloat("roughness", *mat.roughness, v_min=0.1, v_max=5.0, v_speed=.01);
+  ImGui.DragFloat("metallic", *mat.metallic, v_min=0.1, v_max=5.0, v_speed=.01);
   ImGui.DragFloat2("tex_coord_scale", *mat.tex_coord_scale.f);
-  ImGui.Text(str_format(arena_temp, "colour: %", mat.tex_colour_path));
-  ImGui.Text(str_format(arena_temp, "normal: %", mat.tex_normal_path));
-  ImGui.Text(str_format(arena_temp, "spec: %", mat.tex_spec_path));
   ImGui.End();
 }
 

@@ -87,7 +87,7 @@ SamplerState sampler2: register(s2, space2);
 
 enum LightType
 {
-  LightType_Directional = 0,
+  LightType_Ambient = 0,
   LightType_Point = 1,
   LightType_Spot = 2,
 };
@@ -110,60 +110,73 @@ cbuffer FragConstantBuffer : register(b0, space3)
   LightInfo light;
 }
 
-void lighting_point(LightInfo light, float3 frag_pos, float3 l, float dist, float3 v, float3 n, out float diffuse, out float atten)
+float3 lighting_ggx(float3 N, float3 V, float3 L, float3 albedo, float3 aorm, float3 light_colour, float4 material_params)
 {
-  atten = saturate((light.outer_radius - dist) / (light.outer_radius - light.inner_radius));
-  atten *= atten;
-  diffuse = max(dot(n, l), 0.0) * light.brightness * atten;
+    #define PI 3.14159265
+    float3 H = normalize(V + L);
+    float NdotL = saturate(dot(N, L));
+    float NdotV = saturate(dot(N, V));
+    float NdotH = saturate(dot(N, H));
+    float VdotH = saturate(dot(V, H));
+    NdotV = max(NdotV, 0.001);
+    NdotL = max(NdotL, 0.001);
+    float metallic = saturate(aorm.b * material_params.g);
+    float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+    float roughness = aorm.g * material_params.r;
+    roughness = roughness * roughness;
+    float3 F = F0 + (1.0 - F0) * pow(1.0 - VdotH, 5.0);
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float denom = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
+    float D = a2 / max(PI * denom * denom, 1e-5);
+    float r = roughness + 1.0;
+    float k = (r * r) / 8.0;
+    float Gv = NdotV / (NdotV * (1.0 - k) + k);
+    float Gl = NdotL / (NdotL * (1.0 - k) + k);
+    float G = Gv * Gl;
+    float3 specular_brdf = (D * G * F) / (4.0 * NdotV * NdotL + 1e-5);
+    float3 kS = F;
+    float3 kD = (1.0 - kS) * (1.0 - metallic);
+    float3 diffuse_brdf = kD * albedo / PI;
+    float ao = aorm.r;
+    diffuse_brdf *= ao;
+    float3 radiance = light_colour * NdotL;
+    return (diffuse_brdf + specular_brdf) * radiance;
 }
 
-void lighting_spot(LightInfo light, float3 frag_pos, float3 l, float dist, float3 v, float3 n, out float diffuse, out float atten)
+float3 lighting(LightInfo light, float3 frag_pos, float3 l, float dist, float3 v, float3 n, float3 aorm, float3 object_colour, float4 material_params)
 {
-  float dist_atten = saturate(1.0 - (dist / light.outer_radius));
-  dist_atten *= dist_atten;
-  float inner_cos = cos(radians(light.inner_radius));
-  float outer_cos = cos(radians(light.outer_radius));
-  float cone_dot = dot(l, normalize(light.dir));
-  float cone_atten = saturate((cone_dot - outer_cos) / (inner_cos - outer_cos));
-  cone_atten = cone_atten * cone_atten;
-  atten = dist_atten * cone_atten;
-  diffuse = max(dot(n, l), 0.0) * light.brightness * atten;
-}
-
-void lighting(LightInfo light, float3 frag_pos, float3 l, float dist, float3 v, float3 n, float spec_intensity, float3 object_colour, inout float3 colour, float4 material_params)
-{
-  float atten;
-  if (light.type == LightType_Point)
+  if (light.type == LightType_Ambient)
   {
-    float diffuse;
-    lighting_point(light, frag_pos, l, dist, v, n, diffuse, atten);
-    colour += object_colour * light.colour * diffuse;
+    return lighting_ggx(n, v, l, object_colour, aorm, .001, material_params);
   }
-  else if (light.type == LightType_Spot)
+  else if (light.type == LightType_Point)
   {
-    float diffuse;
-    lighting_spot(light, frag_pos, l, dist, v, n, diffuse, atten);
-    colour += object_colour * light.colour * diffuse;
+    float atten = saturate((light.outer_radius - dist) / (light.outer_radius - light.inner_radius));
+    atten *= atten;
+    return lighting_ggx(n, v, l, object_colour, aorm, light.colour * light.brightness * atten, material_params);
   }
-  float3 h = normalize(l + v);
-  float spec = pow(max(0, dot(n, h)), material_params.z) * spec_intensity * light.brightness * atten;
-  colour += light.colour * spec;
+  else
+  {
+    return float3(0, 0, 0);
+  }
 }
 
 float4 frag_main(FragInput input) : SV_Target
 {
-  float2 tex_coord = input.tex_coord * input.material_params.xy;
-  float4 colour_spec_map = texture0.Sample(sampler0, tex_coord);
+  float2 tex_coord = input.tex_coord * input.material_params.zw;
+  float3 colour_map = texture0.Sample(sampler0, tex_coord).rgb;
   float3 normal_map = texture1.Sample(sampler1, tex_coord).rgb * 2.0 - 1.0;
+  float3 aorm_map = texture2.Sample(sampler2, tex_coord).rgb;
   float normal_length = length(normal_map);
   float3 n = normalize(normal_map);
-  float3 object_colour = input.colour.rgb * colour_spec_map.rgb;
-  float3 colour = float3(0, 0, 0);
+  float3 object_colour = input.colour.rgb * colour_map.rgb;
   float3 l = normalize(input.light_dir);
   float dist = length(input.light_dir);
   float3 v = normalize(input.view_dir);
-  float spec = texture2.Sample(sampler2, tex_coord).r;
-  lighting(light, input.frag_pos, l, dist, v, n, spec, object_colour, colour, input.material_params);
+  float3 colour = lighting(light, input.frag_pos, l, dist, v, n, aorm_map, object_colour, input.material_params);
+  colour = max(colour, 0.0);
+  colour = pow(colour, 1.0 / 2.2);
   float4 result = float4(colour, 1);
-  return result;
+  return saturate(result);
 }
