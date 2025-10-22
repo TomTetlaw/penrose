@@ -4,3 +4,4 @@ build/penrose.exe
 build/penrose.pdb
 build/penrose.rdi
 *.blend1
+source_data/autosave

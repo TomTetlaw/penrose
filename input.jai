@@ -1,7 +1,7 @@
 
 IN_KeyPress :: struct {
   code: IN_KeyCode;
-  down: B8;
+  down: bool;
 }
 
 IN_MouseButton :: enum
@@ -14,23 +14,23 @@ IN_MouseButton :: enum
 IN_MousePress :: struct
 {
   button: IN_MouseButton;
-  position: Vec2F32;
-  down: B8;
+  position: V2;
+  down: bool;
 }
 
 IN_InputState :: struct
 {
-  mouse_states: [3] B8;
-  prev_mouse_states: [3] B8;
-  mouse_dragging: [3] B8;
+  mouse_states: [3] bool;
+  prev_mouse_states: [3] bool;
+  mouse_dragging: [3] bool;
   keys: [] IN_KeyPress;
   clicks: [] IN_MousePress;
-  control_down, alt_down, shift_down: B8;
-  mouse_position: Vec2F32;
-  mouse_delta: Vec2F32;
+  control_down, alt_down, shift_down: bool;
+  mouse_position: V2;
+  mouse_delta: V2;
 }
 
-in_key_pressed :: (code: IN_KeyCode) -> B8
+in_key_pressed :: (code: IN_KeyCode) -> bool
 {
   for in_input_state.keys
   {
@@ -42,7 +42,7 @@ in_key_pressed :: (code: IN_KeyCode) -> B8
   return false;
 }
 
-in_key_state :: (code: IN_KeyCode) -> F32
+in_key_state :: (code: IN_KeyCode) -> float
 {
   if key_states[code]
   {
@@ -51,7 +51,7 @@ in_key_state :: (code: IN_KeyCode) -> F32
   return 0.0;
 }
 
-in_mouse_pressed :: (button: IN_MouseButton) -> B8, Vec2F32
+in_mouse_pressed :: (button: IN_MouseButton) -> bool, V2
 {
   for in_input_state.clicks
   {
@@ -63,13 +63,13 @@ in_mouse_pressed :: (button: IN_MouseButton) -> B8, Vec2F32
   return false, .{};
 }
 
-in_mouse_released :: (button: IN_MouseButton) -> B8
+in_mouse_released :: (button: IN_MouseButton) -> bool
 {
   result := in_input_state.prev_mouse_states[button] && !in_input_state.mouse_states[button];
   return result;
 }
 
-in_mouse_state :: (button: IN_MouseButton) -> F32
+in_mouse_state :: (button: IN_MouseButton) -> float
 {
   if in_input_state.mouse_states[button]
   {
@@ -80,12 +80,12 @@ in_mouse_state :: (button: IN_MouseButton) -> F32
 
 IN_DragState :: struct
 {
-  state_changed: B8;
-  started: B8;
-  ended: B8;
+  state_changed: bool;
+  started: bool;
+  ended: bool;
 }
 
-in_mouse_drag :: (state: B8, button: IN_MouseButton) -> IN_DragState
+in_mouse_drag :: (state: bool, button: IN_MouseButton) -> IN_DragState
 {
   if !state && in_mouse_pressed(button)
   {
@@ -101,11 +101,11 @@ in_mouse_drag :: (state: B8, button: IN_MouseButton) -> IN_DragState
 in_process_events :: (events: [] SDL_Event, capture_mouse: bool, capture_keyboard: bool)
 {
   in_input_state.prev_mouse_states = in_input_state.mouse_states;
-  in_input_state.mouse_delta = v2f32(0.0);
+  in_input_state.mouse_delta = v2(0.0);
   keys: [..] IN_KeyPress;
-  keys.allocator = arena_allocator(arena_temp);
+  keys.allocator = arena_allocator(temp_arena);
   clicks: [..] IN_MousePress;
-  clicks.allocator = arena_allocator(arena_temp);
+  clicks.allocator = arena_allocator(temp_arena);
   for events
   {
     type := cast(SDL_EventType) it.type;
@@ -127,17 +127,17 @@ in_process_events :: (events: [] SDL_Event, capture_mouse: bool, capture_keyboar
       {
         case .SDL_EVENT_MOUSE_BUTTON_DOWN;
           button := cast(IN_MouseButton) it.button.button - 1;
-          position := v2f32(xx it.button.x, xx it.button.y);
+          position := v2(xx it.button.x, xx it.button.y);
           array_add(*clicks, .{button, position, true});
           in_input_state.mouse_states[button] = true;
         case .SDL_EVENT_MOUSE_BUTTON_UP;
           button := cast(IN_MouseButton) it.button.button - 1;
-          position := v2f32(xx it.button.x, xx it.button.y);
+          position := v2(xx it.button.x, xx it.button.y);
           array_add(*clicks, .{button, position, false});
           in_input_state.mouse_states[button] = false;
         case .SDL_EVENT_MOUSE_MOTION;
-          in_input_state.mouse_position = v2f32(xx it.motion.x, xx it.motion.y);
-          in_input_state.mouse_delta += v2f32(xx it.motion.xrel, xx it.motion.yrel);
+          in_input_state.mouse_position = v2(xx it.motion.x, xx it.motion.y);
+          in_input_state.mouse_delta += v2(xx it.motion.xrel, xx it.motion.yrel);
       }
     }
   }
@@ -157,7 +157,7 @@ in_input_state: IN_InputState;
 
 #scope_file
 
-key_states: *B8;
+key_states: *bool;
 
 #scope_export
 

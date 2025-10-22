@@ -1,5 +1,5 @@
 
-sys_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
+sys_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: V2)
 {
   
 }

@@ -6,14 +6,17 @@ dr_max_quad_instances :: 10240;
 dr_colour_format :: SDL_GPUTextureFormat.B8G8R8A8_UNORM_SRGB;
 dr_depth_format :: SDL_GPUTextureFormat.D32_FLOAT_S8_UINT;
 dr_depth_clear_value :: 0.0;
-dr_max_shadow_verts :: 163840;
+dr_max_shadow_verts :: 655360;
 dr_near_plane :: 0.1;
 dr_far_plane :: 1000.0;
+
+dr_min_stencil_depth := 0.0;
+dr_max_stencil_depth := .9999;
 
 dr_msaa_enabled :: true;
 #if dr_msaa_enabled
 {
-  dr_msaa_sample_count :: SDL_GPUSampleCount._8;
+  dr_msaa_sample_count :: SDL_GPUSampleCount._4;
 }
 else
 {
@@ -37,50 +40,50 @@ DR_BufferRef :: struct
 
 DR_MeshInstance :: struct
 {
-  transform: Mat4x4F32;
-  colour: Vec4F32;
-  material_params: Vec4F32;
+  transform: Mat4;
+  colour: V4;
+  material_params: V4;
 }
 
-mesh_material_params :: (roughness: F32, metallic: F32, tex_coord_scale: Vec2F32) -> Vec4F32
+mesh_material_params :: (roughness: float, metallic: float, tex_coord_scale: V2) -> V4
 {
-  return v4f32(roughness, metallic, tex_coord_scale.x, tex_coord_scale.y);
+  return v4(roughness, metallic, tex_coord_scale.x, tex_coord_scale.y);
 }
 
 DR_LineInstance :: struct
 {
-  start: Vec3F32;
-  pad0: F32;
-  end: Vec3F32;
-  pad1: F32;
-  colour: Vec4F32;
-  props: Vec4F32;
+  start: V3;
+  pad0: float;
+  end: V3;
+  pad1: float;
+  colour: V4;
+  props: V4;
 }
 
 DR_QuadInstance :: struct
 {
-  position: Vec3F32;
-  pad0: F32;
-  colour: Vec4F32;
-  props: Vec4F32;
+  position: V3;
+  pad0: float;
+  colour: V4;
+  props: V4;
 }
 
-line_props :: (thickness: F32) -> Vec4F32
+line_props :: (thickness: float) -> V4
 {
-  result: Vec4F32;
+  result: V4;
   result.x = thickness;
   return result;
 }
 
 DR_MeshVertConstants :: struct
 {
-  world_to_view: Mat4x4F32;
-  view_to_clip: Mat4x4F32;
-  camera_pos: Vec3F32;
-  pad0: F32;
-  viewport: Vec4F32;
-  light_pos: Vec3F32;
-  pad1: F32;
+  world_to_view: Mat4;
+  view_to_clip: Mat4;
+  camera_pos: V3;
+  pad0: float;
+  viewport: V4;
+  light_pos: V3;
+  pad1: float;
 }
 
 DR_MeshFragConstants :: struct
@@ -102,7 +105,7 @@ DR_MeshMaterial :: struct
   name: string;
   roughness := 0.5;
   metallic := 0.0;
-  tex_coord_scale := Vec2F32.{1, 1};
+  tex_coord_scale := V2.{1, 1};
   tex_colour: *DR_Texture;
   tex_normal: *DR_Texture;
   tex_aorm: *DR_Texture;
@@ -150,9 +153,9 @@ DR_Mesh :: struct
   indices: DR_BufferRef;
   vertex_count: int;
   index_count: int;
-  bounds_min: Vec3F32;
-  bounds_max: Vec3F32;
-  positions: [] Vec3F32;
+  bounds_min: V3;
+  bounds_max: V3;
+  positions: [] V3;
   index: [] u32;
   shadow_volume: *SH_ShadowVolume;
 }
@@ -169,7 +172,7 @@ DR_RendererState :: struct
   arena: *Arena;
   device: *SDL_GPUDevice;
   window: *SDL_Window;
-  resolution: Vec2F32;
+  resolution: V2;
   shaders: *DR_Shader;
   pipelines: *DR_Pipeline;
   buffers: *DR_Buffer;
@@ -213,7 +216,7 @@ DR_RendererState :: struct
   transfer_arena: *Arena;
   transfer_buffer: *SDL_GPUTransferBuffer;
   transfer_buffer_size: int;
-  sampler_set_size: Vec3U32;
+  sampler_set_size: [3] int;
   sampler_set: [] *SDL_GPUSampler;
   lights: [..] DR_LightInfo;
 }
@@ -278,10 +281,10 @@ DR_Upload :: struct
 
 DR_MeshVertex :: struct
 {
-  position: Vec3F32;
-  tex_coord: Vec2F32;
-  normal: Vec3F32;
-  tangent: Vec4F32;
+  position: V3;
+  tex_coord: V2;
+  normal: V3;
+  tangent: V4;
 }
 
 LightType :: enum u32
@@ -293,15 +296,15 @@ LightType :: enum u32
 
 DR_LightInfo :: struct
 {
-  position: Vec3F32;
+  position: V3;
   type := LightType.Point;
-  colour := Vec3F32.{1, 1, 1};
+  colour := V3.{1, 1, 1};
   brightness := 5.0;
-  dir: Vec3F32;
-  pad0: F32;
+  dir: V3;
+  pad0: float;
   inner_radius := .25;
   outer_radius := 1.0;
-  pad1: Vec2F32;
+  pad1: V2;
 }
 
 dr_renderer: *DR_RendererState;
@@ -315,7 +318,7 @@ dr_get_mesh :: (path: string) -> *DR_Mesh
       return it;
     }
   }
-  return mesh_load(arena_temp, str_format(arena_temp, "meshes/%.mesh", path));
+  return mesh_load(temp_arena, str_format(temp_arena, "meshes/%.mesh", path));
 }
 
 dr_get_texture :: (path: string) -> *DR_Texture
@@ -346,25 +349,25 @@ dr_get_material :: (name: string) -> *DR_MeshMaterial
 dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) -> *DR_Mesh
 {
   capacity_vertices := size_of(DR_MeshVertex) * vertices.count;
-  mesh := arena_push_struct(dr_renderer.arena, DR_Mesh);
+  mesh := push_struct(dr_renderer.arena, DR_Mesh);
   stack_push(*dr_renderer.meshes, mesh);
   mesh.path = str_copy(dr_renderer.arena, name);
-  mesh.buffer_vertex = dr_create_vertex_buffer(str_format(arena_temp, "%_vertices", name), capacity_vertices, null, 0, 0);
+  mesh.buffer_vertex = dr_create_vertex_buffer(str_format(temp_arena, "%_vertices", name), capacity_vertices, null, 0, 0);
   mesh.vertices = dr_write_buffer(mesh.buffer_vertex, vertices.data, capacity_vertices);
   mesh.vertex_count = vertices.count;
-  mesh.bounds_min = v3f32(MaxF32);
-  mesh.bounds_max = v3f32(-MaxF32);
-  mesh.positions = arena_push_view(dr_renderer.arena, Vec3F32, xx vertices.count);
+  mesh.bounds_min = v3(FLOAT32_MAX);
+  mesh.bounds_max = v3(-FLOAT32_MAX);
+  mesh.positions = push_view(dr_renderer.arena, V3, xx vertices.count);
   for vertices
   {
     mesh.positions[it_index] = it.position;
-    mesh.bounds_min = min_v3(mesh.bounds_min, it.position);
-    mesh.bounds_max = max_v3(mesh.bounds_max, it.position);
+    mesh.bounds_min = min(mesh.bounds_min, it.position);
+    mesh.bounds_max = max(mesh.bounds_max, it.position);
   }
   if indices.count > 0
   {
     capacity_indices := size_of(u32) * indices.count;
-    mesh.buffer_index = dr_create_index_buffer(str_format(arena_temp, "%_indices", name), capacity_indices, null, 0, 0);
+    mesh.buffer_index = dr_create_index_buffer(str_format(temp_arena, "%_indices", name), capacity_indices, null, 0, 0);
     mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
     mesh.index_count = indices.count;
     mesh.index = indices;
@@ -384,8 +387,8 @@ dr_create_buffer :: (name: string, capacity: int, data: *void, size: int, offset
 	ref := SDL_CreateGPUBuffer(dr_renderer.device, *info);
 	if ref
 	{
-	  SDL_SetGPUBufferName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
-	  buffer := arena_push_struct(dr_renderer.arena, DR_Buffer);
+	  SDL_SetGPUBufferName(dr_renderer.device, ref, cstr_from_str(temp_arena, name));
+	  buffer := push_struct(dr_renderer.arena, DR_Buffer);
 	  stack_push(*dr_renderer.buffers, buffer);
 	  buffer.ref = ref;
 	  buffer.capacity = capacity;
@@ -432,8 +435,8 @@ dr_create_target_texture :: (name: string, width: int, height: int, sample_count
 	ref := SDL_CreateGPUTexture(dr_renderer.device, *info);
 	if ref
 	{
-	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
-	  texture := arena_push_struct(dr_renderer.arena, DR_Texture);
+	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(temp_arena, name));
+	  texture := push_struct(dr_renderer.arena, DR_Texture);
 	  texture.path = name;
 	  texture.ref = ref;
 	  stack_push(*dr_renderer.textures, texture);
@@ -455,8 +458,8 @@ dr_create_draw_texture :: (name: string, width: int, height: int, format: SDL_GP
 	ref := SDL_CreateGPUTexture(dr_renderer.device, *info);
 	if ref
 	{
-	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(arena_temp, name));
-	  texture := arena_push_struct(dr_renderer.arena, DR_Texture);
+	  SDL_SetGPUTextureName(dr_renderer.device, ref, cstr_from_str(temp_arena, name));
+	  texture := push_struct(dr_renderer.arena, DR_Texture);
 	  texture.path = str_copy(dr_renderer.arena, name);
 	  texture.ref = ref;
 	  stack_push(*dr_renderer.textures, texture);
@@ -480,7 +483,7 @@ dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_Me
     {
       it.material_params = mesh_material_params(material.roughness, material.metallic, material.tex_coord_scale);
     }
-    draw_mesh := arena_push_struct(dr_renderer.draw_mesh_arena, DR_DrawMesh);
+    draw_mesh := push_struct(dr_renderer.draw_mesh_arena, DR_DrawMesh);
     stack_push(*dr_renderer.draw_meshes, draw_mesh);
     dr_renderer.draw_mesh_count += instances.count;
     draw_mesh.instances = dr_write_buffer(dr_renderer.mesh_instances, instances.data, size_of(DR_MeshInstance) * instances.count);
@@ -493,7 +496,7 @@ dr_draw_mesh :: (mesh: *DR_Mesh, instances: [] DR_MeshInstance, material: *DR_Me
     draw_mesh.index_count = mesh.indices.size / size_of(u32);
     draw_mesh.material = material;
     draw_mesh.shadow_volume = mesh.shadow_volume;
-    draw_mesh.instances_view = arena_copy_view(arena_temp, instances);
+    draw_mesh.instances_view = push_copy_view(temp_arena, instances);
   }
 }
 
@@ -501,7 +504,7 @@ dr_draw_lines :: (instances: [] DR_LineInstance)
 {
   if instances.count > 0
   {
-    draw_lines := arena_push_struct(arena_temp, DR_DrawLines);
+    draw_lines := push_struct(temp_arena, DR_DrawLines);
     stack_push(*dr_renderer.draw_lines, draw_lines);
     draw_lines.instances = dr_write_buffer(dr_renderer.line_instances, instances.data, size_of(DR_LineInstance) * instances.count);
     draw_lines.base_instance = draw_lines.instances.offset / size_of(DR_LineInstance);
@@ -513,7 +516,7 @@ dr_draw_quads :: (instances: [] DR_QuadInstance)
 {
   if instances.count > 0
   {
-    draw_quads := arena_push_struct(arena_temp, DR_DrawQuads);
+    draw_quads := push_struct(temp_arena, DR_DrawQuads);
     stack_push(*dr_renderer.draw_quads, draw_quads);
     draw_quads.instances = dr_write_buffer(dr_renderer.quad_instances, instances.data, size_of(DR_QuadInstance) * instances.count);
     draw_quads.base_instance = draw_quads.instances.offset / size_of(DR_QuadInstance);
@@ -521,69 +524,69 @@ dr_draw_quads :: (instances: [] DR_QuadInstance)
   }
 }
 
-quad_props :: (size: Vec2F32, border: F32) -> Vec4F32
+quad_props :: (size: V2, border: float) -> V4
 {
-  result: Vec4F32;
+  result: V4;
   result.xy = size;
   result.z = border;
   return result;
 }
 
-dr_draw_bounds :: (bounds_min: Vec3F32, bounds_max: Vec3F32, colour: Vec4F32, thickness: F32)
+dr_draw_bounds :: (bounds_min: V3, bounds_max: V3, colour: V4, thickness: float)
 {
   line_instances := DR_LineInstance.[
-    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_min.y, bounds_min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_min.y, bounds_max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_min.y, bounds_max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_min.y, bounds_min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_min.x, bounds_max.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_max.x, bounds_max.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_max.x, bounds_max.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_min.x, bounds_max.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_min.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_max.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_max.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
-    .{start=v3f32(bounds_min.x, bounds_min.y, bounds_max.z), end=v3f32(bounds_min.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_min.x, bounds_min.y, bounds_min.z), end=v3(bounds_max.x, bounds_min.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_max.x, bounds_min.y, bounds_min.z), end=v3(bounds_max.x, bounds_min.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_max.x, bounds_min.y, bounds_max.z), end=v3(bounds_min.x, bounds_min.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_min.x, bounds_min.y, bounds_max.z), end=v3(bounds_min.x, bounds_min.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_min.x, bounds_max.y, bounds_min.z), end=v3(bounds_max.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_max.x, bounds_max.y, bounds_min.z), end=v3(bounds_max.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_max.x, bounds_max.y, bounds_max.z), end=v3(bounds_min.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_min.x, bounds_max.y, bounds_max.z), end=v3(bounds_min.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_min.x, bounds_min.y, bounds_min.z), end=v3(bounds_min.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_max.x, bounds_min.y, bounds_min.z), end=v3(bounds_max.x, bounds_max.y, bounds_min.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_max.x, bounds_min.y, bounds_max.z), end=v3(bounds_max.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
+    .{start=v3(bounds_min.x, bounds_min.y, bounds_max.z), end=v3(bounds_min.x, bounds_max.y, bounds_max.z), colour=colour, props=line_props(thickness)},
   ];
   dr_draw_lines(line_instances);
 }
 
-dr_draw_sphere :: (center: Vec3F32, radius: F32, segments: int, colour: Vec4F32, thickness: F32)
+dr_draw_sphere :: (center: V3, radius: float, segments: int, colour: V4, thickness: float)
 {
-  dr_draw_circle(center, v3f32(1, 0, 0), radius, segments, colour, thickness);
-  dr_draw_circle(center, v3f32(0, 1, 0), radius, segments, colour, thickness);
-  dr_draw_circle(center, v3f32(0, 0, 1), radius, segments, colour, thickness);
+  dr_draw_circle(center, v3(1, 0, 0), radius, segments, colour, thickness);
+  dr_draw_circle(center, v3(0, 1, 0), radius, segments, colour, thickness);
+  dr_draw_circle(center, v3(0, 0, 1), radius, segments, colour, thickness);
 }
 
-dr_draw_capsule :: (center: Vec3F32, radius: F32, height: F32, colour: Vec4F32, thickness: F32)
+dr_draw_capsule :: (center: V3, radius: float, height: float, colour: V4, thickness: float)
 {
-  top := center + v3f32(0, 0, height * 0.5);
-  bottom := center - v3f32(0, 0, height * 0.5);
-  dr_draw_circle(top, v3f32(1, 0, 0), radius, 8, colour, thickness);
-  dr_draw_circle(top, v3f32(0, 1, 0), radius, 8, colour, thickness);
-  dr_draw_circle(bottom, v3f32(1, 0, 0), radius, 8, colour, thickness);
-  dr_draw_circle(bottom, v3f32(0, 1, 0), radius, 8, colour, thickness);
+  top := center + v3(0, 0, height * 0.5);
+  bottom := center - v3(0, 0, height * 0.5);
+  dr_draw_circle(top, v3(1, 0, 0), radius, 8, colour, thickness);
+  dr_draw_circle(top, v3(0, 1, 0), radius, 8, colour, thickness);
+  dr_draw_circle(bottom, v3(1, 0, 0), radius, 8, colour, thickness);
+  dr_draw_circle(bottom, v3(0, 1, 0), radius, 8, colour, thickness);
   line_instances := DR_LineInstance.[
-    .{start=top + v3f32(radius, 0, 0), end=bottom + v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
-    .{start=top - v3f32(radius, 0, 0), end=bottom - v3f32(radius, 0, 0), colour=colour, props=line_props(thickness)},
-    .{start=top + v3f32(0, radius, 0), end=bottom + v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
-    .{start=top - v3f32(0, radius, 0), end=bottom - v3f32(0, radius, 0), colour=colour, props=line_props(thickness)},
+    .{start=top + v3(radius, 0, 0), end=bottom + v3(radius, 0, 0), colour=colour, props=line_props(thickness)},
+    .{start=top - v3(radius, 0, 0), end=bottom - v3(radius, 0, 0), colour=colour, props=line_props(thickness)},
+    .{start=top + v3(0, radius, 0), end=bottom + v3(0, radius, 0), colour=colour, props=line_props(thickness)},
+    .{start=top - v3(0, radius, 0), end=bottom - v3(0, radius, 0), colour=colour, props=line_props(thickness)},
   ];
   dr_draw_lines(line_instances);
 }
 
-dr_draw_circle :: (center: Vec3F32, normal: Vec3F32, radius: F32, segments: int, colour: Vec4F32, thickness: F32)
+dr_draw_circle :: (center: V3, normal: V3, radius: float, segments: int, colour: V4, thickness: float)
 {
-  n := normalize_v3(normal);
-  tmp := ifx abs(n.x) < 0.99 then v3f32(1,0,0) else v3f32(0,1,0);
-  tangent := normalize_v3(cross_v3(n, tmp));
-  bitangent := cross_v3(n, tangent);
-  line_instances := arena_push_view(arena_temp, DR_LineInstance, xx segments);
-  step := (2.0 * PI) / cast(F32) segments;
+  n := normalize(normal);
+  tmp := ifx abs(n.x) < 0.99 then v3(1,0,0) else v3(0,1,0);
+  tangent := normalize(cross(n, tmp));
+  bitangent := cross(n, tangent);
+  line_instances := push_view(temp_arena, DR_LineInstance, xx segments);
+  step := (2.0 * PI) / cast(float) segments;
   prev := center + tangent*radius;
   for 1..segments
   {
-    angle := step * cast(F32) it;
+    angle := step * cast(float) it;
     p := center + (tangent * cos(angle) + bitangent * sin(angle)) * radius;
     line_instances[it-1] = .{
       start = prev,
@@ -643,7 +646,7 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
   vertex_buffer_desc.slot = 0;
   if flags & .StencilShadow
   {
-    vertex_buffer_desc.pitch = size_of(Vec3F32);
+    vertex_buffer_desc.pitch = size_of(V3);
   }
   else
   {
@@ -728,7 +731,7 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
     info_base.depth_stencil_state.front_stencil_state.depth_fail_op = .KEEP;
   }
   ref_base := SDL_CreateGPUGraphicsPipeline(dr_renderer.device, *info_base);
-  pipeline := arena_push_struct(dr_renderer.arena, DR_Pipeline);
+  pipeline := push_struct(dr_renderer.arena, DR_Pipeline);
   stack_push(*dr_renderer.pipelines, pipeline);
   pipeline.instance_buffer = instance_buffer;
   pipeline.flags = flags;
@@ -746,30 +749,30 @@ dr_create_pipeline :: (shader: *DR_Shader, instance_buffer: *DR_Buffer, flags: D
 
 dr_create_builtin_meshes :: () {
   cube_vertices := DR_MeshVertex.[
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,1),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,0), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,0), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,0,-1), tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(1,0,0),  tangent=v4f32( 0,-1, 0, 1)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(-1,0,0), tangent=v4f32( 0, 1, 0, 1)},
-    .{position=v3f32(-0.5, 0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32(-0.5, 0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32( 0.5, 0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32( 0.5, 0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,1,0),  tangent=v4f32( 1, 0, 0, 1)},
-    .{position=v3f32(-0.5,-0.5,-0.5), tex_coord=v2f32(0,1), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
-    .{position=v3f32( 0.5,-0.5,-0.5), tex_coord=v2f32(1,1), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
-    .{position=v3f32( 0.5,-0.5, 0.5), tex_coord=v2f32(1,0), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
-    .{position=v3f32(-0.5,-0.5, 0.5), tex_coord=v2f32(0,0), normal=v3f32(0,-1,0), tangent=v4f32(-1, 0, 0, 1)},
+    .{position=v3(-0.5,-0.5, 0.5), tex_coord=v2(0,0), normal=v3(0,0,1),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3( 0.5,-0.5, 0.5), tex_coord=v2(1,0), normal=v3(0,0,1),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3( 0.5, 0.5, 0.5), tex_coord=v2(1,1), normal=v3(0,0,1),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3(-0.5, 0.5, 0.5), tex_coord=v2(0,1), normal=v3(0,0,1),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3(-0.5,-0.5,-0.5), tex_coord=v2(0,1), normal=v3(0,0,-1), tangent=v4( 1, 0, 0, 1)},
+    .{position=v3(-0.5, 0.5,-0.5), tex_coord=v2(0,0), normal=v3(0,0,-1), tangent=v4( 1, 0, 0, 1)},
+    .{position=v3( 0.5, 0.5,-0.5), tex_coord=v2(1,0), normal=v3(0,0,-1), tangent=v4( 1, 0, 0, 1)},
+    .{position=v3( 0.5,-0.5,-0.5), tex_coord=v2(1,1), normal=v3(0,0,-1), tangent=v4( 1, 0, 0, 1)},
+    .{position=v3( 0.5,-0.5,-0.5), tex_coord=v2(0,1), normal=v3(1,0,0),  tangent=v4( 0,-1, 0, 1)},
+    .{position=v3( 0.5, 0.5,-0.5), tex_coord=v2(1,1), normal=v3(1,0,0),  tangent=v4( 0,-1, 0, 1)},
+    .{position=v3( 0.5, 0.5, 0.5), tex_coord=v2(1,0), normal=v3(1,0,0),  tangent=v4( 0,-1, 0, 1)},
+    .{position=v3( 0.5,-0.5, 0.5), tex_coord=v2(0,0), normal=v3(1,0,0),  tangent=v4( 0,-1, 0, 1)},
+    .{position=v3(-0.5,-0.5,-0.5), tex_coord=v2(1,1), normal=v3(-1,0,0), tangent=v4( 0, 1, 0, 1)},
+    .{position=v3(-0.5,-0.5, 0.5), tex_coord=v2(1,0), normal=v3(-1,0,0), tangent=v4( 0, 1, 0, 1)},
+    .{position=v3(-0.5, 0.5, 0.5), tex_coord=v2(0,0), normal=v3(-1,0,0), tangent=v4( 0, 1, 0, 1)},
+    .{position=v3(-0.5, 0.5,-0.5), tex_coord=v2(0,1), normal=v3(-1,0,0), tangent=v4( 0, 1, 0, 1)},
+    .{position=v3(-0.5, 0.5,-0.5), tex_coord=v2(1,1), normal=v3(0,1,0),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3(-0.5, 0.5, 0.5), tex_coord=v2(1,0), normal=v3(0,1,0),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3( 0.5, 0.5, 0.5), tex_coord=v2(0,0), normal=v3(0,1,0),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3( 0.5, 0.5,-0.5), tex_coord=v2(0,1), normal=v3(0,1,0),  tangent=v4( 1, 0, 0, 1)},
+    .{position=v3(-0.5,-0.5,-0.5), tex_coord=v2(0,1), normal=v3(0,-1,0), tangent=v4(-1, 0, 0, 1)},
+    .{position=v3( 0.5,-0.5,-0.5), tex_coord=v2(1,1), normal=v3(0,-1,0), tangent=v4(-1, 0, 0, 1)},
+    .{position=v3( 0.5,-0.5, 0.5), tex_coord=v2(1,0), normal=v3(0,-1,0), tangent=v4(-1, 0, 0, 1)},
+    .{position=v3(-0.5,-0.5, 0.5), tex_coord=v2(0,0), normal=v3(0,-1,0), tangent=v4(-1, 0, 0, 1)},
   ];
   cube_indices := u32.[
     0,1,2, 0,2,3,
@@ -781,18 +784,18 @@ dr_create_builtin_meshes :: () {
   ];
   dr_renderer.mesh_cube = dr_create_mesh("dr_default_cube_mesh", cube_vertices, cube_indices);
   line_vertices := DR_MeshVertex.[
-    .{position = v3f32(-1,  2, 0), tex_coord=v2f32(-1,  2)},
-    .{position = v3f32( 1,  2, 0), tex_coord=v2f32( 1,  2)},
-    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1)},
-    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1)},
-    .{position = v3f32(-1,  1, 0), tex_coord=v2f32(-1,  1)},
-    .{position = v3f32( 1,  1, 0), tex_coord=v2f32( 1,  1)},
-    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0)},
-    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0)},
-    .{position = v3f32(-1,  0, 0), tex_coord=v2f32(-1,  0)},
-    .{position = v3f32( 1,  0, 0), tex_coord=v2f32( 1,  0)},
-    .{position = v3f32(-1, -1, 0), tex_coord=v2f32(-1, -1)},
-    .{position = v3f32( 1, -1, 0), tex_coord=v2f32( 1, -1)},
+    .{position = v3(-1,  2, 0), tex_coord=v2(-1,  2)},
+    .{position = v3( 1,  2, 0), tex_coord=v2( 1,  2)},
+    .{position = v3(-1,  1, 0), tex_coord=v2(-1,  1)},
+    .{position = v3( 1,  1, 0), tex_coord=v2( 1,  1)},
+    .{position = v3(-1,  1, 0), tex_coord=v2(-1,  1)},
+    .{position = v3( 1,  1, 0), tex_coord=v2( 1,  1)},
+    .{position = v3(-1,  0, 0), tex_coord=v2(-1,  0)},
+    .{position = v3( 1,  0, 0), tex_coord=v2( 1,  0)},
+    .{position = v3(-1,  0, 0), tex_coord=v2(-1,  0)},
+    .{position = v3( 1,  0, 0), tex_coord=v2( 1,  0)},
+    .{position = v3(-1, -1, 0), tex_coord=v2(-1, -1)},
+    .{position = v3( 1, -1, 0), tex_coord=v2( 1, -1)},
   ];
   line_indices := u32.[
     0, 2, 1, 2, 3, 1,
@@ -801,10 +804,10 @@ dr_create_builtin_meshes :: () {
   ];
   dr_renderer.mesh_line = dr_create_mesh("dr_line", line_vertices, line_indices);
   quad_vertices := DR_MeshVertex.[
-    .{position = v3f32(-.5, -.5, 0), tex_coord=v2f32(0, 0)},
-    .{position = v3f32( .5, -.5, 0), tex_coord=v2f32(1, 0)},
-    .{position = v3f32( .5,  .5, 0), tex_coord=v2f32(1, 1)},
-    .{position = v3f32(-.5,  .5, 0), tex_coord=v2f32(0, 1)},
+    .{position = v3(-.5, -.5, 0), tex_coord=v2(0, 0)},
+    .{position = v3( .5, -.5, 0), tex_coord=v2(1, 0)},
+    .{position = v3( .5,  .5, 0), tex_coord=v2(1, 1)},
+    .{position = v3(-.5,  .5, 0), tex_coord=v2(0, 1)},
   ];
   quad_indices := u32.[
     0, 1, 2, 2, 3, 0
@@ -835,8 +838,8 @@ dr_create_sampler_set :: ()
     .MIRRORED_REPEAT,
     .CLAMP_TO_EDGE
   ];
-  dr_renderer.sampler_set_size = Vec3U32.{xx filters.count, xx mip_filters.count, xx address_modes.count};
-  dr_renderer.sampler_set = arena_push_view(dr_renderer.arena, *SDL_GPUSampler, filters.count * mip_filters.count * address_modes.count);
+  dr_renderer.sampler_set_size = .[filters.count, mip_filters.count, address_modes.count];
+  dr_renderer.sampler_set = push_view(dr_renderer.arena, *SDL_GPUSampler, filters.count * mip_filters.count * address_modes.count);
   for filter: filters
   {
     for mip_filter: mip_filters
@@ -865,16 +868,16 @@ dr_add_light :: (info: DR_LightInfo)
   array_add(*dr_renderer.lights, info);
 }
 
-dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
+dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: V2)
 {
-  arena := mem_create_arena();
-  dr_renderer = arena_push_struct(arena, DR_RendererState);
+  arena := create_arena();
+  dr_renderer = push_struct(arena, DR_RendererState);
   dr_renderer.arena = arena;
   dr_renderer.window = window;
   dr_renderer.device = device;
   dr_renderer.resolution = resolution;
-  dr_renderer.transfer_arena = mem_create_arena();
-  dr_renderer.draw_mesh_arena = mem_create_arena();
+  dr_renderer.transfer_arena = create_arena();
+  dr_renderer.draw_mesh_arena = create_arena();
   dr_renderer.shader_depth = dr_get_shader("depth");
   dr_renderer.shader_mesh = dr_get_shader("mesh");
   dr_renderer.shader_lines = dr_get_shader("lines");
@@ -889,14 +892,14 @@ dr_init :: (window: *SDL_Window, device: *SDL_GPUDevice, resolution: Vec2F32)
   dr_renderer.pipeline_ambient = dr_create_pipeline(dr_renderer.shader_mesh, dr_renderer.mesh_instances, .Blend | .DepthTest | .StencilTestInverted, .Triangles);
   dr_renderer.pipeline_lines = dr_create_pipeline(dr_renderer.shader_lines, dr_renderer.line_instances, .DepthTest, .Triangles);
   dr_renderer.pipeline_quads = dr_create_pipeline(dr_renderer.shader_quads, dr_renderer.quad_instances, .None, .Triangles);
-  dr_renderer.shadow_vertex_buffer =  dr_create_vertex_buffer("shadow_vertices", size_of(Vec3F32) * dr_max_shadow_verts, null, 0, 0);
+  dr_renderer.shadow_vertex_buffer =  dr_create_vertex_buffer("shadow_vertices", size_of(V3) * dr_max_shadow_verts, null, 0, 0);
   if dr_msaa_enabled
   {
     dr_renderer.colour_target = dr_create_target_texture("colour_target", xx resolution.x, xx resolution.y, dr_msaa_sample_count, dr_colour_format, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
     dr_renderer.resolve_target = dr_create_target_texture("resolve_target", xx resolution.x, xx resolution.y, ._1, dr_colour_format, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
   }
   dr_renderer.depth_target = dr_create_target_texture("depth_target", xx resolution.x, xx resolution.y, dr_msaa_sample_count, dr_depth_format, SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
-  dr_renderer.lights.allocator = arena_allocator(arena_temp);
+  dr_renderer.lights.allocator = arena_allocator(temp_arena);
   dr_create_builtin_meshes();
   dr_create_builtin_textures();
   dr_create_sampler_set();
@@ -912,7 +915,7 @@ dr_quit :: ()
 
 dr_create_material :: () -> *DR_MeshMaterial
 {
-  mat := arena_push_struct(dr_renderer.arena, DR_MeshMaterial);
+  mat := push_struct(dr_renderer.arena, DR_MeshMaterial);
   stack_push(*dr_renderer.materials, mat);
   mat.tex_colour = dr_renderer.tex_white;
   mat.tex_normal = dr_renderer.tex_normal;
@@ -953,10 +956,10 @@ read_materials :: ()
   }
   for file_list("materials")
   {
-    file_data, ok := read_entire_file(it,, arena_allocator(arena_temp));
+    file_data, ok := read_entire_file(it,, arena_allocator(temp_arena));
     if ok
     {
-      mat := arena_push_struct(dr_renderer.arena, DR_MeshMaterial);
+      mat := push_struct(dr_renderer.arena, DR_MeshMaterial);
       stack_push(*dr_renderer.materials, mat);
       _, lines := file_to_array("", true, true, false, true, file_data);
       for lines
@@ -991,13 +994,13 @@ write_materials :: ()
   {
     if it.name != "dr_default_material"
     {
-      path := str_format(arena_temp, "materials/%.txt", it.name);
+      path := str_format(temp_arena, "materials/%.txt", it.name);
       file := file_open(path, for_writing = true);
       defer file_close(*file);
       file_print_line(*file, "name: %", it.name);
       file_print_line(*file, "roughness: %", it.roughness);
       file_print_line(*file, "metallic: %", it.metallic);
-      file_print_v2(*file, "tex_coord_scale", it.tex_coord_scale);
+      file_print(*file, "tex_coord_scale", it.tex_coord_scale);
       if it.tex_colour file_print_line(*file, "tex_colour: %", it.tex_colour.path);
       if it.tex_normal file_print_line(*file, "tex_normal: %", it.tex_normal.path);
       if it.tex_aorm file_print_line(*file, "tex_aorm: %", it.tex_aorm.path);
@@ -1008,17 +1011,17 @@ write_materials :: ()
 dr_get_sampler :: (filter: SDL_GPUFilter, mip_filter: SDL_GPUSamplerMipmapMode, address_mode: SDL_GPUSamplerAddressMode) -> *SDL_GPUSampler
 {
   index := cast(int) filter +
-    cast(int) mip_filter*dr_renderer.sampler_set_size.x +
-    cast(int) address_mode*dr_renderer.sampler_set_size.y;
+    cast(int) mip_filter*dr_renderer.sampler_set_size[0] +
+    cast(int) address_mode*dr_renderer.sampler_set_size[1];
   return dr_renderer.sampler_set[index];
 }
 
 dr_queue_buffer_upload :: (dest: *DR_Buffer, data: *void, size: int, offset: int)
 {
-  upload := arena_push_struct(dr_renderer.transfer_arena, DR_Upload);
+  upload := push_struct(dr_renderer.transfer_arena, DR_Upload);
   queue_push(*dr_renderer.upload_queue, *dr_renderer.last_upload, upload);
   upload.size = size;
-  upload.data = arena_push_copy(dr_renderer.transfer_arena, data, xx size);
+  upload.data = push_copy(dr_renderer.transfer_arena, data, xx size);
   upload.offset = offset;
   upload.buffer = dest.ref;
   dr_renderer.upload_size += size;
@@ -1026,12 +1029,12 @@ dr_queue_buffer_upload :: (dest: *DR_Buffer, data: *void, size: int, offset: int
 
 dr_queue_texture_upload :: (dest: *SDL_GPUTexture, data: *void, width: int, height: int, stride: int, generate_mipmaps: bool, x := 0, y := 0)
 {
-  upload := arena_push_struct(dr_renderer.transfer_arena, DR_Upload);
+  upload := push_struct(dr_renderer.transfer_arena, DR_Upload);
   queue_push(*dr_renderer.upload_queue, *dr_renderer.last_upload, upload);
   upload.size = width * height * stride;
   upload.width = width;
   upload.height = height;
-  upload.data = arena_push_copy(dr_renderer.transfer_arena, data, xx upload.size);
+  upload.data = push_copy(dr_renderer.transfer_arena, data, xx upload.size);
   upload.x = x;
   upload.y = y;
   upload.texture = dest;
@@ -1158,11 +1161,6 @@ dr_run_depth_prepass :: (command_buffer: *SDL_GPUCommandBuffer, vert_constants: 
   SDL_EndGPURenderPass(pass);
 }
 
-sort_draw_mesh :: (a: DR_DrawMesh, b: DR_DrawMesh) -> int
-{
-  return get_hash(a.material.name) - get_hash(b.material.name);
-}
-
 ShadowVolume :: struct
 {
   base_vert: int;
@@ -1179,16 +1177,21 @@ DrawCall :: struct
 
 dr_draw_frame :: (camera: *CAM_Base)
 {
+  ImGui.Begin("Renderer");
+  ImGui.DragFloat("Stencil min depth", *dr_min_stencil_depth, v_min=0.0, v_max=1.0, v_speed=.00001);
+  ImGui.DragFloat("Stencil max depth", *dr_max_stencil_depth, v_min=0.0, v_max=1.0, v_speed=.00001);
+  ImGui.End();
+
   command_buffer := SDL_AcquireGPUCommandBuffer(dr_renderer.device);
   swap_texture: *SDL_GPUTexture;
   swap_width, swap_height: u32;
   SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, dr_renderer.window, *swap_texture, *swap_width, *swap_height);
   if (swap_texture)
   {
-    draw_calls := arena_push_view(arena_temp, DrawCall, xx dr_renderer.lights.count);
+    draw_calls := push_view(temp_arena, DrawCall, xx dr_renderer.lights.count);
     for * draw_calls
     {
-      it.volumes.allocator = arena_allocator(arena_temp);
+      it.volumes.allocator = arena_allocator(temp_arena);
     }
     position_count := 0;
     for light, light_index: dr_renderer.lights
@@ -1197,8 +1200,8 @@ dr_draw_frame :: (camera: *CAM_Base)
       {
         for inst: it.instances_view
         {
-          positions := sh_build_shadow_mesh(arena_temp, it.shadow_volume, light, inst.transform);
-          dr_queue_buffer_upload(dr_renderer.shadow_vertex_buffer, positions.data, size_of(Vec3F32) * positions.count, size_of(Vec3F32) * position_count);
+          positions := sh_build_shadow_mesh(temp_arena, it.shadow_volume, light, inst.transform);
+          dr_queue_buffer_upload(dr_renderer.shadow_vertex_buffer, positions.data, size_of(V3) * positions.count, size_of(V3) * position_count);
           volume: ShadowVolume;
           volume.base_vert = position_count;
           volume.vert_count = positions.count;
@@ -1216,7 +1219,7 @@ dr_draw_frame :: (camera: *CAM_Base)
     vert_constants.view_to_clip = camera.projection;
     vert_constants.camera_pos = camera.position;
     vert_constants.viewport.xy = dr_renderer.resolution;
-    vert_constants.viewport.zw = v2f32(dr_near_plane, dr_far_plane);
+    vert_constants.viewport.zw = v2(dr_near_plane, dr_far_plane);
     colour_target_texture := ifx dr_msaa_enabled then dr_renderer.colour_target.ref else swap_texture;
     dr_run_clear_pass(colour_target_texture, command_buffer);
     dr_run_depth_prepass(command_buffer, vert_constants);
@@ -1235,7 +1238,7 @@ dr_draw_frame :: (camera: *CAM_Base)
       viewport := SDL_GPUViewport.{
         0, 0,
         xx dr_renderer.resolution.x, xx dr_renderer.resolution.y,
-        0, .9999,
+        dr_min_stencil_depth, dr_max_stencil_depth,
       };
       SDL_SetGPUViewport(pass, *viewport);
       SDL_BindGPUGraphicsPipeline(pass, dr_renderer.pipeline_shadow.ref_base);
@@ -1468,8 +1471,8 @@ dr_create_transfer_buffer :: (size: int) -> *SDL_GPUTransferBuffer
 
 dr_get_shader :: (name: string) -> *DR_Shader
 {
-  source_file := str_format(arena_temp, "%/%.hlsl", dr_shaders_dir, name);
-  allocator := arena_allocator(arena_temp);
+  source_file := str_format(temp_arena, "%/%.hlsl", dr_shaders_dir, name);
+  allocator := arena_allocator(temp_arena);
   source_ok, source := read_entire_file(source_file,, allocator);
   needs_compile := true;
   if source_ok
@@ -1479,7 +1482,7 @@ dr_get_shader :: (name: string) -> *DR_Shader
     {
       if name == it.name
       {
-        path := str_format(arena_temp, "%/%.shader_binary", dr_shaders_dir, name);
+        path := str_format(temp_arena, "%/%.shader_binary", dr_shaders_dir, name);
         file, ok := file_open(path);
         if ok
         {
@@ -1499,21 +1502,21 @@ dr_get_shader :: (name: string) -> *DR_Shader
   {
     dr_compile_shader(name);
   }
-  file, ok := file_open(str_format(arena_temp, "%/%.shader_binary", dr_shaders_dir, name));
+  file, ok := file_open(str_format(temp_arena, "%/%.shader_binary", dr_shaders_dir, name));
   if ok
   {
     header: DR_ShaderHeader;
     file_read(*file, *header, size_of(DR_ShaderHeader));
-    vert_spirv := arena_push(arena_temp, xx header.vert_size);
-    frag_spirv := arena_push(arena_temp, xx header.frag_size);
+    vert_spirv := push(temp_arena, xx header.vert_size);
+    frag_spirv := push(temp_arena, xx header.frag_size);
     file_read(*file, vert_spirv, header.vert_size);
     file_read(*file, frag_spirv, header.frag_size);
     file_close(*file);
-    vert_name := str_format(arena_temp, "%_vert", name);
-    frag_name := str_format(arena_temp, "%_frag", name);
+    vert_name := str_format(temp_arena, "%_vert", name);
+    frag_name := str_format(temp_arena, "%_frag", name);
     vert := dr_create_shader(vert_name, .VERTEX, header, vert_spirv);
     frag := dr_create_shader(frag_name, .FRAGMENT, header, frag_spirv);
-    shader := arena_push_struct(dr_renderer.arena, DR_Shader);
+    shader := push_struct(dr_renderer.arena, DR_Shader);
     shader.vert_meta = header.vert_meta;
     shader.frag_meta = header.frag_meta;
     shader.vert = vert;
@@ -1536,8 +1539,8 @@ DR_ShaderHeader :: struct
 
 dr_compile_shader :: (name: string)
 {
-  allocator := arena_allocator(arena_temp);
-  code, ok := read_entire_file(str_format(arena_temp, "%/%.hlsl", dr_shaders_dir, name),, allocator);
+  allocator := arena_allocator(temp_arena);
+  code, ok := read_entire_file(str_format(temp_arena, "%/%.hlsl", dr_shaders_dir, name),, allocator);
   if ok
   {
     DR_ShaderCompilerInfo :: struct
@@ -1555,13 +1558,13 @@ dr_compile_shader :: (name: string)
     for * infos
     {
       hlsl_info: SDL_ShaderCross_HLSL_Info;
-      hlsl_info.source = cstr_from_str(arena_temp, code);
-      hlsl_info.entrypoint = cstr_from_str(arena_temp, it.entry);
+      hlsl_info.source = cstr_from_str(temp_arena, code);
+      hlsl_info.entrypoint = cstr_from_str(temp_arena, it.entry);
       hlsl_info.shader_stage = it.stage;
       props := SDL_CreateProperties();
       // SDL_SetBooleanProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_ENABLE_BOOLEAN, true);
       SDL_SetBooleanProperty(props, SDL_SHADERCROSS_PROP_SHADER_CULL_UNUSED_BINDINGS_BOOLEAN, true);
-      SDL_SetStringProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING, cstr_from_str(arena_temp, name));
+      SDL_SetStringProperty(props, SDL_SHADERCROSS_PROP_SHADER_DEBUG_NAME_STRING, cstr_from_str(temp_arena, name));
       hlsl_info.props = props;
       spirv: *void;
       spirv_size: u64;
@@ -1590,7 +1593,7 @@ dr_compile_shader :: (name: string)
     header.vert_size = infos[0].spirv_size;
     header.frag_meta = infos[1].meta;
     header.frag_size = infos[1].spirv_size;
-    file := file_open(str_format(arena_temp, "%/%.shader_binary", dr_shaders_dir, name), true);
+    file := file_open(str_format(temp_arena, "%/%.shader_binary", dr_shaders_dir, name), true);
     file_write(*file, *header, size_of(DR_ShaderHeader));
     file_write(*file, infos[0].spirv, infos[0].spirv_size);
     file_write(*file, infos[1].spirv, infos[1].spirv_size);
@@ -1604,11 +1607,11 @@ dr_create_shader :: (name: string, stage: SDL_GPUShaderStage, header: DR_ShaderH
   meta := ifx stage == .VERTEX then header.vert_meta else header.frag_meta;
   entry := ifx stage == .VERTEX then "vert_main" else "frag_main";
   props := SDL_CreateProperties();
-  SDL_SetStringProperty(props, SDL_PROP_GPU_SHADER_CREATE_NAME_STRING, cstr_from_str(arena_temp, name));
+  SDL_SetStringProperty(props, SDL_PROP_GPU_SHADER_CREATE_NAME_STRING, cstr_from_str(temp_arena, name));
   create_info: SDL_GPUShaderCreateInfo;
   create_info.code_size = xx spirv_size;
   create_info.code = spirv;
-  create_info.entrypoint = cstr_from_str(arena_temp, entry);
+  create_info.entrypoint = cstr_from_str(temp_arena, entry);
   create_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
   create_info.stage = stage;
   create_info.num_samplers = meta.num_samplers;

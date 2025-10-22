@@ -11,26 +11,26 @@
     PAGE_READWRITE
   ) Windows :: #import "Windows";
 
-  os_reserve :: (size: u64) -> *void
+  os_reserve :: (size: int) -> *void
   {
-    return VirtualAlloc(null, size, MEM_RESERVE, PAGE_READWRITE);
+    return VirtualAlloc(null, xx size, MEM_RESERVE, PAGE_READWRITE);
   }
 
-  os_commit :: (memory: *void, size: u64)
+  os_commit :: (memory: *void, size: int)
   {
-    VirtualAlloc(memory, size, MEM_COMMIT, PAGE_READWRITE);
+    VirtualAlloc(memory, xx size, MEM_COMMIT, PAGE_READWRITE);
     #if PENROSE_PROFILE
     {
       ___tracy_emit_memory_alloc(memory, size, 0);
     }
   }
 
-  os_free :: (memory: *void, size: u64)
+  os_free :: (memory: *void, size: int)
   {
-    VirtualFree(memory, size, MEM_DECOMMIT | MEM_RELEASE);
+    VirtualFree(memory, xx size, MEM_DECOMMIT | MEM_RELEASE);
   }
 
-  os_page_size :: () -> u64
+  os_page_size :: () -> int
   {
     info: SYSTEM_INFO;
     GetSystemInfo(*info);
