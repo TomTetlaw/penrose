@@ -123,6 +123,14 @@ push_view :: (arena: *Arena, $T: Type, count: int) -> [] T
   return result;
 }
 
+push_array :: (arena: *Arena, $T: Type, reserve := 0) -> [..] T
+{
+  result: [..] T;
+  result.allocator = arena_allocator(arena);
+  array_reserve(*result, reserve);
+  return result;
+}
+
 push_mark :: (arena: *Arena) -> int
 {
   return arena.used;

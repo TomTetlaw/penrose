@@ -146,6 +146,7 @@ float3 lighting_ggx(float3 N, float3 V, float3 L, float3 albedo, float3 aorm, fl
 
 float3 lighting(LightInfo light, float3 frag_pos, float3 l, float dist, float3 v, float3 n, float3 aorm, float3 object_colour, float4 material_params)
 {
+return lighting_ggx(n, v, l, object_colour, aorm, .001, material_params);
   if (light.type == LightType_Ambient)
   {
     return lighting_ggx(n, v, l, object_colour, aorm, .001, material_params);

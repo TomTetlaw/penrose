@@ -20,66 +20,25 @@ quantize :: (v: V3, eps: float) -> [3] int {
   return .[cast(int)(v.x / eps), cast(int)(v.y / eps), cast(int)(v.z / eps)];
 }
 
-build_map_mesh :: (path: string) -> [] *DR_Mesh
+build_map_mesh :: (arena: *Arena, path: string) -> [] *DR_Mesh
 {
-arena:=create_arena();
   file, ok := file_open(path);
   defer file_close(*file);
   if ok
   {
     mesh_count: u32;
     file_read(*file, *mesh_count, size_of(u32));
-    vert_counts := push_view(arena, u32, mesh_count);
-    file_read(*file, vert_counts.data, size_of(u32) * mesh_count);
     meshes := push_view(arena, *DR_Mesh, mesh_count);
     for 0..mesh_count-1
     {
-      vert_count := vert_counts[it];
-      positions := push_view(temp_arena, V3, vert_count);
-      file_read(*file, positions.data, size_of(V3) * vert_count);
-      verts := push_view(temp_arena, DR_MeshVertex, positions.count);
-      indices := push_view(temp_arena, u32, positions.count);
-      table: Table(u32, u32);
-      table.allocator = arena_allocator(temp_arena);
-      pos_count := 0;
-      index_count := 0;
-      for positions
-      {
-        q := quantize(it, .0001);
-        key := get_hash(q[0], get_hash(q[1], get_hash(q[2])));
-        if !table_contains(*table, key)
-        {
-          verts[pos_count] = .{position=it*.1};
-          indices[it_index] = xx pos_count;
-          table_add(*table, key, xx pos_count);
-          pos_count += 1;
-        }
-        else
-        {
-          _, i := table_find_new(*table, key);
-          indices[it_index] = i;
-        }
-        tri_count := indices.count / 3;
-        for 0..tri_count-1
-        {
-          p0 := verts[indices[it*3 + 0]].position;
-          p1 := verts[indices[it*3 + 1]].position;
-          p2 := verts[indices[it*3 + 2]].position;
-          e0 := cross(p1, p0);
-          e1 := cross(p2, p0);
-          n := normalize(cross(e0, e1));
-          t := normalize(cross(n, e0));
-          verts[indices[it*3 + 0]].normal = n;
-          verts[indices[it*3 + 1]].normal = n;
-          verts[indices[it*3 + 2]].normal = n;
-          verts[indices[it*3 + 0]].tangent = v4(t, 1.0);
-          verts[indices[it*3 + 1]].tangent = v4(t, 1.0);
-          verts[indices[it*3 + 2]].tangent = v4(t, 1.0);
-          verts[indices[it*3 + 0]].tex_coord = v2(0, 0);
-          verts[indices[it*3 + 1]].tex_coord = v2(1, 0);
-          verts[indices[it*3 + 2]].tex_coord = v2(0, 1);
-        }
-      }
+      vert_count: u32;
+      file_read(*file, *vert_count, size_of(u32));
+      index_count: u32;
+      file_read(*file, *index_count, size_of(u32));
+      verts := push_view(temp_arena, DR_MeshVertex, vert_count);
+      file_read(*file, verts.data, size_of(DR_MeshVertex) * vert_count);
+      indices := push_view(temp_arena, u32, index_count);
+      file_read(*file, indices.data, size_of(u32) * index_count);
       meshes[it] = dr_create_mesh("test", verts, indices);
     }
     return meshes;
@@ -87,11 +46,109 @@ arena:=create_arena();
   return .[];
 }
 
+EntityType :: enum
+{
+  PlayerStart;
+  Light;
+}
+
+Entity :: struct
+{
+  next: *Entity;
+  type: EntityType;
+  name: string;
+  position: V3;
+  light_type: LightType;
+  light_inner_rad := 5.0;
+  light_outer_rad := 25.0;
+  light_brightness := 2.0;
+}
+
+read_map_entities :: (arena: *Arena, path: string) -> *Entity
+{
+  entities: *Entity;
+  file_data, ok := read_entire_file(path);
+  _, lines := file_to_array("", true, true, false, true, file_data);
+  for lines
+  {
+    entity := push_struct(arena, Entity);
+    stack_push(*entities, entity);
+    terms := push_array(arena, string);
+    line := it;
+    while line
+    {
+      term:, line = break_by_spaces(line);
+      array_add(*terms, term);
+    }
+    cursor := 0;
+    while true
+    {
+      if cursor >= terms.count
+      {
+        break;
+      }
+      term := terms[cursor];
+      cursor += 1;
+      if term ==
+      {
+        case "classname";
+        {
+          name := terms[cursor];
+          cursor += 1;
+          if name ==
+          {
+            case "info_player_start";
+              entity.type = .PlayerStart;
+            case "light";
+              entity.type = .Light;
+          }
+        }
+        case "origin";
+        {
+          entity.position.x = parse_float(*terms[cursor + 0])*.1;
+          entity.position.y = parse_float(*terms[cursor + 1])*.1;
+          entity.position.z = parse_float(*terms[cursor + 2])*.1;
+          cursor += 3;
+        }
+        case "name";
+        {
+          entity.name = str_copy(arena, terms[cursor]);
+          cursor += 1;
+        }
+        case "light_type";
+        {
+          entity.light_type = cast(LightType) parse_int(*terms[cursor]);
+          cursor += 1;
+        }
+        case "light_brightness";
+        {
+          entity.light_brightness = parse_float(*terms[cursor]);
+          cursor += 1;
+        }
+        case "light_inner_radius";
+        {
+          entity.light_inner_rad = parse_float(*terms[cursor]);
+          cursor += 1;
+        }
+        case "light_outer_radius";
+        {
+          entity.light_outer_rad = parse_float(*terms[cursor]);
+          cursor += 1;
+        }
+      }
+    }
+  }
+  return entities;
+}
+
 meshes: [] *DR_Mesh;
+entities: *Entity;
 
 test :: ()
 {
-  meshes = build_map_mesh("levels/unnamed.map_geo");
+  arena := create_arena();
+  meshes = build_map_mesh(arena, "levels/unnamed.map_geo");
+  entities = read_map_entities(arena, "levels/unnamed.entities.txt");
 }
 
 main :: ()
@@ -166,18 +223,19 @@ main :: ()
         // NOTE(tt): update
         cam_editor_update(*camera);
         // NOTE(tt): draw
-        light: DR_LightInfo;
-        light.type = .Point;
-        light.position = v3(0,0,50);
-        light.colour = v3(1.0);
-        light.brightness = 10;
-        light.inner_radius = 25;
-        light.outer_radius = 200;
-        dr_add_light(light);
-        light.position = v3(15,0,50);
-        dr_add_light(light);
-        light.position = v3(0,15,50);
-        dr_add_light(light);
+        for each_element(entities)
+        {
+          if it.type == .Light
+          {
+            light: DR_LightInfo;
+            light.position = it.position;
+            light.colour = v3(1.0);
+            light.brightness = it.light_brightness;
+            light.inner_radius = it.light_inner_rad;
+            light.outer_radius = it.light_outer_rad;
+            dr_add_light(light);
+          }
+        }
         for meshes
         {
           dr_draw_mesh(it, .[.{transform=mat_identity(),colour=v4(1.0)}], dr_get_material("grate"));

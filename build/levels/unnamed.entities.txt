@@ -1,0 +1,7 @@
+classname info_player_start origin -496 144 40 light_brightness 2 light_inner_radius 25 light_outer_radius 100 light_type 1 _tb_layer 2
+classname light origin -584 -56 344 light_brightness 2 light_inner_radius 25 light_outer_radius 100 light_type 1 _tb_layer 2
+classname light origin -680 8 264 light_brightness 2 light_inner_radius 25 light_outer_radius 100 light_type 1 _tb_layer 2
+classname light origin -408 216 184 light_brightness 2 light_inner_radius 25 light_outer_radius 100 light_type 1 _tb_layer 2
+classname light origin -232 136 488 light_brightness 2 light_inner_radius 25 light_outer_radius 100 light_type 1 _tb_layer 2
+classname light origin -264 -40 408 light_brightness 2 light_inner_radius 25 light_outer_radius 100 light_type 1 _tb_layer 2
+classname light origin -424 -24 344 light_brightness 2 light_inner_radius 25 light_outer_radius 100 light_type 1 _tb_layer 2
