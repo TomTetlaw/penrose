@@ -15,8 +15,42 @@ approach :: (current: float, goal: float, duration: float, delta: float) -> floa
 
 Plane :: struct
 {
-  origin: V3;
   normal: V3;
+  d: float;
+}
+
+plane_from_points :: (p0: V3, p1: V3, p2: V3) -> Plane
+{
+  result: Plane;
+  result.normal = normalize(cross(p1 - p0, p2 - p0));
+  result.d = -dot(result.normal, p0);
+  return result;
+}
+
+point_inside_planes :: (p: V3, planes: [] Plane) -> bool
+{
+  eps := .00001;
+  for planes
+  {
+    if dot(it.normal, p) + it.d > eps
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+intersect_planes :: (p0: Plane, p1: Plane, p2: Plane) -> bool, V3
+{
+  n0, n1, n2 := p0.normal, p1.normal, p2.normal;
+  d0, d1, d2 := -p0.d, -p1.d, -p2.d;
+  denom := dot(n0, cross(n1, n2));
+  if abs(denom) < 0.00001
+  {
+    return false, v3(0.0);
+  }
+  point := (cross(n1, n2) * d0 + cross(n2, n0) * d1 + cross(n0, n1) * d2) / denom;
+  return true, point;
 }
 
 Ray :: struct
@@ -43,17 +77,32 @@ ray_from_mouse :: (mouse_pos: V2, screen_size: V2, view: Mat4, projection: Mat4)
 intersect_ray_plane :: (ray: Ray, plane: Plane) -> bool, V3
 {
   denom := dot(plane.normal, ray.dir);
-  if abs(denom) < .000001
+  if abs(denom) < 0.000001
   {
     return false, v3(0.0);
   }
-  t := dot(plane.origin - ray.origin, plane.normal) / denom;
+  t := -(dot(plane.normal, ray.origin) + plane.d) / denom;
   if t < 0
   {
     return false, v3(0.0);
   }
   hit_point := ray.origin + ray.dir * t;
   return true, hit_point;
+}
+
+Edge :: struct
+{
+  a: V3;
+  b: V3;
+}
+
+intersect_edge_plane :: (edge: Edge, plane: Plane) -> bool, V3
+{
+  ray := Ray.{
+    edge.a, normalize(edge.b - edge.a)
+  };
+  hit, p := intersect_ray_plane(ray, plane);
+  return hit, p;
 }
 
 intersection_ray_bounds :: (ray: Ray, bounds_min: V3, bounds_max: V3) -> bool, float

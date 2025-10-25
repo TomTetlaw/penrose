@@ -11,144 +11,116 @@ real_delta: float;
 real_time: float;
 frame_num: int;
 
-set_fps_mode :: (enabled: bool)
+test :: ()
 {
-  SDL_SetWindowRelativeMouseMode(window, enabled);
-}
-
-quantize :: (v: V3, eps: float) -> [3] int {
-  return .[cast(int)(v.x / eps), cast(int)(v.y / eps), cast(int)(v.z / eps)];
-}
-
-build_map_mesh :: (arena: *Arena, path: string) -> [] *DR_Mesh
-{
-  file, ok := file_open(path);
-  defer file_close(*file);
-  if ok
+  arena := create_arena();
+  map_entities := parse_map(arena, "levels/unnamed.map");
+  for map_entities
   {
-    mesh_count: u32;
-    file_read(*file, *mesh_count, size_of(u32));
-    meshes := push_view(arena, *DR_Mesh, mesh_count);
-    for 0..mesh_count-1
+    if it.planes.count > 0
     {
-      vert_count: u32;
-      file_read(*file, *vert_count, size_of(u32));
-      index_count: u32;
-      file_read(*file, *index_count, size_of(u32));
-      verts := push_view(temp_arena, DR_MeshVertex, vert_count);
-      file_read(*file, verts.data, size_of(DR_MeshVertex) * vert_count);
-      indices := push_view(temp_arena, u32, index_count);
-      file_read(*file, indices.data, size_of(u32) * index_count);
-      meshes[it] = dr_create_mesh("test", verts, indices);
+      mesh := mesh_from_brush(arena, it);
     }
-    return meshes;
   }
-  return .[];
 }
 
-EntityType :: enum
+// U = dot(position, Uaxis) / Uscale + Uoffset
+// V = dot(position, Vaxis) / Vscale + Voffset
+
+MapPlane :: struct
 {
-  PlayerStart;
-  Light;
+  p0, p1, p2: V3;
+  u: Plane;
+  v: Plane;
+  material: string;
+  texture_rotation: float;
+  tex_coord_scale: V2;
 }
 
-Entity :: struct
+MapEntity :: struct
 {
-  next: *Entity;
-  type: EntityType;
-  name: string;
-  position: V3;
-  light_type: LightType;
-  light_inner_rad := 5.0;
-  light_outer_rad := 25.0;
-  light_brightness := 2.0;
+  class: string;
+  origin: V3;
+  planes: [..] MapPlane;
 }
 
-read_map_entities :: (arena: *Arena, path: string) -> *Entity
+parse_map :: (arena: *Arena, path: string) -> [] MapEntity
 {
-  entities: *Entity;
   file_data, ok := read_entire_file(path);
   _, lines := file_to_array("", true, true, false, true, file_data);
+  entities := push_array(arena, MapEntity);
+  first := true;
+  entity: MapEntity;
   for lines
   {
-    entity := push_struct(arena, Entity);
-    stack_push(*entities, entity);
-    terms := push_array(arena, string);
-    line := it;
-    while line
+    token, right := break_by_spaces(it);
+    if token ==
     {
-      term:, line = break_by_spaces(line);
-      array_add(*terms, term);
-    }
-    cursor := 0;
-    while true
-    {
-      if cursor >= terms.count
-      {
-        break;
-      }
-      term := terms[cursor];
-      cursor += 1;
-      if term ==
-      {
-        case "classname";
+      case "entity";
+        if !first
         {
-          name := terms[cursor];
-          cursor += 1;
-          if name ==
-          {
-            case "info_player_start";
-              entity.type = .PlayerStart;
-            case "light";
-              entity.type = .Light;
-          }
+          array_add(*entities, entity);
         }
-        case "origin";
-        {
-          entity.position.x = parse_float(*terms[cursor + 0])*.1;
-          entity.position.y = parse_float(*terms[cursor + 1])*.1;
-          entity.position.z = parse_float(*terms[cursor + 2])*.1;
-          cursor += 3;
-        }
-        case "name";
-        {
-          entity.name = str_copy(arena, terms[cursor]);
-          cursor += 1;
-        }
-        case "light_type";
-        {
-          entity.light_type = cast(LightType) parse_int(*terms[cursor]);
-          cursor += 1;
-        }
-        case "light_brightness";
-        {
-          entity.light_brightness = parse_float(*terms[cursor]);
-          cursor += 1;
-        }
-        case "light_inner_radius";
-        {
-          entity.light_inner_rad = parse_float(*terms[cursor]);
-          cursor += 1;
-        }
-        case "light_outer_radius";
-        {
-          entity.light_outer_rad = parse_float(*terms[cursor]);
-          cursor += 1;
-        }
-      }
+        entity = MapEntity.{};
+        entity.class = right;
+        entity.planes = push_array(arena, MapPlane);
+        first = false;
+      case "origin";
+        scan2(right, "%f %f %f", *entity.origin.x, *entity.origin.y, *entity.origin.z);
+      case "plane";
+        plane: MapPlane;
+        p0:, right = break_by_spaces(right);
+        scan2(p0, "(%,%,%)", *plane.p0.x, *plane.p0.y, *plane.p0.z);
+        p1:, right = break_by_spaces(right);
+        scan2(p1, "(%,%,%)", *plane.p1.x, *plane.p1.y, *plane.p1.z);
+        p2:, right = break_by_spaces(right);
+        scan2(p2, "(%,%,%)", *plane.p2.x, *plane.p2.y, *plane.p2.z);
+        u:, right = break_by_spaces(right);
+        scan2(u, "(%,%,%,%)", *plane.u.normal.x, *plane.u.normal.y, *plane.u.normal.z, *plane.u.d);
+        v:, right = break_by_spaces(right);
+        scan2(v, "(%,%,%,%)", *plane.v.normal.x, *plane.v.normal.y, *plane.v.normal.z, *plane.v.d);
+        mat:, right = break_by_spaces(right);
+        plane.material = mat;
+        rot:, right = break_by_spaces(right);
+        plane.texture_rotation = parse_float(*rot);
+        tex_scale:, right = break_by_spaces(right);
+        scan2(tex_scale, "(%,%)", *plane.tex_coord_scale.x, *plane.tex_coord_scale.y);
+        array_add(*entity.planes, plane);
     }
   }
   return entities;
 }
 
-meshes: [] *DR_Mesh;
-entities: *Entity;
-
-test :: ()
+mesh_from_brush :: (arena: *Arena, entity: MapEntity) -> *DR_Mesh
 {
-  arena := create_arena();
-  meshes = build_map_mesh(arena, "levels/unnamed.map_geo");
-  entities = read_map_entities(arena, "levels/unnamed.entities.txt");
+  planes := push_view(arena, Plane, entity.planes.count);
+  for entity.planes
+  {
+    planes[it_index] = plane_from_points(it.p0, it.p1, it.p2);
+  }
+  points := push_array(arena, V3);
+  for i: 0..planes.count-3
+  {
+    for j: i+1..planes.count-2
+    {
+      for k: j+1..planes.count-1
+      {
+        hit, pos := intersect_planes(planes[i], planes[j], planes[k]);
+        if hit && point_inside_brush(pos, planes)
+        {
+          array_add(*points, pos);
+        }
+      }
+    }
+  }
+  verts := push_view(arena, DR_MeshVertex, points.count);
+  for points
+  {
+    print("%\n",it);
+    verts[it_index].position = it;
+  }
+  mesh := dr_create_mesh("brush", verts, .[]);
+  return mesh;
 }
 
 main :: ()
@@ -170,10 +142,17 @@ main :: ()
     if device
     {
       SDL_ClaimWindowForGPUDevice(device, window);
+      swap_composition := SDL_GPUSwapchainComposition.SDR;
+      present_mode := SDL_GPUPresentMode.VSYNC;
       if SDL_WindowSupportsGPUSwapchainComposition(device, window, .SDR_LINEAR)
       {
-        SDL_SetGPUSwapchainParameters(device, window, .SDR_LINEAR, .MAILBOX);
+        swap_composition = .SDR_LINEAR;
       }
+      if SDL_WindowSupportsGPUPresentMode(device, window, .MAILBOX)
+      {
+        present_mode = .MAILBOX;
+      }
+      SDL_SetGPUSwapchainParameters(device, window, swap_composition, present_mode);
       imgui_context := ImGui.CreateContext();
       ImGui.SetCurrentContext(imgui_context);
       ImGui_ImplSDL3_InitForSDLGPU(window);
@@ -183,6 +162,7 @@ main :: ()
       imgui_info.MSAASamples = dr_msaa_sample_count;
       ImGui_ImplSDLGPU3_Init(*imgui_info);
       imgui_io = ImGui.GetIO();
+      SDL_SetWindowRelativeMouseMode(window, true);
       SDL_ShowWindow(window);
       base_init();
       dr_init(window, device, resolution);
@@ -223,23 +203,6 @@ main :: ()
         // NOTE(tt): update
         cam_editor_update(*camera);
         // NOTE(tt): draw
-        for each_element(entities)
-        {
-          if it.type == .Light
-          {
-            light: DR_LightInfo;
-            light.position = it.position;
-            light.colour = v3(1.0);
-            light.brightness = it.light_brightness;
-            light.inner_radius = it.light_inner_rad;
-            light.outer_radius = it.light_outer_rad;
-            dr_add_light(light);
-          }
-        }
-        for meshes
-        {
-          dr_draw_mesh(it, .[.{transform=mat_identity(),colour=v4(1.0)}], dr_get_material("grate"));
-        }
         dr_draw_frame(*camera);
         arena_reset(temp_arena);
         #if PENROSE_PROFILE

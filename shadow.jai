@@ -5,7 +5,7 @@ SH_ShadowVolume :: struct
   base_positions: [] V3;
   base_indices: [] u32;
   // NOTE(tt): precomputed edges
-  edges: [] Edge;
+  edges: [] ShadowEdge;
 }
 
 sh_generate_base_mesh :: (arena: *Arena, mesh: *DR_Mesh) -> *SH_ShadowVolume
@@ -40,11 +40,11 @@ sh_generate_base_mesh :: (arena: *Arena, mesh: *DR_Mesh) -> *SH_ShadowVolume
   return volume;
 }
 
-sh_generate_mesh_adjacency :: (arena: *Arena, volume: SH_ShadowVolume) -> [] Edge
+sh_generate_mesh_adjacency :: (arena: *Arena, volume: SH_ShadowVolume) -> [] ShadowEdge
 {
   tri_count := volume.base_indices.count / 3;
   edge_count := 3 * tri_count;
-  edges := push_view(arena, Edge, xx edge_count);
+  edges := push_view(arena, ShadowEdge, xx edge_count);
   for 0..tri_count-1
   {
     i0 := volume.base_indices[it*3 + 0];
@@ -60,7 +60,7 @@ sh_generate_mesh_adjacency :: (arena: *Arena, volume: SH_ShadowVolume) -> [] Edg
       else cast(int) a.i1 - cast(int) b.i1
   );
   count := 0;
-  result := push_view(arena, Edge, xx edge_count);
+  result := push_view(arena, ShadowEdge, xx edge_count);
   for 0..edge_count-2
   {
     e0 := *edges[it];
@@ -94,7 +94,7 @@ sh_build_shadow_mesh :: (arena: *Arena, volume: *SH_ShadowVolume, light: DR_Ligh
       facing[it] = dot(normal, light_dir) < 0;
     }
   }
-  edges := push_view(arena, Edge, xx volume.edges.count);
+  edges := push_view(arena, ShadowEdge, xx volume.edges.count);
   edge_count := 0;
   for volume.edges
   {
@@ -201,7 +201,7 @@ sh_build_shadow_mesh :: (arena: *Arena, volume: *SH_ShadowVolume, light: DR_Ligh
 
 #scope_file
 
-Edge :: struct
+ShadowEdge :: struct
 {
   i0, i1: u32;
   t0, t1: int;

@@ -9,10 +9,6 @@ dr_depth_clear_value :: 0.0;
 dr_max_shadow_verts :: 655360;
 dr_near_plane :: 0.1;
 dr_far_plane :: 1000.0;
-
-dr_min_stencil_depth := 0.0;
-dr_max_stencil_depth := .9999;
-
 dr_msaa_enabled :: true;
 #if dr_msaa_enabled
 {
@@ -349,31 +345,35 @@ dr_get_material :: (name: string) -> *DR_MeshMaterial
 dr_create_mesh :: (name: string, vertices: [] DR_MeshVertex, indices: [] u32) -> *DR_Mesh
 {
   capacity_vertices := size_of(DR_MeshVertex) * vertices.count;
-  mesh := push_struct(dr_renderer.arena, DR_Mesh);
-  stack_push(*dr_renderer.meshes, mesh);
-  mesh.path = str_copy(dr_renderer.arena, name);
-  mesh.buffer_vertex = dr_create_vertex_buffer(str_format(temp_arena, "%_vertices", name), capacity_vertices, null, 0, 0);
-  mesh.vertices = dr_write_buffer(mesh.buffer_vertex, vertices.data, capacity_vertices);
-  mesh.vertex_count = vertices.count;
-  mesh.bounds_min = v3(FLOAT32_MAX);
-  mesh.bounds_max = v3(-FLOAT32_MAX);
-  mesh.positions = push_view(dr_renderer.arena, V3, xx vertices.count);
-  for vertices
+  if capacity_vertices > 0
   {
-    mesh.positions[it_index] = it.position;
-    mesh.bounds_min = min(mesh.bounds_min, it.position);
-    mesh.bounds_max = max(mesh.bounds_max, it.position);
+    mesh := push_struct(dr_renderer.arena, DR_Mesh);
+    stack_push(*dr_renderer.meshes, mesh);
+    mesh.path = str_copy(dr_renderer.arena, name);
+    mesh.buffer_vertex = dr_create_vertex_buffer(str_format(temp_arena, "%_vertices", name), capacity_vertices, null, 0, 0);
+    mesh.vertices = dr_write_buffer(mesh.buffer_vertex, vertices.data, capacity_vertices);
+    mesh.vertex_count = vertices.count;
+    mesh.bounds_min = v3(FLOAT32_MAX);
+    mesh.bounds_max = v3(-FLOAT32_MAX);
+    mesh.positions = push_view(dr_renderer.arena, V3, xx vertices.count);
+    for vertices
+    {
+      mesh.positions[it_index] = it.position;
+      mesh.bounds_min = min(mesh.bounds_min, it.position);
+      mesh.bounds_max = max(mesh.bounds_max, it.position);
+    }
+    if indices.count > 0
+    {
+      capacity_indices := size_of(u32) * indices.count;
+      mesh.buffer_index = dr_create_index_buffer(str_format(temp_arena, "%_indices", name), capacity_indices, null, 0, 0);
+      mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
+      mesh.index_count = indices.count;
+      mesh.index = indices;
+    }
+    mesh.shadow_volume = sh_generate_base_mesh(dr_renderer.arena, mesh);
+    return mesh;
   }
-  if indices.count > 0
-  {
-    capacity_indices := size_of(u32) * indices.count;
-    mesh.buffer_index = dr_create_index_buffer(str_format(temp_arena, "%_indices", name), capacity_indices, null, 0, 0);
-    mesh.indices = dr_write_buffer(mesh.buffer_index, indices.data, capacity_indices);
-    mesh.index_count = indices.count;
-    mesh.index = indices;
-  }
-  mesh.shadow_volume = sh_generate_base_mesh(dr_renderer.arena, mesh);
-  return mesh;
+  return null;
 }
 
 dr_create_storage_buffer :: #bake_arguments dr_create_buffer(usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ);
@@ -1177,11 +1177,6 @@ DrawCall :: struct
 
 dr_draw_frame :: (camera: *CAM_Base)
 {
-  ImGui.Begin("Renderer");
-  ImGui.DragFloat("Stencil min depth", *dr_min_stencil_depth, v_min=0.0, v_max=1.0, v_speed=.00001);
-  ImGui.DragFloat("Stencil max depth", *dr_max_stencil_depth, v_min=0.0, v_max=1.0, v_speed=.00001);
-  ImGui.End();
-
   command_buffer := SDL_AcquireGPUCommandBuffer(dr_renderer.device);
   swap_texture: *SDL_GPUTexture;
   swap_width, swap_height: u32;
@@ -1238,7 +1233,7 @@ dr_draw_frame :: (camera: *CAM_Base)
       viewport := SDL_GPUViewport.{
         0, 0,
         xx dr_renderer.resolution.x, xx dr_renderer.resolution.y,
-        dr_min_stencil_depth, dr_max_stencil_depth,
+        0, .9999,
       };
       SDL_SetGPUViewport(pass, *viewport);
       SDL_BindGPUGraphicsPipeline(pass, dr_renderer.pipeline_shadow.ref_base);
